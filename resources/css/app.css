@@ -1,0 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Public+Sans:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../../resources/js/**/*.{jsx,js,ts,tsx}';
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-headline: 'Noto Serif', ui-serif, serif;
+    --font-label: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-icon: 'Material Symbols Outlined', ui-sans-serif, system-ui, sans-serif;
+
+    --color-primary: #094cb2;
+    --color-primary-container: #3366cc;
+    --color-primary-fixed: #d9e2ff;
+    --color-primary-fixed-dim: #b1c5ff;
+    --color-on-primary: #ffffff;
+    --color-on-primary-container: #e7ebff;
+    --color-on-primary-fixed: #001946;
+    --color-on-primary-fixed-variant: #00419d;
+    --color-inverse-primary: #b1c5ff;
+    --color-surface-tint: #2259bf;
+
+    --color-secondary: #5a5f63;
+    --color-secondary-container: #dfe3e8;
+    --color-secondary-fixed: #dfe3e8;
+    --color-secondary-fixed-dim: #c2c7cc;
+    --color-on-secondary: #ffffff;
+    --color-on-secondary-container: #606569;
+    --color-on-secondary-fixed: #ffffff;
+    --color-on-secondary-fixed-variant: #42474b;
+
+    --color-tertiary: #6d5e00;
+    --color-tertiary-container: #bfab49;
+    --color-tertiary-fixed: #f9e37a;
+    --color-tertiary-fixed-dim: #dcc661;
+    --color-on-tertiary: #ffffff;
+    --color-on-tertiary-container: #4a3f00;
+    --color-on-tertiary-fixed: #211b00;
+    --color-on-tertiary-fixed-variant: #524600;
+
+    --color-error: #ba1a1a;
+    --color-error-container: #ffdad6;
+    --color-on-error: #ffffff;
+    --color-on-error-container: #93000a;
+
+    --color-background: #faf9fa;
+    --color-on-background: #1b1c1d;
+
+    --color-surface: #faf9fa;
+    --color-surface-bright: #faf9fa;
+    --color-surface-dim: #dbdadb;
+    --color-surface-container-lowest: #ffffff;
+    --color-surface-container-low: #f5f3f4;
+    --color-surface-container: #efedee;
+    --color-surface-container-high: #e9e8e9;
+    --color-surface-container-highest: #e3e2e3;
+    --color-surface-variant: #e3e2e3;
+    --color-on-surface: #1b1c1d;
+    --color-on-surface-variant: #434653;
+    --color-inverse-surface: #303031;
+    --color-inverse-on-surface: #f2f0f1;
+
+    --color-outline: #737784;
+    --color-outline-variant: #c3c6d5;
+
+    --radius-default: 0.125rem;
+    --radius-lg: 0.25rem;
+    --radius-xl: 0.5rem;
+    --radius-full: 0.75rem;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--color-background);
+    color: var(--color-on-background);
+    font-family: var(--font-body);
+    overscroll-behavior: none;
+}
+
+main > :first-child {
+    margin-top: 0 !important;
+}
+
+main > :last-child {
+    margin-bottom: 0 !important;
+}
+
+::-webkit-scrollbar {
+    display: none;
+}
+
+.font-icon {
+    font-family: var(--font-icon);
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
