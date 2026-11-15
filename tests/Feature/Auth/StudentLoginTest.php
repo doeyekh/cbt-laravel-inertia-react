@@ -37,6 +37,22 @@ class StudentLoginTest extends TestCase
         );
     }
 
+    public function test_student_login_screen_renders_active_academic_year_label(): void
+    {
+        AcademicYear::factory()
+            ->ganjil()
+            ->active()
+            ->create(['name' => '2026/2027']);
+
+        $response = $this->get('/login');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/StudentLogin')
+            ->where('systemInfo.academicYear', '2026/2027 - Ganjil')
+        );
+    }
+
     public function test_student_cannot_login_without_required_fields(): void
     {
         $response = $this->from('/login')->post('/login', [

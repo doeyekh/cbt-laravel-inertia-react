@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\ExamParticipant;
-use App\Models\School;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -26,7 +25,9 @@ class StudentLoginController extends Controller
             'systemInfo' => [
                 'appName' => 'EduTest CBT',
                 'systemName' => 'Sistem Evaluasi Terpadu',
-                'academicYear' => $activeAcademicYear ? "{$activeAcademicYear->name} - {$activeAcademicYear->semester}" : null,
+                'academicYear' => $activeAcademicYear
+                    ? "{$activeAcademicYear->name} - {$activeAcademicYear->semester->label()}"
+                    : null,
                 'clusterNode' => 'Cluster CBT-Node 01',
                 'serverStatus' => 'Online / Normal',
                 'serverLatency' => '12ms',
