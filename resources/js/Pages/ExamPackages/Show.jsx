@@ -46,6 +46,7 @@ export default function ExamPackageShow({
     const { toasts, toast, dismiss } = useToast();
     const canManage = Boolean(auth?.user?.is_administrator || auth?.user?.is_school_admin);
     const canAddSchedule = canManage && examPackage?.status !== 'selesai';
+    const canGenerateAccessToken = canManage && examPackage?.status !== 'selesai';
 
     const [modalOpen, setModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('create');
@@ -54,6 +55,7 @@ export default function ExamPackageShow({
     const [deletingId, setDeletingId] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [togglingId, setTogglingId] = useState(null);
+    const [accessTokenProcessing, setAccessTokenProcessing] = useState(false);
 
     const handledToast = useRef(null);
 
@@ -143,6 +145,44 @@ export default function ExamPackageShow({
             {
                 preserveScroll: true,
                 onFinish: () => setTogglingId(null),
+            }
+        );
+    };
+
+    const handleGenerateAccessToken = () => {
+        if (
+            accessTokenProcessing ||
+            (examPackage?.has_access_token &&
+                !window.confirm('Menerbitkan token baru akan membatalkan token yang lama. Lanjutkan?'))
+        ) {
+            return;
+        }
+
+        setAccessTokenProcessing(true);
+        router.post(
+            route('admin.exam-packages.access-token.store', examPackage.id),
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setAccessTokenProcessing(false),
+            }
+        );
+    };
+
+    const handleRevokeAccessToken = () => {
+        if (
+            accessTokenProcessing ||
+            !window.confirm('Token ini akan langsung tidak berlaku. Lanjutkan?')
+        ) {
+            return;
+        }
+
+        setAccessTokenProcessing(true);
+        router.delete(
+            route('admin.exam-packages.access-token.destroy', examPackage.id),
+            {
+                preserveScroll: true,
+                onFinish: () => setAccessTokenProcessing(false),
             }
         );
     };
@@ -285,6 +325,61 @@ export default function ExamPackageShow({
                                     ? 'Paket sudah selesai. Jadwal tidak dapat diubah lagi.'
                                     : 'Jadwal dapat ditambah atau diubah selama paket belum selesai.'}
                             </p>
+                        </div>
+                        <div className="mt-4 border-t border-outline-variant/30 pt-4">
+                            <div>
+                                <p className="text-[11px] font-label font-semibold uppercase tracking-wider text-on-surface-variant">
+                                    Token Akses Paket
+                                </p>
+                                <p className="mt-1 text-xs text-on-surface-variant font-body leading-relaxed">
+                                    {examPackage?.has_access_token
+                                        ? 'Satu token berlaku untuk semua jadwal, sesi, dan ruangan dalam paket ini.'
+                                        : 'Belum ada token yang diterbitkan untuk paket ini.'}
+                                </p>
+                            </div>
+                            {canManage && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {canGenerateAccessToken && (
+                                        <Button
+                                            onClick={handleGenerateAccessToken}
+                                            disabled={accessTokenProcessing}
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">
+                                                key
+                                            </span>
+                                            {examPackage?.has_access_token
+                                                ? 'Ganti Token'
+                                                : 'Buat Token'}
+                                        </Button>
+                                    )}
+                                    {examPackage?.has_access_token && (
+                                        <Button
+                                            variant="secondary"
+                                            onClick={handleRevokeAccessToken}
+                                            disabled={accessTokenProcessing}
+                                        >
+                                            Cabut Token
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+                            {canManage && examPackage?.access_token && (
+                                <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                                    <p className="text-xs font-semibold text-on-surface">
+                                        Token ini tetap tersedia selama aktif. Bagikan kode ini kepada peserta ujian.
+                                    </p>
+                                    <code className="mt-2 inline-flex rounded-lg bg-surface-container-low px-4 py-2 font-mono text-xl font-bold tracking-[0.3em] text-primary">
+                                        {examPackage.access_token}
+                                    </code>
+                                </div>
+                            )}
+                            {canManage &&
+                                examPackage?.has_access_token &&
+                                !examPackage?.access_token && (
+                                    <p className="mt-3 text-xs text-on-surface-variant">
+                                        Token lama tidak dapat ditampilkan. Ganti token untuk menampilkan kode baru.
+                                    </p>
+                                )}
                         </div>
                     </Card>
                 </div>

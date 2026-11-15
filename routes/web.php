@@ -24,6 +24,7 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\PasswordUpdateController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\StudentLoginController;
+use App\Http\Controllers\Student\ExamAccessController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -38,6 +39,8 @@ Route::middleware('student.auth')
     ->name('student.')
     ->group(function () {
         Route::get('/', [StudentDashboardController::class, 'index'])->name('dashboard');
+        Route::post('exams/{examSchedule}/access-token', [ExamAccessController::class, 'verify'])
+            ->name('exam-access.verify');
     });
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -148,6 +151,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::resource('exam-packages', ExamPackageController::class)
             ->only(['index', 'store', 'show', 'update', 'destroy']);
+
+        Route::post('exam-packages/{examPackage}/access-token', [ExamPackageController::class, 'generateAccessToken'])
+            ->name('exam-packages.access-token.store');
+
+        Route::delete('exam-packages/{examPackage}/access-token', [ExamPackageController::class, 'revokeAccessToken'])
+            ->name('exam-packages.access-token.destroy');
 
         Route::patch('sessions/{sessionId}/status', [SessionController::class, 'toggleStatus'])
             ->name('sessions.toggle-status');

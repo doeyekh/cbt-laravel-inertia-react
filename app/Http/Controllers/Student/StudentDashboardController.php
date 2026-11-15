@@ -40,6 +40,11 @@ class StudentDashboardController extends Controller
             ->where('student_id', $participant->student_id)
             ->where('academic_year_id', $participant->academic_year_id)
             ->first();
+        $verifiedExamPackages = $request->session()->get('student_exam_packages', []);
+
+        if (! is_array($verifiedExamPackages)) {
+            $verifiedExamPackages = [];
+        }
 
         return Inertia::render('Student/Dashboard', [
             'title' => 'Portal Siswa — '.($participant->student?->name ?? 'Peserta Ujian'),
@@ -55,7 +60,11 @@ class StudentDashboardController extends Controller
                 'session' => $participant->session?->name,
                 'room' => $participant->room?->name,
             ],
-            'exams' => $this->buildExamAgenda($participant, $classMember),
+            'exams' => $this->buildExamAgenda(
+                $participant,
+                $classMember,
+                $verifiedExamPackages,
+            ),
             'systemInfo' => [
                 'appName' => 'EduTest CBT',
                 'systemName' => 'Sistem Evaluasi Terpadu',
@@ -69,21 +78,26 @@ class StudentDashboardController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function buildExamAgenda(ExamParticipant $participant, ?ClassMember $classMember): array
-    {
+    private function buildExamAgenda(
+        ExamParticipant $participant,
+        ?ClassMember $classMember,
+        array $verifiedExamPackages,
+    ): array {
         if (! $classMember) {
             return [];
         }
 
         return ExamSchedule::query()
             ->with([
-                'examPackage:id,name,code,exam_type_id',
+                'examPackage:id,name,code,exam_type_id,exam_access_token_hash',
                 'examPackage.examType:id,name',
                 'subject:id,name',
                 'session:id,name',
                 'room:id,name',
             ])
             ->where('class_id', $classMember->class_id)
+            ->where('session_id', $participant->session_id)
+            ->where('room_id', $participant->room_id)
             ->where('status', ExamScheduleStatus::Aktif)
             ->whereHas('examPackage', function (Builder $query) use ($participant): void {
                 $query
@@ -96,6 +110,7 @@ class StudentDashboardController extends Controller
             ->get()
             ->map(fn (ExamSchedule $schedule): array => [
                 'id' => $schedule->id,
+                'package_id' => $schedule->exam_package_id,
                 'subject' => $schedule->subject?->name,
                 'package' => $schedule->examPackage?->name,
                 'package_code' => $schedule->examPackage?->code,
@@ -106,8 +121,28 @@ class StudentDashboardController extends Controller
                 'duration_minutes' => $schedule->duration_minutes,
                 'session' => $schedule->session?->name,
                 'room' => $schedule->room?->name,
+                'token_available' => $schedule->examPackage?->exam_access_token_hash !== null,
+                'token_access_granted' => $this->hasExamPackageAccess(
+                    $schedule,
+                    $verifiedExamPackages,
+                ),
             ])
             ->all();
+    }
+
+    /**
+     * Determine whether the participant has verified the current package token.
+     *
+     * @param  array<int|string, mixed>  $verifiedExamPackages
+     */
+    private function hasExamPackageAccess(ExamSchedule $schedule, array $verifiedExamPackages): bool
+    {
+        $storedHash = $verifiedExamPackages[$schedule->exam_package_id] ?? null;
+        $currentHash = $schedule->examPackage?->exam_access_token_hash;
+
+        return is_string($storedHash)
+            && is_string($currentHash)
+            && hash_equals($currentHash, $storedHash);
     }
 
     /**

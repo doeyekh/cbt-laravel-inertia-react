@@ -5,12 +5,14 @@ namespace App\Models;
 use App\Enums\ExamPackageStatus;
 use Database\Factories\ExamPackageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['school_id', 'academic_year_id', 'exam_type_id', 'code', 'name', 'description', 'start_date', 'end_date', 'status'])]
+#[Hidden(['exam_access_token_hash', 'exam_access_token_encrypted'])]
 class ExamPackage extends Model
 {
     /** @use HasFactory<ExamPackageFactory> */
@@ -29,6 +31,8 @@ class ExamPackage extends Model
             'exam_type_id' => 'integer',
             'start_date' => 'date',
             'end_date' => 'date',
+            'exam_access_token_encrypted' => 'encrypted',
+            'exam_access_token_generated_at' => 'datetime',
             'status' => ExamPackageStatus::class,
         ];
     }

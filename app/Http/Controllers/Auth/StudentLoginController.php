@@ -79,6 +79,7 @@ class StudentLoginController extends Controller
         }
 
         // Simpan sesi login siswa
+        $request->session()->forget('student_exam_packages');
         $request->session()->put('student_participant_id', $participant->id);
         $request->session()->put('student_name', $participant->student?->name ?? 'Siswa');
 
@@ -94,7 +95,11 @@ class StudentLoginController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $request->session()->forget(['student_participant_id', 'student_name']);
+        $request->session()->forget([
+            'student_participant_id',
+            'student_name',
+            'student_exam_packages',
+        ]);
 
         return redirect()->route('student.login')->with('toast', [
             'type' => 'info',

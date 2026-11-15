@@ -17,6 +17,7 @@ use App\Models\SchoolClass;
 use App\Models\Session;
 use App\Models\Subject;
 use App\Models\User;
+use App\Services\ExamAccessTokenService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -155,9 +156,15 @@ class ExamPackageController extends Controller
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
 
+        $presentedExamPackage = $this->presentExamPackage($examPackage);
+
+        if ($request->user()->isAdministrator() || $request->user()->isSchoolAdmin()) {
+            $presentedExamPackage['access_token'] = $examPackage->exam_access_token_encrypted;
+        }
+
         return Inertia::render('ExamPackages/Show', [
             'title' => 'Detail Paket Ujian',
-            'examPackage' => $this->presentExamPackage($examPackage),
+            'examPackage' => $presentedExamPackage,
             'schedules' => $examPackage->schedules
                 ->map(fn (ExamSchedule $examSchedule): array => $this->presentExamSchedule($examSchedule))
                 ->values()
@@ -166,6 +173,57 @@ class ExamPackageController extends Controller
             'subjectsByClass' => $subjectsByClass,
             'sessions' => $sessions,
             'rooms' => $rooms,
+        ]);
+    }
+
+    /**
+     * Generate or rotate the shared access token for the exam package.
+     */
+    public function generateAccessToken(
+        Request $request,
+        ExamPackage $examPackage,
+        ExamAccessTokenService $tokenService,
+    ): RedirectResponse {
+        $this->authorizeExamManage($request->user());
+        $this->authorizeRecordAccess($request->user(), $examPackage);
+
+        if ($examPackage->status === ExamPackageStatus::Selesai) {
+            abort(403);
+        }
+
+        $token = $tokenService->generateToken();
+
+        $examPackage->forceFill([
+            'exam_access_token_hash' => $tokenService->hashToken($token),
+            'exam_access_token_encrypted' => $token,
+            'exam_access_token_generated_at' => now(),
+        ])->save();
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'title' => 'Token Akses Dibuat',
+            'description' => 'Token tersimpan dan dapat dilihat kembali oleh pengelola paket.',
+        ]);
+    }
+
+    /**
+     * Revoke the shared access token for the exam package.
+     */
+    public function revokeAccessToken(Request $request, ExamPackage $examPackage): RedirectResponse
+    {
+        $this->authorizeExamManage($request->user());
+        $this->authorizeRecordAccess($request->user(), $examPackage);
+
+        $examPackage->forceFill([
+            'exam_access_token_hash' => null,
+            'exam_access_token_encrypted' => null,
+            'exam_access_token_generated_at' => null,
+        ])->save();
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'title' => 'Token Akses Dicabut',
+            'description' => 'Peserta tidak dapat memakai token sebelumnya.',
         ]);
     }
 
@@ -325,6 +383,7 @@ class ExamPackageController extends Controller
             'end_date' => $examPackage->end_date?->toDateString(),
             'status' => $examPackage->status->value,
             'status_label' => $examPackage->status->label(),
+            'has_access_token' => $examPackage->exam_access_token_hash !== null,
             'schedule_count' => $examPackage->schedules_count ?? $examPackage->schedules->count(),
         ];
     }

@@ -13,6 +13,7 @@ use App\Models\SchoolClass;
 use App\Models\Session;
 use App\Models\Subject;
 use App\Models\User;
+use App\Services\ExamAccessTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -437,8 +438,72 @@ class ExamPackageControllerTest extends TestCase
             ->assertOk();
 
         $this->actingAs($headmaster)
+            ->get(route('admin.exam-packages.show', $package))
+            ->assertInertia(fn (Assert $page) => $page
+                ->missing('examPackage.access_token')
+            );
+
+        $this->actingAs($headmaster)
             ->delete(route('admin.exam-packages.destroy', $package))
             ->assertForbidden();
+
+        $this->actingAs($headmaster)
+            ->post(route('admin.exam-packages.access-token.store', $package))
+            ->assertForbidden();
+    }
+
+    public function test_administrator_can_generate_rotate_and_revoke_the_shared_package_token(): void
+    {
+        $package = $this->packageFor($this->school, status: ExamPackageStatus::Aktif);
+        $tokenService = app(ExamAccessTokenService::class);
+
+        $this->post(route('admin.exam-packages.access-token.store', $package))
+            ->assertRedirect()
+            ->assertSessionHas('toast.title', 'Token Akses Dibuat');
+
+        $firstToken = $package->fresh()->exam_access_token_encrypted;
+        $this->assertIsString($firstToken);
+        $this->assertSame(1, preg_match('/^[A-HJ-NP-Z2-9]{6}$/', $firstToken));
+        $this->assertDatabaseHas('exam_packages', [
+            'id' => $package->id,
+            'exam_access_token_hash' => $tokenService->hashToken($firstToken),
+        ]);
+        $this->assertDatabaseMissing('exam_packages', [
+            'id' => $package->id,
+            'exam_access_token_encrypted' => $firstToken,
+        ]);
+        $this->get(route('admin.exam-packages.show', $package))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('examPackage.access_token', $firstToken)
+            );
+        $firstTokenHash = $package->fresh()->exam_access_token_hash;
+
+        $this->post(route('admin.exam-packages.access-token.store', $package))
+            ->assertRedirect()
+            ->assertSessionHas('toast.title', 'Token Akses Dibuat');
+
+        $secondToken = $package->fresh()->exam_access_token_encrypted;
+        $this->assertNotSame($firstToken, $secondToken);
+        $this->assertDatabaseHas('exam_packages', [
+            'id' => $package->id,
+            'exam_access_token_hash' => $tokenService->hashToken($secondToken),
+        ]);
+        $this->assertNotSame($firstTokenHash, $package->fresh()->exam_access_token_hash);
+        $this->get(route('admin.exam-packages.show', $package))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('examPackage.access_token', $secondToken)
+            );
+
+        $this->delete(route('admin.exam-packages.access-token.destroy', $package))
+            ->assertRedirect()
+            ->assertSessionHas('toast.title', 'Token Akses Dicabut');
+
+        $this->assertDatabaseHas('exam_packages', [
+            'id' => $package->id,
+            'exam_access_token_hash' => null,
+            'exam_access_token_encrypted' => null,
+            'exam_access_token_generated_at' => null,
+        ]);
     }
 
     public function test_update_changes_package_but_not_school(): void
