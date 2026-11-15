@@ -24,6 +24,7 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\PasswordUpdateController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\StudentLoginController;
+use App\Http\Controllers\Student\StudentDashboardController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -31,6 +32,13 @@ Route::get('/', [StudentLoginController::class, 'create'])->name('student.login'
 Route::get('/login', [StudentLoginController::class, 'create'])->name('login');
 Route::post('/login', [StudentLoginController::class, 'store'])->name('student.login.store');
 Route::post('/logout', [StudentLoginController::class, 'destroy'])->name('student.logout');
+
+Route::middleware('student.auth')
+    ->prefix('siswa')
+    ->name('student.')
+    ->group(function () {
+        Route::get('/', [StudentDashboardController::class, 'index'])->name('dashboard');
+    });
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');

@@ -82,7 +82,7 @@ class StudentLoginController extends Controller
         $request->session()->put('student_participant_id', $participant->id);
         $request->session()->put('student_name', $participant->student?->name ?? 'Siswa');
 
-        return back()->with('toast', [
+        return to_route('student.dashboard')->with('toast', [
             'type' => 'success',
             'title' => 'Login Berhasil',
             'description' => 'Selamat datang, '.($participant->student?->name ?? 'Peserta Ujian').'. Sesi ujian siap dimulai.',

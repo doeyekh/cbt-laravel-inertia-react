@@ -146,7 +146,7 @@ class StudentLoginTest extends TestCase
             'password' => 'pin12345',
         ]);
 
-        $response->assertRedirect('/login');
+        $response->assertRedirect(route('student.dashboard'));
         $response->assertSessionHas('student_participant_id', $participant->id);
         $response->assertSessionHas('student_name', 'Budi Pratama');
         $response->assertSessionHas('toast.type', 'success');
