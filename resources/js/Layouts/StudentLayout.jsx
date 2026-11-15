@@ -1,44 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import StudentBrand from '@/Components/Layout/StudentBrand';
 import ToastContainer from '@/Components/Layout/ToastContainer';
 import { useClock } from '@/Hooks/useClock';
+import { useStudentNavItems } from '@/Hooks/useStudentNavItems';
 import { useToast } from '@/Hooks/useToast';
 import { route } from '@/Utils/route';
-
-const NAV_ITEMS = [
-    {
-        label: 'Beranda & Jadwal Ujian',
-        icon: 'dashboard',
-        href: route('student.dashboard'),
-        active: true,
-    },
-    {
-        label: 'Ruang Ujian Aktif',
-        icon: 'assignment',
-        badge: 'Segera',
-        disabled: true,
-    },
-    {
-        label: 'Riwayat & Nilai Ujian',
-        icon: 'history',
-        disabled: true,
-    },
-    {
-        label: 'Uji Kesiapan Perangkat',
-        icon: 'laptop_mac',
-        href: '#kesiapan',
-    },
-    {
-        label: 'Panduan & Tata Tertib',
-        icon: 'menu_book',
-        href: '#panduan',
-    },
-    {
-        label: 'Bantuan & Pengawas',
-        icon: 'support_agent',
-        href: '#bantuan',
-    },
-];
 
 function getInitials(name) {
     const initials = (name || '')
@@ -50,34 +17,6 @@ function getInitials(name) {
         .toUpperCase();
 
     return initials || '?';
-}
-
-function Brand({ appName, systemName, compact = false }) {
-    return (
-        <Link href={route('student.dashboard')} className="flex items-center gap-3">
-            <span
-                className={`flex items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary ${
-                    compact ? 'h-9 w-9' : 'h-11 w-11'
-                }`}
-            >
-                <span className={`material-symbols-outlined ${compact ? 'text-[19px]' : 'text-[23px]'}`}>
-                    school
-                </span>
-            </span>
-            <span className="flex flex-col">
-                <span
-                    className={`font-headline font-extrabold leading-none tracking-tight text-on-surface ${
-                        compact ? 'text-[15px]' : 'text-lg'
-                    }`}
-                >
-                    {appName}
-                </span>
-                <span className="mt-1 font-label text-[9px] font-medium uppercase tracking-[0.16em] text-on-surface-variant">
-                    {systemName}
-                </span>
-            </span>
-        </Link>
-    );
 }
 
 function NavItems({ items, layout = 'vertical' }) {
@@ -166,6 +105,7 @@ export default function StudentLayout({
 }) {
     const { flash } = usePage().props;
     const { toasts, toast, dismiss } = useToast();
+    const navItems = useStudentNavItems();
     const handledToast = useRef(null);
     const [loggingOut, setLoggingOut] = useState(false);
     const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -212,7 +152,7 @@ export default function StudentLayout({
             <div className="flex min-h-screen">
                 <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r border-outline-variant/60 bg-surface-container-lowest lg:flex">
                     <div className="px-6 py-6">
-                        <Brand appName={appName} systemName={systemName} />
+                        <StudentBrand appName={appName} systemName={systemName} />
                     </div>
 
                     <nav className="flex-1 overflow-y-auto px-3 py-2">
@@ -220,7 +160,7 @@ export default function StudentLayout({
                             Menu Navigasi
                         </p>
                         <ul className="space-y-1">
-                            <NavItems items={NAV_ITEMS} />
+                            <NavItems items={navItems} />
                         </ul>
                     </nav>
 
@@ -249,7 +189,7 @@ export default function StudentLayout({
                     <header className="sticky top-0 z-20 border-b border-outline-variant/60 bg-surface-container-lowest/95 backdrop-blur">
                         <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
                             <div className="lg:hidden">
-                                <Brand appName={appName} systemName={systemName} compact />
+                                <StudentBrand appName={appName} systemName={systemName} compact />
                             </div>
 
                             <div className="hidden items-center gap-3 lg:flex">
@@ -322,7 +262,7 @@ export default function StudentLayout({
 
                         <nav className="px-3 pb-2 lg:hidden">
                             <ul className="flex items-center gap-1 overflow-x-auto">
-                                <NavItems items={NAV_ITEMS} layout="mobile" />
+                                <NavItems items={navItems} layout="mobile" />
                             </ul>
                         </nav>
                     </header>
