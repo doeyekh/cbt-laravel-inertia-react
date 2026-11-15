@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import ToastContainer from '@/Components/Layout/ToastContainer';
+import { useClock } from '@/Hooks/useClock';
 import { useToast } from '@/Hooks/useToast';
 import { route } from '@/Utils/route';
 import StudentLoginForm from './Components/StudentLoginForm';
@@ -23,31 +24,6 @@ const GUIDANCE_NOTES = [
             'Mengalami kendala teknis atau lupa kredensial? Hubungi pengawas ruangan Anda.',
     },
 ];
-
-function useClock() {
-    const [now, setNow] = useState(() => new Date());
-
-    useEffect(() => {
-        const timer = setInterval(() => setNow(new Date()), 1000);
-
-        return () => clearInterval(timer);
-    }, []);
-
-    return {
-        time: now.toLocaleTimeString('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-        }),
-        date: now.toLocaleDateString('id-ID', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-        }),
-    };
-}
 
 export default function StudentLogin({ systemInfo = {} }) {
     const { flash } = usePage().props;

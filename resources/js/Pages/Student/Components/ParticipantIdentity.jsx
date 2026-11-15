@@ -1,94 +1,58 @@
 import React from 'react';
 
-function getInitials(name) {
-    const initials = (name || '')
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part.charAt(0))
-        .join('')
-        .toUpperCase();
-
-    return initials || '?';
-}
-
 export default function ParticipantIdentity({ participant = {} }) {
-    const academicYear = [participant.academic_year, participant.semester]
-        .filter(Boolean)
-        .join(' · ');
-
-    const details = [
-        { label: 'Username', value: participant.username },
-        { label: 'NISN', value: participant.nisn },
-        { label: 'Kelas', value: participant.class_name },
-        { label: 'Tahun Pelajaran', value: academicYear },
-    ].filter((detail) => detail.value);
+    const academicYear =
+        [
+            participant.semester ? `Semester ${participant.semester}` : null,
+            participant.academic_year,
+        ]
+            .filter(Boolean)
+            .join(' ') || null;
+    const placement =
+        [participant.school, participant.room].filter(Boolean).join(' • ') ||
+        'Penempatan belum ditentukan';
 
     return (
-        <section className="rounded-3xl bg-surface-container-lowest p-7 sm:p-8">
-            <div className="flex items-start justify-between gap-3">
-                <p className="font-label text-[10px] font-semibold uppercase tracking-[0.2em] text-on-surface-variant">
-                    Identitas Peserta
+        <section className="flex w-full items-center gap-3 rounded-xl bg-surface-container-lowest p-3 shadow-sm ring-1 ring-outline-variant/60 md:w-auto">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface-container-high text-primary">
+                <span className="material-symbols-outlined text-[24px]">badge</span>
+            </span>
+
+            <div className="min-w-0 pr-1">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-label text-[12px] font-bold text-on-surface">
+                        {participant.nisn
+                            ? `NISN: ${participant.nisn}`
+                            : participant.username
+                              ? `Username: ${participant.username}`
+                              : 'Peserta Ujian'}
+                    </span>
+                    {participant.class_name && (
+                        <span className="rounded-full bg-primary-fixed px-2 py-0.5 font-label text-[9px] font-semibold text-on-primary-fixed-variant">
+                            {participant.class_name}
+                        </span>
+                    )}
+                </div>
+
+                <p className="mt-1 flex items-center gap-1 font-body text-[10.5px] text-secondary">
+                    <span className="material-symbols-outlined text-[14px] text-tertiary">
+                        location_on
+                    </span>
+                    <span className="truncate">{placement}</span>
                 </p>
 
-                {participant.participant_number && (
-                    <span className="rounded-full bg-tertiary-fixed/40 px-3 py-1 font-label text-[10px] font-semibold text-tertiary">
-                        {participant.participant_number}
-                    </span>
+                {(academicYear || participant.participant_number) && (
+                    <p className="mt-0.5 font-label text-[9px] text-on-surface-variant">
+                        {[
+                            academicYear,
+                            participant.participant_number
+                                ? `No. Peserta ${participant.participant_number}`
+                                : null,
+                        ]
+                            .filter(Boolean)
+                            .join(' • ')}
+                    </p>
                 )}
-            </div>
-
-            <div className="mt-6 flex items-center gap-4">
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 font-headline text-lg font-bold text-primary">
-                    {getInitials(participant.name)}
-                </span>
-
-                <div className="min-w-0">
-                    <h2 className="font-headline text-xl font-bold leading-tight tracking-tight text-on-surface">
-                        {participant.name || 'Peserta Ujian'}
-                    </h2>
-                    <p className="mt-1 truncate font-label text-[11px] text-on-surface-variant">
-                        {participant.school || 'Sekolah belum ditentukan'}
-                    </p>
-                </div>
-            </div>
-
-            {details.length > 0 && (
-                <dl className="mt-8 space-y-4">
-                    {details.map((detail) => (
-                        <div
-                            key={detail.label}
-                            className="grid grid-cols-[7.5rem_1fr] items-baseline gap-3"
-                        >
-                            <dt className="font-label text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-                                {detail.label}
-                            </dt>
-                            <dd className="text-[13px] leading-snug text-on-surface">
-                                {detail.value}
-                            </dd>
-                        </div>
-                    ))}
-                </dl>
-            )}
-
-            <div className="mt-8 grid grid-cols-2 gap-4">
-                <div className="rounded-2xl bg-surface-container-low p-4">
-                    <p className="font-label text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-                        Sesi
-                    </p>
-                    <p className="mt-1 text-[13px] font-medium text-on-surface">
-                        {participant.session || 'Belum ditentukan'}
-                    </p>
-                </div>
-
-                <div className="rounded-2xl bg-surface-container-low p-4">
-                    <p className="font-label text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-                        Ruang
-                    </p>
-                    <p className="mt-1 text-[13px] font-medium text-on-surface">
-                        {participant.room || 'Belum ditentukan'}
-                    </p>
-                </div>
             </div>
         </section>
     );

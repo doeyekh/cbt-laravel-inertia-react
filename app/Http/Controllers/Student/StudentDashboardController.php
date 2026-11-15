@@ -77,7 +77,7 @@ class StudentDashboardController extends Controller
 
         return ExamSchedule::query()
             ->with([
-                'examPackage:id,name,exam_type_id',
+                'examPackage:id,name,code,exam_type_id',
                 'examPackage.examType:id,name',
                 'subject:id,name',
                 'session:id,name',
@@ -98,6 +98,7 @@ class StudentDashboardController extends Controller
                 'id' => $schedule->id,
                 'subject' => $schedule->subject?->name,
                 'package' => $schedule->examPackage?->name,
+                'package_code' => $schedule->examPackage?->code,
                 'exam_type' => $schedule->examPackage?->examType?->name,
                 'date' => $schedule->exam_date?->format('Y-m-d'),
                 'open_time' => $this->shortenTime($schedule->open_time),

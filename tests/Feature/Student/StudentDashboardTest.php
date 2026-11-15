@@ -98,6 +98,7 @@ class StudentDashboardTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->has('exams', 1)
                 ->where('exams.0.subject', 'Matematika')
+                ->where('exams.0.package_code', $examPackage->code)
                 ->where('exams.0.date', '2026-11-20')
                 ->where('exams.0.open_time', '07:30')
                 ->where('exams.0.close_time', '09:00')

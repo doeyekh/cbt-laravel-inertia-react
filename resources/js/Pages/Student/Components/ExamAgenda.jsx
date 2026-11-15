@@ -1,161 +1,299 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
+    formatCountdown,
     formatExamDate,
+    getExamCountdown,
     getExamDateParts,
     getExamStatus,
-    getExamSummary,
+    isExamToday,
+    sortExams,
 } from '@/Utils/examSchedule';
 
 const STATUS_BADGES = {
     ongoing: {
-        label: 'Berlangsung',
-        className: 'bg-primary/10 text-primary',
+        label: 'Sedang Berlangsung',
+        className: 'bg-primary-fixed text-on-primary-fixed-variant',
+        icon: null,
     },
     upcoming: {
         label: 'Akan datang',
-        className: 'bg-tertiary-fixed/40 text-tertiary',
+        className: 'bg-secondary-container text-on-secondary-fixed',
+        icon: 'hourglass_empty',
     },
     finished: {
-        label: 'Selesai',
-        className: 'bg-surface-container text-on-surface-variant',
+        label: 'Selesai Dikerjakan',
+        className: 'bg-tertiary-fixed text-on-tertiary-fixed-variant',
+        icon: 'task_alt',
     },
     unknown: {
         label: 'Terjadwal',
-        className: 'bg-surface-container text-on-surface-variant',
+        className: 'bg-surface-container text-secondary',
+        icon: 'event',
     },
 };
 
-const SUMMARY_ITEMS = [
-    { key: 'total', label: 'Total Ujian', accent: 'text-on-surface' },
-    { key: 'ongoing', label: 'Berlangsung', accent: 'text-primary' },
-    { key: 'upcoming', label: 'Akan Datang', accent: 'text-tertiary' },
-    { key: 'finished', label: 'Selesai', accent: 'text-on-surface-variant' },
-];
+const EMPTY_STATES = {
+    today: {
+        icon: 'event_available',
+        title: 'Tidak ada ujian hari ini',
+        description: 'Sesi yang dijadwalkan hari ini akan tampil di sini beserta status tokennya.',
+    },
+    upcoming: {
+        icon: 'event_upcoming',
+        title: 'Belum ada jadwal mendatang',
+        description: 'Jadwal akan tampil setelah panitia menerbitkan paket ujian untuk kelas Anda.',
+    },
+    finished: {
+        icon: 'history',
+        title: 'Belum ada ujian selesai',
+        description: 'Ujian yang telah dikerjakan akan tercatat pada tab ini.',
+    },
+};
 
-function EmptyState() {
+function getSessionNumber(exam) {
+    const digits = (exam.session || '').replace(/\D/g, '');
+
+    return digits ? digits.slice(-2).padStart(2, '0') : null;
+}
+
+function DateBlock({ exam, status, isToday }) {
+    if (status === 'finished') {
+        return (
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant">
+                <span className="material-symbols-outlined text-[24px]">task_alt</span>
+            </div>
+        );
+    }
+
+    if (isToday) {
+        const sessionNumber = getSessionNumber(exam);
+
+        return (
+            <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-surface-container text-on-surface">
+                <span className="font-label text-[9px] font-semibold uppercase leading-none tracking-[0.08em] text-secondary">
+                    {sessionNumber ? 'Sesi' : 'Hari'}
+                </span>
+                <span className="mt-1 font-headline text-base font-bold leading-none">
+                    {sessionNumber || getExamDateParts(exam.date).day}
+                </span>
+            </div>
+        );
+    }
+
+    const date = getExamDateParts(exam.date);
+
     return (
-        <div className="rounded-3xl bg-surface-container-lowest px-8 py-16 text-center">
-            <span className="material-symbols-outlined text-[32px] text-on-surface-variant/50">
-                event_busy
+        <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-surface-container-low text-on-surface">
+            <span className="font-label text-[10px] font-semibold uppercase leading-none text-secondary">
+                {date.day}
             </span>
-            <h3 className="mt-3 font-headline text-xl font-bold tracking-tight text-on-surface">
-                Belum ada jadwal ujian
-            </h3>
-            <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-on-surface-variant">
-                Jadwal akan tampil setelah panitia menerbitkan paket dan jadwal ujian untuk
-                kelas Anda.
-            </p>
+            <span className="mt-1 font-headline text-[13px] font-bold uppercase leading-none">
+                {date.month}
+            </span>
         </div>
     );
 }
 
-function ExamCard({ exam, status }) {
-    const badge = STATUS_BADGES[status];
-    const date = getExamDateParts(exam.date);
-    const examLabel = [exam.exam_type, exam.package].filter(Boolean).join(' · ');
+function ActionButton({ status }) {
+    if (status === 'finished') {
+        return (
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-tertiary-fixed/70 px-4 py-2 font-label text-[11px] font-semibold text-on-tertiary-fixed-variant">
+                <span className="material-symbols-outlined text-[17px]">cloud_done</span>
+                Jawaban Tersimpan
+            </span>
+        );
+    }
+
+    if (status === 'ongoing') {
+        return (
+            <button
+                type="button"
+                disabled
+                title="Masuk ujian dibuka oleh proktor ruangan"
+                className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-surface-container px-4 py-2 font-label text-[11px] font-medium text-secondary opacity-80"
+            >
+                <span className="material-symbols-outlined text-[17px]">key</span>
+                Menunggu Token
+            </button>
+        );
+    }
 
     return (
-        <li className="rounded-2xl bg-surface-container-lowest p-5 sm:p-6">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-                <div className="flex h-20 w-16 shrink-0 flex-col items-center justify-center rounded-xl bg-surface-container-low">
-                    <span className="font-headline text-xl font-bold leading-none text-on-surface">
-                        {date.day}
-                    </span>
-                    <span className="mt-1.5 font-label text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-                        {date.month}
-                    </span>
-                </div>
+        <button
+            type="button"
+            disabled
+            title="Token belum dirilis proktor"
+            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-surface-container px-4 py-2 font-label text-[11px] font-medium text-secondary opacity-80"
+        >
+            <span className="material-symbols-outlined text-[17px]">lock_clock</span>
+            Token Belum Rilis
+        </button>
+    );
+}
 
-                <div className="min-w-0 flex-1 space-y-3">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                            <h3 className="font-headline text-lg font-semibold leading-snug tracking-tight text-on-surface">
-                                {exam.subject || 'Mata Pelajaran'}
-                            </h3>
-                            <p className="mt-1 font-label text-[10px] uppercase tracking-[0.1em] text-on-surface-variant">
-                                {examLabel || 'Paket ujian'}
-                            </p>
+function ExamRow({ exam, now }) {
+    const status = getExamStatus(exam, now);
+    const badge = STATUS_BADGES[status] ?? STATUS_BADGES.unknown;
+    const countdown = getExamCountdown(exam, now);
+    const isToday = isExamToday(exam, now);
+    const code = exam.package_code || exam.exam_type || exam.package;
+
+    const statusLabel =
+        status === 'upcoming' && countdown?.target === 'start'
+            ? `Mulai dlm ${formatCountdown(countdown.milliseconds)}`
+            : badge.label;
+
+    return (
+        <li className="rounded-xl bg-surface-container-lowest p-4 shadow-sm ring-1 ring-outline-variant/60 transition-shadow hover:shadow-md sm:p-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-start gap-3.5">
+                    <DateBlock exam={exam} status={status} isToday={isToday} />
+
+                    <div className="flex min-w-0 flex-col gap-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {code && (
+                                <span className="rounded bg-surface-container-high px-2 py-0.5 font-label text-[9px] font-semibold uppercase tracking-[0.04em] text-on-surface">
+                                    {code}
+                                </span>
+                            )}
+                            <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-label text-[9px] font-semibold uppercase tracking-[0.06em] ${badge.className}`}
+                            >
+                                {status === 'ongoing' && (
+                                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+                                )}
+                                {badge.icon && (
+                                    <span className="material-symbols-outlined text-[13px]">
+                                        {badge.icon}
+                                    </span>
+                                )}
+                                {statusLabel}
+                            </span>
                         </div>
 
-                        <span
-                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-label text-[10px] font-semibold uppercase tracking-[0.08em] ${badge.className}`}
-                        >
-                            {status === 'ongoing' && (
-                                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                        <h4 className="font-headline text-[15px] font-bold leading-snug text-on-surface">
+                            {exam.subject || 'Mata Pelajaran'}
+                        </h4>
+
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-body text-[11px] text-secondary">
+                            <span className="flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[15px]">
+                                    schedule
+                                </span>
+                                {exam.open_time} – {exam.close_time} WIB
+                                {exam.duration_minutes ? ` (${exam.duration_minutes} Menit)` : ''}
+                            </span>
+                            {exam.session && (
+                                <>
+                                    <span className="text-outline">•</span>
+                                    <span>{exam.session}</span>
+                                </>
                             )}
-                            {badge.label}
-                        </span>
+                            {exam.room && (
+                                <>
+                                    <span className="text-outline">•</span>
+                                    <span>{exam.room}</span>
+                                </>
+                            )}
+                            <span className="text-outline">•</span>
+                            <span>{formatExamDate(exam.date)}</span>
+                        </div>
                     </div>
+                </div>
 
-                    <p className="text-[13px] text-on-surface-variant">
-                        <span className="font-semibold text-on-surface">
-                            {exam.open_time} – {exam.close_time}
-                        </span>
-                        {exam.duration_minutes ? ` · ${exam.duration_minutes} menit` : ''}
-                    </p>
-
-                    <div className="flex flex-wrap gap-x-5 gap-y-1.5 font-label text-[11px] text-on-surface-variant">
-                        {exam.session && <span>Sesi: {exam.session}</span>}
-                        {exam.room && <span>Ruang: {exam.room}</span>}
-                        <span>{formatExamDate(exam.date)}</span>
-                    </div>
+                <div className="flex shrink-0 items-center md:self-center">
+                    <ActionButton status={status} />
                 </div>
             </div>
         </li>
     );
 }
 
-export default function ExamAgenda({ exams = [] }) {
-    const [now, setNow] = useState(() => new Date());
-
-    useEffect(() => {
-        const timer = setInterval(() => setNow(new Date()), 60_000);
-
-        return () => clearInterval(timer);
-    }, []);
-
-    const summary = getExamSummary(exams, now);
+function EmptyState({ tab }) {
+    const empty = EMPTY_STATES[tab];
 
     return (
-        <section className="space-y-7">
-            <div className="flex items-end justify-between gap-4">
-                <div className="space-y-1">
-                    <p className="font-label text-[10px] font-semibold uppercase tracking-[0.2em] text-tertiary">
-                        Agenda
+        <div className="rounded-xl bg-surface-container-lowest px-6 py-10 text-center shadow-sm ring-1 ring-outline-variant/60">
+            <span className="material-symbols-outlined text-[28px] text-on-surface-variant/50">
+                {empty.icon}
+            </span>
+            <h4 className="mt-2 font-headline text-base font-bold text-on-surface">{empty.title}</h4>
+            <p className="mx-auto mt-1 max-w-sm font-body text-[12px] leading-relaxed text-on-surface-variant">
+                {empty.description}
+            </p>
+        </div>
+    );
+}
+
+export default function ExamAgenda({ exams = [], now = new Date() }) {
+    const sortedExams = sortExams(exams);
+    const todayExams = sortedExams.filter((exam) => isExamToday(exam, now));
+    const upcomingExams = sortedExams.filter((exam) => getExamStatus(exam, now) === 'upcoming');
+    const finishedExams = [...sortedExams]
+        .reverse()
+        .filter((exam) => getExamStatus(exam, now) === 'finished');
+
+    const tabs = [
+        {
+            key: 'today',
+            label: `Hari Ini (${now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })})`,
+            exams: todayExams,
+        },
+        { key: 'upcoming', label: 'Jadwal Mendatang', exams: upcomingExams },
+        { key: 'finished', label: 'Selesai', exams: finishedExams },
+    ];
+
+    const [activeTab, setActiveTab] = useState(() => {
+        if (todayExams.length > 0) {
+            return 'today';
+        }
+
+        if (upcomingExams.length > 0) {
+            return 'upcoming';
+        }
+
+        return finishedExams.length > 0 ? 'finished' : 'today';
+    });
+
+    const activeExams = tabs.find((tab) => tab.key === activeTab)?.exams ?? [];
+
+    return (
+        <section className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 className="font-headline text-lg font-bold tracking-tight text-on-surface">
+                        Jadwal &amp; Agenda Ujian Siswa
+                    </h3>
+                    <p className="font-body text-[11px] text-secondary">
+                        Kalender asesmen terintegrasi dengan penjadwalan pusat proktor.
                     </p>
-                    <h2 className="font-headline text-2xl font-bold tracking-tight text-on-surface">
-                        Jadwal Ujian
-                    </h2>
                 </div>
 
-                <p className="font-label text-[11px] text-on-surface-variant">
-                    {summary.total} ujian terjadwal
-                </p>
+                <div className="flex items-center gap-1 self-start rounded-lg bg-surface-container p-1 sm:self-auto">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => setActiveTab(tab.key)}
+                            aria-pressed={activeTab === tab.key}
+                            className={`whitespace-nowrap rounded-lg px-3 py-1.5 font-label text-[10px] transition-all ${
+                                activeTab === tab.key
+                                    ? 'bg-surface-container-lowest font-bold text-primary shadow-sm'
+                                    : 'font-medium text-secondary hover:text-on-surface'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {SUMMARY_ITEMS.map((item) => (
-                    <div key={item.key} className="rounded-2xl bg-surface-container-lowest p-5">
-                        <p className="font-label text-[10px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
-                            {item.label}
-                        </p>
-                        <p className={`mt-3 font-headline text-2xl font-bold ${item.accent}`}>
-                            {summary[item.key]}
-                        </p>
-                    </div>
-                ))}
-            </div>
-
-            {exams.length === 0 ? (
-                <EmptyState />
+            {activeExams.length === 0 ? (
+                <EmptyState tab={activeTab} />
             ) : (
-                <ul className="space-y-4">
-                    {exams.map((exam) => (
-                        <ExamCard
-                            key={exam.id}
-                            exam={exam}
-                            status={getExamStatus(exam, now)}
-                        />
+                <ul className="flex flex-col gap-3">
+                    {activeExams.map((exam) => (
+                        <ExamRow key={exam.id} exam={exam} now={now} />
                     ))}
                 </ul>
             )}
