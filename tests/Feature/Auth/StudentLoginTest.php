@@ -75,6 +75,31 @@ class StudentLoginTest extends TestCase
         $response->assertSessionHasErrors(['username']);
     }
 
+    public function test_student_cannot_login_with_participant_number(): void
+    {
+        $school = School::factory()->create();
+        $academicYear = AcademicYear::factory()->create(['is_active' => true]);
+        $student = Student::factory()->create();
+
+        ExamParticipant::create([
+            'student_id' => $student->id,
+            'school_id' => $school->id,
+            'academic_year_id' => $academicYear->id,
+            'username' => 'SISWA001',
+            'participant_number' => '01-001',
+            'password' => Hash::make('rahasia123'),
+            'password_plain' => 'rahasia123',
+        ]);
+
+        $response = $this->from('/login')->post('/login', [
+            'username' => '01-001',
+            'password' => 'rahasia123',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['username']);
+    }
+
     public function test_student_cannot_login_with_incorrect_password(): void
     {
         $school = School::factory()->create();

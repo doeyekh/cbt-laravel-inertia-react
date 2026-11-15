@@ -45,8 +45,6 @@ export default function StudentLoginForm({ academicYear = null, onShowRules }) {
     const { data, setData, post, processing, errors, clearErrors } = useForm({
         username: '',
         password: '',
-        token: '',
-        remember: true,
     });
 
     const [showPassword, setShowPassword] = useState(false);
@@ -95,7 +93,7 @@ export default function StudentLoginForm({ academicYear = null, onShowRules }) {
             >
                 <Field
                     id="student-username"
-                    label="Nomor Peserta / NISN"
+                    label="Username"
                     error={errors.username}
                     hint="Tercantum pada Kartu Peserta Ujian."
                 >
@@ -104,7 +102,7 @@ export default function StudentLoginForm({ academicYear = null, onShowRules }) {
                         type="text"
                         value={data.username}
                         onChange={(event) => setData('username', event.target.value)}
-                        placeholder="Contoh: 01-001-25 atau NISN"
+                        placeholder="Masukkan username"
                         autoComplete="username"
                         autoFocus
                         disabled={processing}
@@ -142,63 +140,7 @@ export default function StudentLoginForm({ academicYear = null, onShowRules }) {
                     />
                 </Field>
 
-                <div className="rounded-2xl bg-surface-container-low p-4">
-                    <div className="flex items-baseline justify-between gap-3">
-                        <label
-                            htmlFor="student-token"
-                            className="font-label text-[10px] font-semibold uppercase tracking-[0.16em] text-tertiary"
-                        >
-                            Token Ujian
-                        </label>
-                        <span className="font-label text-[10px] text-on-surface-variant">
-                            Opsional
-                        </span>
-                    </div>
-
-                    <input
-                        id="student-token"
-                        type="text"
-                        value={data.token}
-                        onChange={(event) => setData('token', event.target.value.toUpperCase())}
-                        placeholder="WXYZ99"
-                        maxLength={10}
-                        autoComplete="off"
-                        disabled={processing}
-                        className="
-                            mt-2.5 w-full rounded-lg bg-surface-container-lowest px-3 py-2.5
-                            border border-outline-variant/15 text-center font-mono text-sm
-                            uppercase tracking-[0.3em] text-on-surface
-                            placeholder:text-on-surface-variant/40
-                            transition-colors focus:border-tertiary focus:outline-none focus:ring-2 focus:ring-tertiary/15
-                            disabled:cursor-not-allowed disabled:opacity-60
-                        "
-                    />
-
-                    <p className="mt-2 text-[11px] leading-relaxed text-on-surface-variant">
-                        Diberikan pengawas di ruangan. Kosongkan bila belum dibagikan.
-                    </p>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <label className="flex cursor-pointer select-none items-center gap-2.5 text-xs text-on-surface-variant">
-                        <input
-                            type="checkbox"
-                            checked={data.remember}
-                            onChange={(event) => setData('remember', event.target.checked)}
-                            className="h-4 w-4 rounded-sm accent-primary"
-                        />
-                        Simpan kredensial di perangkat ini
-                    </label>
-
-                    <button
-                        type="button"
-                        onClick={onShowRules}
-                        className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-primary transition-colors hover:underline"
-                    >
-                        Aturan Ujian
-                    </button>
-                </div>
-
+                
                 <button
                     type="submit"
                     disabled={processing}
@@ -228,15 +170,7 @@ export default function StudentLoginForm({ academicYear = null, onShowRules }) {
                 </button>
             </form>
 
-            <p className="mt-8 text-center text-xs leading-relaxed text-on-surface-variant">
-                Bukan peserta ujian?{' '}
-                <Link
-                    href={route('admin.login')}
-                    className="font-semibold text-primary hover:underline"
-                >
-                    Masuk sebagai pengawas
-                </Link>
-            </p>
+            
         </div>
     );
 }

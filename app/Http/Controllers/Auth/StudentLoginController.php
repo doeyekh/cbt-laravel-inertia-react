@@ -44,7 +44,6 @@ class StudentLoginController extends Controller
         $credentials = $request->validate([
             'username' => ['required', 'string', 'max:50'],
             'password' => ['required', 'string', 'max:100'],
-            'token' => ['nullable', 'string', 'max:20'],
         ], [
             'username.required' => 'Nomor peserta atau username wajib diisi.',
             'password.required' => 'Kata sandi atau PIN ujian wajib diisi.',
@@ -53,19 +52,16 @@ class StudentLoginController extends Controller
         $username = trim($credentials['username']);
         $password = $credentials['password'];
 
-        // Cari peserta ujian berdasarkan username atau nomor peserta
+        // Cari peserta ujian berdasarkan username
         $participant = ExamParticipant::query()
             ->with(['student', 'school', 'academicYear', 'session', 'room'])
-            ->where(function ($query) use ($username): void {
-                $query->where('username', $username)
-                    ->orWhere('participant_number', $username);
-            })
+            ->where('username', $username)
             ->first();
 
         if (! $participant) {
             return back()->withErrors([
-                'username' => 'Nomor peserta / username tidak ditemukan. Pastikan data sesuai dengan kartu ujian.',
-            ])->withInput($request->only('username', 'token'));
+                'username' => 'Username tidak ditemukan. Pastikan data sesuai dengan kartu ujian.',
+            ])->withInput($request->only('username'));
         }
 
         // Verifikasi password peserta (bisa hash atau plain match sesuai implementasi)
@@ -79,7 +75,7 @@ class StudentLoginController extends Controller
         if (! $passwordMatches) {
             return back()->withErrors([
                 'password' => 'Kata sandi atau PIN ujian salah. Periksa kembali kartu peserta Anda.',
-            ])->withInput($request->only('username', 'token'));
+            ])->withInput($request->only('username'));
         }
 
         // Simpan sesi login siswa

@@ -10,7 +10,7 @@ const GUIDANCE_NOTES = [
     {
         title: 'Kredensial Resmi',
         description:
-            'Gunakan nomor peserta atau NISN beserta kata sandi yang tercantum pada Kartu Peserta Ujian.',
+            'Gunakan username dan kata sandi yang tercantum pada Kartu Peserta Ujian.',
     },
     {
         title: 'Integritas Sesi',
@@ -128,12 +128,7 @@ export default function StudentLogin({ systemInfo = {} }) {
                             Tata Tertib
                         </button>
 
-                        <Link
-                            href={route('admin.login')}
-                            className="inline-flex items-center rounded-xl bg-surface-container-high px-4 py-2.5 font-label text-xs font-semibold text-primary transition-colors hover:bg-surface-container-highest"
-                        >
-                            Portal Proktor
-                        </Link>
+                       
                     </div>
                 </header>
 
