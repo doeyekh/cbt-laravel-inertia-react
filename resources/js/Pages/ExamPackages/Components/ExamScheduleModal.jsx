@@ -9,8 +9,6 @@ import Button from '@/Components/UI/Button';
 const emptyForm = {
     class_id: '',
     subject_id: '',
-    session_id: '',
-    room_id: '',
     exam_date: '',
     duration_minutes: 90,
     open_time: '07:00:00',
@@ -73,8 +71,6 @@ export default function ExamScheduleModal({
             setData({
                 class_id: String(initialData.class_id ?? ''),
                 subject_id: String(initialData.subject_id ?? ''),
-                session_id: String(initialData.session_id ?? ''),
-                room_id: String(initialData.room_id ?? ''),
                 exam_date: initialData.exam_date ?? '',
                 duration_minutes: initialData.duration_minutes ?? 90,
                 open_time: toTimeValue(initialData.open_time) || emptyForm.open_time,
@@ -87,7 +83,6 @@ export default function ExamScheduleModal({
             return;
         }
 
-        const firstSession = sessions[0];
         const firstClassId = classes[0]?.id ? String(classes[0].id) : '';
         const firstSubjects = firstClassId
             ? (subjectsByClass[firstClassId] ?? [])
@@ -97,11 +92,9 @@ export default function ExamScheduleModal({
             ...emptyForm,
             class_id: firstClassId,
             subject_id: firstSubjects[0]?.id ? String(firstSubjects[0].id) : '',
-            session_id: firstSession?.id ? String(firstSession.id) : '',
-            room_id: rooms[0]?.id ? String(rooms[0].id) : '',
             exam_date: examPackage?.start_date ?? '',
-            open_time: toTimeValue(firstSession?.start_time) || emptyForm.open_time,
-            close_time: toTimeValue(firstSession?.end_time) || emptyForm.close_time,
+            open_time: emptyForm.open_time,
+            close_time: emptyForm.close_time,
         });
     }, [isOpen, initialDataId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -130,21 +123,7 @@ export default function ExamScheduleModal({
         clearErrors(['class_id', 'subject_id']);
     };
 
-    const handleSessionChange = (event) => {
-        const sessionId = event.target.value;
-        const session = sessions.find(
-            (item) => String(item.id) === String(sessionId)
-        );
-        const next = { session_id: sessionId };
-
-        if (session?.start_time && session?.end_time) {
-            next.open_time = session.start_time;
-            next.close_time = session.end_time;
-        }
-
-        setData(next);
-        clearErrors(['session_id', 'open_time', 'close_time']);
-    };
+    
 
     const handleSubmit = (event) => {
         event.preventDefault();
@@ -157,14 +136,6 @@ export default function ExamScheduleModal({
 
         if (!data.subject_id) {
             nextErrors.subject_id = 'Mata pelajaran wajib dipilih.';
-        }
-
-        if (!data.session_id) {
-            nextErrors.session_id = 'Sesi wajib dipilih.';
-        }
-
-        if (!data.room_id) {
-            nextErrors.room_id = 'Ruangan wajib dipilih.';
         }
 
         if (!data.exam_date) {
@@ -231,10 +202,6 @@ export default function ExamScheduleModal({
         }
     };
 
-    const selectedSession = sessions.find(
-        (session) => String(session.id) === String(data.session_id)
-    );
-
     return (
         <Modal isOpen={isOpen} onClose={handleClose} maxWidth="max-w-2xl">
             <div className="flex items-start gap-3 mb-6">
@@ -299,47 +266,6 @@ export default function ExamScheduleModal({
                             </p>
                         )}
                     </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <Select
-                            id="exam-schedule-session"
-                            label="Sesi"
-                            value={data.session_id}
-                            onChange={handleSessionChange}
-                            error={errors.session_id}
-                            placeholder="Pilih sesi..."
-                        >
-                            {sessions.map((session) => (
-                                <option key={session.id} value={String(session.id)}>
-                                    {session.name} ({session.start_time?.slice(0, 5)} -{' '}
-                                    {session.end_time?.slice(0, 5)})
-                                </option>
-                            ))}
-                        </Select>
-                        {selectedSession && (
-                            <p className="mt-1.5 text-[10px] text-on-surface-variant font-body">
-                                Waktu sesi: {selectedSession.start_time?.slice(0, 5)} -{' '}
-                                {selectedSession.end_time?.slice(0, 5)}
-                            </p>
-                        )}
-                    </div>
-
-                    <Select
-                        id="exam-schedule-room"
-                        label="Ruangan"
-                        value={data.room_id}
-                        onChange={(event) => setField('room_id', event.target.value)}
-                        error={errors.room_id}
-                        placeholder="Pilih ruangan..."
-                    >
-                        {rooms.map((room) => (
-                            <option key={room.id} value={String(room.id)}>
-                                {room.name} ({room.code})
-                            </option>
-                        ))}
-                    </Select>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

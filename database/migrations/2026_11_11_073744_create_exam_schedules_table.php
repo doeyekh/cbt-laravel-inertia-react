@@ -16,8 +16,8 @@ return new class extends Migration
             $table->foreignId('exam_package_id')->constrained('exam_packages')->cascadeOnDelete();
             $table->foreignId('class_id')->constrained('classes')->cascadeOnDelete();
             $table->foreignId('subject_id')->constrained('subjects')->cascadeOnDelete();
-            $table->foreignId('session_id')->constrained('exam_sessions')->cascadeOnDelete();
-            $table->foreignId('room_id')->constrained('rooms')->cascadeOnDelete();
+            $table->foreignId('session_id')->constrained('exam_sessions')->cascadeOnDelete()->nullable();
+            $table->foreignId('room_id')->constrained('rooms')->cascadeOnDelete()->nullable();
             $table->date('exam_date');
             $table->unsignedSmallInteger('duration_minutes');
             $table->time('open_time');

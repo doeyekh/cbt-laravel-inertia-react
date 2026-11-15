@@ -4,9 +4,7 @@ namespace Database\Factories;
 
 use App\Models\ExamPackage;
 use App\Models\ExamSchedule;
-use App\Models\Room;
 use App\Models\SchoolClass;
-use App\Models\Session;
 use App\Models\Subject;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -26,8 +24,6 @@ class ExamScheduleFactory extends Factory
             'exam_package_id' => ExamPackage::factory(),
             'class_id' => SchoolClass::factory(),
             'subject_id' => Subject::factory(),
-            'session_id' => Session::factory(),
-            'room_id' => Room::factory(),
             'exam_date' => fake()->dateTimeBetween('now', '+2 months')->format('Y-m-d'),
             'duration_minutes' => 90,
             'open_time' => '07:00:00',

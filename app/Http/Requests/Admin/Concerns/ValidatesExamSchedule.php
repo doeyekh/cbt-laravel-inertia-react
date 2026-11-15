@@ -6,9 +6,7 @@ use App\Enums\ExamPackageStatus;
 use App\Models\ExamPackage;
 use App\Models\ExamSchedule;
 use App\Models\QuestionBank;
-use App\Models\Room;
 use App\Models\SchoolClass;
-use App\Models\Session;
 use Illuminate\Validation\Validator;
 
 trait ValidatesExamSchedule
@@ -43,8 +41,6 @@ trait ValidatesExamSchedule
         return [
             'class_id' => ['required', 'integer', 'exists:classes,id'],
             'subject_id' => ['required', 'integer', 'exists:subjects,id'],
-            'session_id' => ['required', 'integer', 'exists:exam_sessions,id'],
-            'room_id' => ['required', 'integer', 'exists:rooms,id'],
             'exam_date' => ['required', 'date'],
             'duration_minutes' => ['required', 'integer', 'min:1', 'max:600'],
             'open_time' => ['required', 'date_format:H:i:s'],
@@ -67,10 +63,6 @@ trait ValidatesExamSchedule
             'class_id.exists' => 'Kelas tidak valid.',
             'subject_id.required' => 'Mata pelajaran wajib dipilih.',
             'subject_id.exists' => 'Mata pelajaran tidak valid.',
-            'session_id.required' => 'Sesi wajib dipilih.',
-            'session_id.exists' => 'Sesi tidak valid.',
-            'room_id.required' => 'Ruangan wajib dipilih.',
-            'room_id.exists' => 'Ruangan tidak valid.',
             'exam_date.required' => 'Tanggal ujian wajib diisi.',
             'exam_date.date' => 'Tanggal ujian tidak valid.',
             'duration_minutes.required' => 'Durasi ujian wajib diisi.',
@@ -96,7 +88,7 @@ trait ValidatesExamSchedule
      */
     protected function validateExamSchedule(Validator $validator, ExamPackage $examPackage, ?ExamSchedule $ignore = null): void
     {
-        $fields = ['class_id', 'subject_id', 'session_id', 'room_id', 'exam_date'];
+        $fields = ['class_id', 'subject_id', 'exam_date'];
 
         foreach ($fields as $field) {
             if ($validator->errors()->has($field)) {
@@ -111,27 +103,11 @@ trait ValidatesExamSchedule
         }
 
         $schoolClass = SchoolClass::query()->find((int) $this->input('class_id'));
-        $session = Session::query()->find((int) $this->input('session_id'));
-        $room = Room::query()->find((int) $this->input('room_id'));
 
         if ($schoolClass === null
             || (int) $schoolClass->school_id !== (int) $examPackage->school_id
             || (int) $schoolClass->academic_year_id !== (int) $examPackage->academic_year_id) {
             $validator->errors()->add('class_id', 'Kelas harus berasal dari sekolah dan tahun pelajaran paket ujian.');
-        }
-
-        if ($session === null || (int) $session->school_id !== (int) $examPackage->school_id) {
-            $validator->errors()->add('session_id', 'Sesi harus berasal dari sekolah paket ujian.');
-        }
-
-        if ($room === null || (int) $room->school_id !== (int) $examPackage->school_id) {
-            $validator->errors()->add('room_id', 'Ruangan harus berasal dari sekolah paket ujian.');
-        }
-
-        if ($validator->errors()->has('class_id')
-            || $validator->errors()->has('session_id')
-            || $validator->errors()->has('room_id')) {
-            return;
         }
 
         $questionBankQuery = QuestionBank::query()
@@ -180,24 +156,13 @@ trait ValidatesExamSchedule
             ->whereHas('examPackage', fn ($query) => $query->where('school_id', $examPackage->school_id))
             ->when($ignore !== null, fn ($query) => $query->whereKeyNot($ignore->id));
 
-        $roomConflict = (clone $schoolQuery)
-            ->whereDate('exam_date', $examDate)
-            ->where('session_id', (int) $this->input('session_id'))
-            ->where('room_id', (int) $this->input('room_id'))
-            ->exists();
-
-        if ($roomConflict) {
-            $validator->errors()->add('room_id', 'Ruangan sudah dipakai pada tanggal dan sesi tersebut.');
-        }
-
         $classConflict = (clone $schoolQuery)
             ->whereDate('exam_date', $examDate)
-            ->where('session_id', (int) $this->input('session_id'))
             ->where('class_id', (int) $this->input('class_id'))
             ->exists();
 
         if ($classConflict) {
-            $validator->errors()->add('class_id', 'Kelas sudah memiliki jadwal lain pada tanggal dan sesi tersebut.');
+            $validator->errors()->add('class_id', 'Kelas sudah memiliki jadwal lain pada tanggal tersebut.');
         }
     }
 }
