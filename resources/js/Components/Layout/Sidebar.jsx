@@ -53,6 +53,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
     const user = props.auth?.user;
     const isAdministrator = user?.is_administrator ?? (user?.role === 'administrator');
+    const isSchoolAdmin = user?.is_school_admin ?? false;
     const canAccessSchool = user?.can_access_school ?? isAdministrator;
 
     // Route helper only works after Ziggy is initialized on the client,
@@ -60,7 +61,17 @@ export default function Sidebar({ isOpen, onClose }) {
     const navItems = useMemo(
         () =>
             buildNavItems()
-                .filter((item) => item.name !== 'Users' || isAdministrator)
+                .filter((item) => {
+                    if (item.name === 'Users') {
+                        return isAdministrator;
+                    }
+
+                    if (item.name === 'Monitoring Ujian') {
+                        return isSchoolAdmin;
+                    }
+
+                    return true;
+                })
                 .map((item) => {
                     if (item.children) {
                         return {
@@ -104,7 +115,7 @@ export default function Sidebar({ isOpen, onClose }) {
                     return item;
                 })
                 .filter((item) => !item.children || item.children.length > 0),
-        [isAdministrator, canAccessSchool]
+        [isAdministrator, isSchoolAdmin, canAccessSchool]
     );
 
     // Deteksi apakah URL saat ini cocok dengan href.

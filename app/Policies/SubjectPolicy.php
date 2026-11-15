@@ -9,11 +9,12 @@ class SubjectPolicy
 {
     /**
      * Determine whether the user can view any subjects.
-     * Hanya administrator dan guru yang ditugaskan sebagai admin sekolah yang dapat mengakses.
+     * Administrator, kepala sekolah, dan admin sekolah dapat mengakses.
      */
     public function viewAny(User $user): bool
     {
         return $user->isAdministrator()
+            || $user->isHeadmaster()
             || $user->isSchoolAdmin();
     }
 
@@ -23,12 +24,13 @@ class SubjectPolicy
     public function view(User $user, Subject $subject): bool
     {
         return $user->isAdministrator()
+            || $user->isHeadmaster()
             || $user->isSchoolAdmin();
     }
 
     /**
      * Determine whether the user can create subjects.
-     * Administrator memiliki fungsi penuh; admin sekolah hanya melihat.
+     * Hanya administrator yang dapat membuat; kepala sekolah dan admin sekolah hanya melihat.
      */
     public function create(User $user): bool
     {

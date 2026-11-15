@@ -71,7 +71,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             return Inertia::render('Monitoring/Index', [
                 'title' => 'Monitoring Ujian',
             ]);
-        })->name('monitoring.index');
+        })->middleware('school-admin')->name('monitoring.index');
 
         Route::patch('schools/{school}/credential-template', [ExamParticipantController::class, 'updateCredentialTemplate'])
             ->name('schools.credential-template');

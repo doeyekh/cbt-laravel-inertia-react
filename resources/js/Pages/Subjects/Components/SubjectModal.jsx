@@ -193,18 +193,16 @@ export default function SubjectModal({
                         >
                             Tutup
                         </Button>
-                        <Button
-                            type="button"
-                            onClick={() => {
-                                if (onSwitchToEdit) {
+                        {onSwitchToEdit && (
+                            <Button
+                                type="button"
+                                onClick={() => {
                                     onSwitchToEdit(initialData);
-                                } else {
-                                    handleClose();
-                                }
-                            }}
-                        >
-                            Edit
-                        </Button>
+                                }}
+                            >
+                                Edit
+                            </Button>
+                        )}
                     </div>
                 </div>
             ) : (

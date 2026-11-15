@@ -68,44 +68,59 @@ export default function SubjectTable({
                             </div>
                         </TableCell>
                         <TableCell>
-                            <button
-                                type="button"
-                                onClick={() => onToggleStatus?.(item)}
-                                disabled={togglingId !== null}
-                                title={
-                                    item.is_active
-                                        ? 'Klik untuk menonaktifkan mata pelajaran ini'
-                                        : 'Klik untuk mengaktifkan mata pelajaran ini'
-                                }
-                                className="group inline-flex items-center rounded-xl transition enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                            >
+                            {item.can_toggle_status ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onToggleStatus?.(item)}
+                                    disabled={togglingId !== null}
+                                    title={
+                                        item.is_active
+                                            ? 'Klik untuk menonaktifkan mata pelajaran ini'
+                                            : 'Klik untuk mengaktifkan mata pelajaran ini'
+                                    }
+                                    className="group inline-flex items-center rounded-xl transition enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <Badge
+                                        variant={item.is_active ? 'success' : 'neutral'}
+                                        className="transition group-hover:brightness-95"
+                                    >
+                                        <span
+                                            className={`material-symbols-outlined text-[13px] ${
+                                                togglingId === item.id
+                                                    ? 'animate-spin'
+                                                    : ''
+                                            }`}
+                                        >
+                                            {togglingId === item.id
+                                                ? 'sync'
+                                                : item.is_active
+                                                  ? 'check_circle'
+                                                  : 'remove_circle'}
+                                        </span>
+                                        {item.is_active ? 'Aktif' : 'Tidak Aktif'}
+                                    </Badge>
+                                </button>
+                            ) : (
                                 <Badge
                                     variant={item.is_active ? 'success' : 'neutral'}
-                                    className="transition group-hover:brightness-95"
                                 >
                                     <span
-                                        className={`material-symbols-outlined text-[13px] ${
-                                            togglingId === item.id
-                                                ? 'animate-spin'
-                                                : ''
-                                        }`}
+                                        className="material-symbols-outlined text-[13px]"
                                     >
-                                        {togglingId === item.id
-                                            ? 'sync'
-                                            : item.is_active
-                                              ? 'check_circle'
-                                              : 'remove_circle'}
+                                        {item.is_active ? 'check_circle' : 'remove_circle'}
                                     </span>
                                     {item.is_active ? 'Aktif' : 'Tidak Aktif'}
                                 </Badge>
-                            </button>
+                            )}
                         </TableCell>
                         <TableCell className="text-right">
                             <RowActions
                                 onShow={() => onShow?.(item)}
-                                onEdit={() => onEdit?.(item)}
+                                onEdit={item.can_edit ? () => onEdit?.(item) : undefined}
                                 onDelete={
-                                    !item.is_active ? () => onDelete?.(item) : undefined
+                                    item.can_delete && !item.is_active
+                                        ? () => onDelete?.(item)
+                                        : undefined
                                 }
                             />
                         </TableCell>

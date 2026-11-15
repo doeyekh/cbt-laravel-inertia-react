@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\School;
 use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -33,6 +34,63 @@ class SubjectControllerTest extends TestCase
                 ->where('filters.search', '')
                 ->has('stats')
             );
+    }
+
+    public function test_headmaster_can_view_subjects_without_mutation_permissions(): void
+    {
+        $headmaster = User::factory()->guru()->create();
+        School::factory()->create(['headmaster_id' => $headmaster->id]);
+        $subject = Subject::factory()->create();
+        $this->actingAs($headmaster);
+
+        $this->get(route('admin.subjects.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('permissions.can_create', false)
+                ->where('subjects.data.0.id', $subject->id)
+                ->where('subjects.data.0.can_edit', false)
+                ->where('subjects.data.0.can_delete', false)
+                ->where('subjects.data.0.can_toggle_status', false)
+            );
+    }
+
+    public function test_headmaster_cannot_create_import_update_delete_or_toggle_subjects(): void
+    {
+        $headmaster = User::factory()->guru()->create();
+        School::factory()->create(['headmaster_id' => $headmaster->id]);
+        $subject = Subject::factory()->create([
+            'code' => 'MAT',
+            'name' => 'Matematika',
+            'is_active' => false,
+        ]);
+        $this->actingAs($headmaster);
+
+        $this->post(route('admin.subjects.store'), [
+            'code' => 'BIN',
+            'name' => 'Bahasa Indonesia',
+        ])->assertForbidden();
+
+        $this->post(route('admin.subjects.import'))
+            ->assertForbidden();
+
+        $this->put(route('admin.subjects.update', $subject), [
+            'code' => 'MTK',
+            'name' => 'Matematika Lanjutan',
+        ])->assertForbidden();
+
+        $this->patch(route('admin.subjects.toggle-status', $subject))
+            ->assertForbidden();
+
+        $this->delete(route('admin.subjects.destroy', $subject))
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('subjects', 1);
+        $this->assertDatabaseHas('subjects', [
+            'id' => $subject->id,
+            'code' => 'MAT',
+            'name' => 'Matematika',
+            'is_active' => false,
+        ]);
     }
 
     public function test_index_filters_by_name_or_code(): void

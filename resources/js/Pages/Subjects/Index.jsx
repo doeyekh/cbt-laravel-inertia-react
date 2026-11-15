@@ -15,7 +15,7 @@ import { route } from '@/Utils/route';
 
 const PER_PAGE = 5;
 
-export default function SubjectsIndex({ subjects, filters, stats }) {
+export default function SubjectsIndex({ subjects, filters, stats, permissions }) {
     const { flash } = usePage().props;
     const { toasts, toast, dismiss } = useToast();
 
@@ -173,23 +173,27 @@ export default function SubjectsIndex({ subjects, filters, stats }) {
                             Manajemen Mata Pelajaran
                         </h1>
                         <p className="text-sm text-on-surface-variant font-body">
-                            Kelola daftar mata pelajaran yang diujikan dalam sistem evaluasi.
+                            {permissions?.can_create
+                                ? 'Kelola daftar mata pelajaran yang diujikan dalam sistem evaluasi.'
+                                : 'Lihat daftar mata pelajaran yang diujikan dalam sistem evaluasi.'}
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        <Button
-                            variant="secondary"
-                            onClick={() => setImportOpen(true)}
-                        >
-                            <span className="material-symbols-outlined text-[18px]">upload_file</span>
-                            Import Excel
-                        </Button>
-                        <Button onClick={handleOpenCreate}>
-                            <span className="material-symbols-outlined text-[18px]">add</span>
-                            Tambah Mata Pelajaran
-                        </Button>
-                    </div>
+                    {permissions?.can_create && (
+                        <div className="flex flex-wrap items-center gap-3">
+                            <Button
+                                variant="secondary"
+                                onClick={() => setImportOpen(true)}
+                            >
+                                <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                                Import Excel
+                            </Button>
+                            <Button onClick={handleOpenCreate}>
+                                <span className="material-symbols-outlined text-[18px]">add</span>
+                                Tambah Mata Pelajaran
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Stats Cards */}
@@ -262,7 +266,9 @@ export default function SubjectsIndex({ subjects, filters, stats }) {
                                 Daftar Mata Pelajaran
                             </h3>
                             <p className="text-[11px] text-on-surface-variant font-body mt-0.5">
-                                Klik badge status untuk mengaktifkan atau menonaktifkan.
+                                {permissions?.can_create
+                                    ? 'Klik badge status untuk mengaktifkan atau menonaktifkan.'
+                                    : 'Informasi mata pelajaran.'}
                             </p>
                         </div>
                         <Input
@@ -305,13 +311,15 @@ export default function SubjectsIndex({ subjects, filters, stats }) {
                 onClose={handleCloseModal}
                 mode={modalMode}
                 initialData={selectedItem}
-                onSwitchToEdit={handleOpenEdit}
+                onSwitchToEdit={selectedItem?.can_edit ? handleOpenEdit : null}
             />
 
-            <ImportSubjectsModal
-                isOpen={importOpen}
-                onClose={() => setImportOpen(false)}
-            />
+            {permissions?.can_create && (
+                <ImportSubjectsModal
+                    isOpen={importOpen}
+                    onClose={() => setImportOpen(false)}
+                />
+            )}
 
             <DeleteConfirmation
                 isOpen={deleteOpen}

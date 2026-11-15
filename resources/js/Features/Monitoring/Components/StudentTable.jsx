@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Avatar from '@/Components/UI/Avatar';
 import Table, {
     TableHead,
@@ -134,15 +134,24 @@ const getRowClassName = (status) => {
     return '';
 };
 
-export default function StudentTable({ className = '' }) {
+export default function StudentTable({ searchQuery = '', className = '' }) {
     const [page, setPage] = useState(1);
 
-    const lastPage = Math.max(1, Math.ceil(STUDENTS.length / PAGE_SIZE));
+    useEffect(() => {
+        setPage(1);
+    }, [searchQuery]);
+
+    const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+    const filteredStudents = STUDENTS.filter((student) =>
+        [student.name, student.nisn, student.class, student.room]
+            .some((value) => value.toLocaleLowerCase().includes(normalizedSearch))
+    );
+    const lastPage = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
     const currentPage = Math.min(page, lastPage);
     const startIndex = (currentPage - 1) * PAGE_SIZE;
-    const visibleStudents = STUDENTS.slice(startIndex, startIndex + PAGE_SIZE);
-    const showingFrom = STUDENTS.length === 0 ? 0 : startIndex + 1;
-    const showingTo = Math.min(startIndex + PAGE_SIZE, STUDENTS.length);
+    const visibleStudents = filteredStudents.slice(startIndex, startIndex + PAGE_SIZE);
+    const showingFrom = filteredStudents.length === 0 ? 0 : startIndex + 1;
+    const showingTo = Math.min(startIndex + PAGE_SIZE, filteredStudents.length);
 
     return (
         <div className={`bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden ${className}`}>
@@ -157,72 +166,80 @@ export default function StudentTable({ className = '' }) {
                     <TableHeadCell className="text-right">Tindakan Pengawas</TableHeadCell>
                 </TableHead>
                 <TableBody>
-                    {visibleStudents.map((student) => (
-                        <TableRow key={student.id} className={getRowClassName(student.status)}>
-                            <TableCell className="text-center font-mono text-on-surface-variant font-medium">
-                                {student.no}
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <Avatar
-                                        label={student.name}
-                                        variant={
-                                            student.status === 'violation'
-                                                ? 'error'
-                                                : student.status === 'warning'
-                                                ? 'tertiary'
-                                                : 'primary'
-                                        }
-                                    />
-                                    <div>
-                                        <div className="font-headline font-semibold text-on-surface text-sm">
-                                            {student.name}
-                                        </div>
-                                        <div className="font-mono text-[11px] text-on-surface-variant">
-                                            NISN: {student.nisn} • {student.class}
+                    {visibleStudents.length > 0 ? (
+                        visibleStudents.map((student) => (
+                            <TableRow key={student.id} className={getRowClassName(student.status)}>
+                                <TableCell className="text-center font-mono text-on-surface-variant font-medium">
+                                    {student.no}
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar
+                                            label={student.name}
+                                            variant={
+                                                student.status === 'violation'
+                                                    ? 'error'
+                                                    : student.status === 'warning'
+                                                    ? 'tertiary'
+                                                    : 'primary'
+                                            }
+                                        />
+                                        <div>
+                                            <div className="font-headline font-semibold text-on-surface text-sm">
+                                                {student.name}
+                                            </div>
+                                            <div className="font-mono text-[11px] text-on-surface-variant">
+                                                NISN: {student.nisn} • {student.class}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                <div className="text-on-surface font-medium text-xs">
-                                    {student.room}
-                                </div>
-                                <div className="text-[11px] text-on-surface-variant">
-                                    {student.subject}
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex justify-between items-center text-[11px] font-label mb-1">
-                                    <span className="font-semibold text-on-surface">
-                                        {student.progress.current} / {student.progress.total} Soal
-                                    </span>
-                                    <span
-                                        className={
-                                            student.integrity === 'tabSwitch'
-                                                ? 'text-error font-bold'
-                                                : 'text-primary font-bold'
-                                        }
-                                    >
-                                        {student.progress.percent}%
-                                    </span>
-                                </div>
-                                <ProgressBar
-                                    value={student.progress.percent}
-                                    color={student.integrity === 'tabSwitch' ? 'error' : 'primary'}
-                                />
-                            </TableCell>
-                            <TableCell className="text-center">
-                                <ConnectionStatus status={student.connection} />
-                            </TableCell>
-                            <TableCell>
-                                <IntegrityStatus status={student.integrity} />
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <RowActions student={student} />
+                                </TableCell>
+                                <TableCell>
+                                    <div className="text-on-surface font-medium text-xs">
+                                        {student.room}
+                                    </div>
+                                    <div className="text-[11px] text-on-surface-variant">
+                                        {student.subject}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex justify-between items-center text-[11px] font-label mb-1">
+                                        <span className="font-semibold text-on-surface">
+                                            {student.progress.current} / {student.progress.total} Soal
+                                        </span>
+                                        <span
+                                            className={
+                                                student.integrity === 'tabSwitch'
+                                                    ? 'text-error font-bold'
+                                                    : 'text-primary font-bold'
+                                            }
+                                        >
+                                            {student.progress.percent}%
+                                        </span>
+                                    </div>
+                                    <ProgressBar
+                                        value={student.progress.percent}
+                                        color={student.integrity === 'tabSwitch' ? 'error' : 'primary'}
+                                    />
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <ConnectionStatus status={student.connection} />
+                                </TableCell>
+                                <TableCell>
+                                    <IntegrityStatus status={student.integrity} />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <RowActions student={student} />
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={7} className="py-12 text-center text-on-surface-variant">
+                                Tidak ada siswa yang cocok dengan pencarian.
                             </TableCell>
                         </TableRow>
-                    ))}
+                    )}
                 </TableBody>
             </Table>
 
@@ -232,7 +249,7 @@ export default function StudentTable({ className = '' }) {
                 onPageChange={setPage}
                 from={showingFrom}
                 to={showingTo}
-                total={STUDENTS.length}
+                total={filteredStudents.length}
                 itemLabel="Siswa Aktif"
                 className="p-4 bg-surface-container-low"
             />

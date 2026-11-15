@@ -3,6 +3,7 @@
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\EnsureStudentIsAuthenticated;
 use App\Http\Middleware\EnsureUserIsAdministrator;
+use App\Http\Middleware\EnsureUserIsSchoolAdmin;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth' => Authenticate::class,
             'administrator' => EnsureUserIsAdministrator::class,
+            'school-admin' => EnsureUserIsSchoolAdmin::class,
             'student.auth' => EnsureStudentIsAuthenticated::class,
         ]);
     })
