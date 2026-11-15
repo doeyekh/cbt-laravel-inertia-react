@@ -6,10 +6,9 @@
     <title>Kartu Peserta {{ $school['code'] }}</title>
 
     <style>
-        /* =====================================================
-           PENGATURAN KERTAS
-        ===================================================== */
-
+        /* =========================================
+           PENGATURAN HALAMAN
+        ========================================= */
         @page {
             size: A4 portrait;
             margin: 5mm;
@@ -27,10 +26,9 @@
             color: #1e293b;
         }
 
-        /* =====================================================
-           GRID KARTU: 2 KOLOM
-        ===================================================== */
-
+        /* =========================================
+           GRID KARTU (2 KOLOM x 4 BARIS = 8 / HAL)
+        ========================================= */
         .card-grid {
             width: 100%;
             table-layout: fixed;
@@ -44,23 +42,18 @@
             vertical-align: top;
         }
 
-        /* =====================================================
-           KARTU PESERTA
-        ===================================================== */
-
         .card {
             width: 96mm;
             height: 66mm;
-            /* padding: 1mm; */
+            padding: 2mm;
             border: 0.8pt solid #475569;
-            position: relative;
             page-break-inside: avoid;
+            overflow: hidden;
         }
 
-        /* =====================================================
-           HEADER
-        ===================================================== */
-
+        /* =========================================
+           HEADER SEKOLAH
+        ========================================= */
         .header {
             width: 100%;
             height: 13mm;
@@ -69,7 +62,7 @@
         }
 
         .header-logo {
-            width: 5mm;
+            width: 12mm;
             text-align: center;
             vertical-align: middle;
             padding: 0;
@@ -78,6 +71,8 @@
         .header-logo img {
             max-width: 10mm;
             max-height: 10mm;
+            display: block;
+            margin: auto;
         }
 
         .header-content {
@@ -88,13 +83,11 @@
 
         .header-title {
             font-size: 7.5pt;
-            /* font-weight: bold; */
-            line-height: 1;
+            font-weight: bold;
+            line-height: 1.3;
             text-transform: uppercase;
             border-bottom: 0.8pt solid #475569;
-        }
-        .header-title strong {
-            font-weight: bold;
+            padding-bottom: 1mm;
         }
 
         .header-year {
@@ -103,45 +96,45 @@
         }
 
         .header-divider {
-            border: none;
-            border-top: 0.8pt solid #475569;
+            border: 0;
+            border-top: 0.8pt solid #94a3b8;
             margin: 1mm 0 2mm;
         }
 
-        /* =====================================================
+        /* =========================================
            IDENTITAS PESERTA
-        ===================================================== */
-
+        ========================================= */
         .identity {
             width: 100%;
             border-collapse: collapse;
-            /* table-layout: fixed; */
+            table-layout: fixed;
         }
 
         .photo-cell {
-            width: 10mm;
-    /* padding: 0 1mm 0 0; */
-    text-align: left;
-    vertical-align: top;
+            width: 20mm; /* 18mm lebar foto + 2mm jarak ke identitas */
+            padding: 0 2mm 0 0;
+            text-align: left;
+            vertical-align: top;
         }
 
         .photo {
             width: 18mm;
-    height: 24mm;
-    border: 0.6pt solid #cbd5e1;
-    display: block;
+            height: 24mm;
+            border: 0.6pt solid #cbd5e1;
+            display: block;
+            object-fit: cover;
         }
 
         .details-cell {
-            width: auto;
-    padding: 0;
-    vertical-align: top;
+            width: 71mm;
+            padding: 0;
+            vertical-align: top;
         }
 
         .details-table {
             width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
+            border-collapse: collapse;
+            table-layout: fixed;
         }
 
         .details-table td {
@@ -152,8 +145,13 @@
         }
 
         .detail-label {
-            width: 21mm;
+            width: 19mm;
             color: #475569;
+        }
+
+        .detail-separator {
+            width: 2.5mm;
+            text-align: center;
         }
 
         .detail-value {
@@ -163,28 +161,28 @@
 
         .participant-number {
             font-size: 8pt;
-            font-weight: bold;
-            letter-spacing: 0.4pt;
+            letter-spacing: 0.3pt;
         }
 
-        /* =====================================================
+        /* =========================================
            USERNAME & PASSWORD
-        ===================================================== */
-
+        ========================================= */
         .credential-table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 1.5mm 0;
+            border-collapse: collapse;
             table-layout: fixed;
-            margin-left: -1.5mm;
             margin-top: 2mm;
         }
 
         .credential-cell {
-            width: 50%;
+            width: 49%;
             padding: 1.5mm;
             border: 0.7pt solid #94a3b8;
             vertical-align: middle;
+        }
+
+        .credential-spacer {
+            width: 2%;
         }
 
         .credential-label {
@@ -203,10 +201,9 @@
             word-wrap: break-word;
         }
 
-        /* =====================================================
-           FOOTER
-        ===================================================== */
-
+        /* =========================================
+           FOOTER & UTILITAS
+        ========================================= */
         .footer {
             width: 100%;
             border-collapse: collapse;
@@ -230,17 +227,9 @@
             text-align: right;
         }
 
-        /* =====================================================
-           PAGE BREAK
-        ===================================================== */
-
         .page-break {
             page-break-after: always;
         }
-
-        /* =====================================================
-           DATA KOSONG
-        ===================================================== */
 
         .empty {
             padding: 20mm;
@@ -248,271 +237,140 @@
             font-size: 10pt;
             color: #64748b;
         }
-
     </style>
 </head>
 
 <body>
+    @forelse ($participants as $participant)
+        {{-- Buka tabel setiap 8 peserta --}}
+        @if ($loop->iteration % 8 === 1)
+            <table class="card-grid" cellpadding="0" cellspacing="0">
+        @endif
 
-<table class="card-grid" cellpadding="0" cellspacing="0">
-    <tr>
-        <td class="card-cell">
-            <div class="card">
-                <div class="header-title" style="text-align: center; font-size: 9pt; margin-top: 10mm;">
-                    <strong>Kartu Peserta Ujian
-                    <br>
-                    {{ strtoupper($school['name']) }}</strong>
-                    <br>
-                    Tahun Ajaran {{ $academic_year['name'] }}
-                </div>
-                <div class="empty" style="text-align: center; font-size: 10pt; margin-top: 20mm;">
-                    
-                </div>
-            </div>
-        </td>
-    </tr>
-</table>
-
-@forelse ($participants as $participant)
-
-    {{-- Buka tabel setiap 8 peserta --}}
-    @if ($loop->iteration % 8 === 1)
-        <table class="card-grid" cellpadding="0" cellspacing="0">
-    @endif
-
-    {{-- Buka baris setiap 2 peserta --}}
-    @if ($loop->iteration % 2 === 1)
-        <tr>
-    @endif
+        {{-- Buka baris setiap 2 peserta --}}
+        @if ($loop->iteration % 2 === 1)
+            <tr>
+        @endif
 
         <td class="card-cell">
-
             <div class="card">
-
-                {{-- ==========================================
-                     HEADER SEKOLAH
-                =========================================== --}}
-
+                {{-- HEADER SEKOLAH --}}
                 <table class="header" cellpadding="0" cellspacing="0">
                     <tr>
-
-                        {{-- Logo kiri --}}
                         <td class="header-logo">
                             @if (!empty($school['logo_left']))
-                                <img
-                                    src="{{ $school['logo_left'] }}"
-                                    alt="Logo"
-                                >
+                                <img src="{{ $school['logo_left'] }}" alt="Logo">
                             @endif
                         </td>
 
-                        {{-- Identitas sekolah --}}
                         <td class="header-content">
-
                             <div class="header-title">
-                                KARTU PESERTA UJIAN
-                                <br>
+                                KARTU PESERTA UJIAN<br>
                                 {{ strtoupper($school['name']) }}
                             </div>
-
                             <div class="header-year">
-                                TAHUN AJARAN
-                                {{ $academic_year['name'] }}
+                                TAHUN AJARAN {{ $academic_year['name'] }}
                             </div>
-
                         </td>
 
-                        {{-- Logo sekolah --}}
                         <td class="header-logo">
                             @if (!empty($school['logo']))
-                                <img
-                                    src="{{ $school['logo'] }}"
-                                    alt="Logo Sekolah"
-                                >
+                                <img src="{{ $school['logo'] }}" alt="Logo Sekolah">
                             @endif
                         </td>
-
                     </tr>
                 </table>
 
                 <hr class="header-divider">
 
-                {{-- ==========================================
-                     IDENTITAS PESERTA
-                =========================================== --}}
-
-                <table class="identity" cellpadding="0" cellspacing="0" border="1">
+                {{-- IDENTITAS PESERTA --}}
+                <table class="identity" cellpadding="0" cellspacing="0">
                     <tr>
-
-                        {{-- Foto peserta --}}
                         <td class="photo-cell">
-
                             @if (!empty($participant['photo']))
-                                <img
-                                    src="{{ $participant['photo'] }}"
-                                    class="photo"
-                                    alt="Foto Peserta"
-                                >
+                                <img src="{{ $participant['photo'] }}" class="photo" alt="Foto Peserta">
                             @else
                                 <div class="photo"></div>
                             @endif
-
                         </td>
 
-                        {{-- Detail peserta --}}
                         <td class="details-cell">
-
                             <table class="details-table" cellpadding="0" cellspacing="0">
-
                                 <tr>
-                                    <td class="detail-label">
-                                        No. Peserta
-                                    </td>
-
+                                    <td class="detail-label">No. Peserta</td>
                                     <td class="detail-separator">:</td>
-
-                                    <td class="detail-value participant-number">
-                                        {{ $participant['participant_number'] }}
-                                    </td>
+                                    <td class="detail-value participant-number">{{ $participant['participant_number'] }}</td>
                                 </tr>
-
                                 <tr>
-                                    <td class="detail-label">
-                                        Nama
-                                    </td>
-
+                                    <td class="detail-label">Nama</td>
                                     <td class="detail-separator">:</td>
-
+                                    <td class="detail-value">{{ $participant['name'] }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="detail-label">NIS</td>
+                                    <td class="detail-separator">:</td>
+                                    <td class="detail-value">{{ $participant['nis'] }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="detail-label">Kelas</td>
+                                    <td class="detail-separator">:</td>
+                                    <td class="detail-value">{{ $participant['class_name'] ?? '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="detail-label">Sesi / Ruang</td>
+                                    <td class="detail-separator">:</td>
                                     <td class="detail-value">
-                                        {{ $participant['name'] }}
+                                        {{ $participant['session_name'] ?? '-' }} / {{ $participant['room_name'] ?? '-' }}
                                     </td>
                                 </tr>
-
-                                <tr>
-                                    <td class="detail-label">
-                                        NIS
-                                    </td>
-
-                                    <td class="detail-separator">:</td>
-
-                                    <td class="detail-value">
-                                        {{ $participant['nis'] }}
-                                    </td>
-                                </tr>
-
-                                <tr>
-                                    <td class="detail-label">
-                                        Kelas
-                                    </td>
-
-                                    <td class="detail-separator">:</td>
-
-                                    <td class="detail-value">
-                                        {{ $participant['class_name'] ?? '-' }}
-                                    </td>
-                                </tr>
-
-                                <tr>
-                                    <td class="detail-label">
-                                        Sesi / Ruang
-                                    </td>
-
-                                    <td class="detail-separator">:</td>
-
-                                    <td class="detail-value">
-                                        {{ $participant['session_name'] }} / {{ $participant['room_name'] }}
-                                    </td>
-                                </tr>
-
-
-                                
                             </table>
-
                         </td>
                     </tr>
                 </table>
 
-                {{-- ==========================================
-                     USERNAME & PASSWORD
-                =========================================== --}}
-
+                {{-- USERNAME & PASSWORD --}}
                 <table class="credential-table" cellpadding="0" cellspacing="0">
                     <tr>
-
                         <td class="credential-cell">
-
-                            <div class="credential-label">
-                                Username
-                            </div>
-
-                            <div class="credential-value">
-                                {{ $participant['username'] }}
-                            </div>
-
+                            <div class="credential-label">Username</div>
+                            <div class="credential-value">{{ $participant['username'] }}</div>
                         </td>
-
+                        <td class="credential-spacer"></td>
                         <td class="credential-cell">
-
-                            <div class="credential-label">
-                                Password
-                            </div>
-
-                            <div class="credential-value">
-                                {{ $participant['password'] }}
-                            </div>
-
+                            <div class="credential-label">Password</div>
+                            <div class="credential-value">{{ $participant['password'] }}</div>
                         </td>
-
                     </tr>
                 </table>
 
-                {{-- ==========================================
-                     FOOTER
-                =========================================== --}}
-
+                {{-- FOOTER --}}
                 <table class="footer" cellpadding="0" cellspacing="0">
                     <tr>
-
-                        <td class="footer-info">
-                            Harap membawa kartu saat ujian.
-                        </td>
-
-                        <td class="footer-signature">
-                            Paraf petugas: ______________
-                        </td>
-
+                        <td class="footer-info">Harap membawa kartu saat ujian.</td>
+                        <td class="footer-signature">Paraf petugas: ______________</td>
                     </tr>
                 </table>
-
             </div>
-
         </td>
 
-    {{-- Tutup baris setiap 2 peserta --}}
-    @if ($loop->iteration % 2 === 0 || $loop->last)
-        </tr>
-    @endif
-
-    {{-- Tutup tabel setiap 8 peserta --}}
-    @if ($loop->iteration % 8 === 0 || $loop->last)
-
-        </table>
-
-        {{-- Pindah halaman jika masih ada peserta --}}
-        @if (!$loop->last)
-            <div class="page-break"></div>
+        {{-- Tutup baris setiap 2 peserta --}}
+        @if ($loop->iteration % 2 === 0 || $loop->last)
+            </tr>
         @endif
 
-    @endif
+        {{-- Tutup tabel setiap 8 peserta --}}
+        @if ($loop->iteration % 8 === 0 || $loop->last)
+            </table>
 
-@empty
-
-    <div class="empty">
-        Belum ada peserta pada sekolah dan tahun pelajaran ini.
-    </div>
-
-@endforelse
-
-
+            @if (!$loop->last)
+                <div class="page-break"></div>
+            @endif
+        @endif
+    @empty
+        <div class="empty">
+            Belum ada peserta pada sekolah dan tahun pelajaran ini.
+        </div>
+    @endforelse
 </body>
+
 </html>
