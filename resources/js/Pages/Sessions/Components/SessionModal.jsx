@@ -217,7 +217,7 @@ export default function SessionModal({
                         <Input
                             id="session-start-time"
                             label="Waktu Mulai"
-                            type="time"
+                            type="time-local"
                             value={data.start_time}
                             onChange={(event) =>
                                 setField('start_time', event.target.value)
@@ -229,7 +229,7 @@ export default function SessionModal({
                         <Input
                             id="session-end-time"
                             label="Waktu Selesai"
-                            type="time"
+                            type="time-local"
                             value={data.end_time}
                             onChange={(event) =>
                                 setField('end_time', event.target.value)
