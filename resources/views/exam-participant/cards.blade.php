@@ -34,16 +34,19 @@
             table-layout: fixed;
             border-collapse: separate;
             border-spacing: 2mm 3mm;
+
         }
 
         .card-cell {
             width: 50%;
             padding: 0;
             vertical-align: top;
+            margin-right: 2mm;
+            /* border: 1mm solid red; */
         }
 
         .card {
-            width: 96mm;
+            width: 96%;
             height: 66mm;
             padding: 2mm;
             border: 0.8pt solid #475569;
@@ -56,13 +59,15 @@
         ========================================= */
         .header {
             width: 100%;
-            height: 13mm;
+            height: 10mm;
             border-collapse: collapse;
             table-layout: fixed;
+            border-bottom: 0.8pt solid #475569;
+            margin-bottom: 2mm;
         }
 
         .header-logo {
-            width: 12mm;
+            width: 10%;
             text-align: center;
             vertical-align: middle;
             padding: 0;
@@ -86,13 +91,10 @@
             font-weight: bold;
             line-height: 1.3;
             text-transform: uppercase;
-            border-bottom: 0.8pt solid #475569;
-            padding-bottom: 1mm;
         }
 
         .header-year {
             font-size: 6.5pt;
-            margin-top: 1mm;
         }
 
         .header-divider {
@@ -111,8 +113,8 @@
         }
 
         .photo-cell {
-            width: 20mm; /* 18mm lebar foto + 2mm jarak ke identitas */
-            padding: 0 2mm 0 0;
+            width: 19%; /* 18mm lebar foto + 2mm jarak ke identitas */
+            /* padding: 0 2mm 0 0; */
             text-align: left;
             vertical-align: top;
         }
@@ -126,31 +128,32 @@
         }
 
         .details-cell {
-            width: 71mm;
+            /* width: 71mm; */
             padding: 0;
             vertical-align: top;
         }
 
         .details-table {
+            margin-left: 2mm;
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
         }
 
         .details-table td {
-            padding: 0.65mm 0;
+            padding: 0.65mm 0.50mm;
             vertical-align: top;
             font-size: 6.7pt;
             line-height: 1.2;
         }
 
         .detail-label {
-            width: 19mm;
+            width: 26%;
             color: #475569;
         }
 
         .detail-separator {
-            width: 2.5mm;
+            width: 2%;
             text-align: center;
         }
 
@@ -241,6 +244,7 @@
 </head>
 
 <body>
+    
     @forelse ($participants as $participant)
         {{-- Buka tabel setiap 8 peserta --}}
         @if ($loop->iteration % 8 === 1)
@@ -281,7 +285,7 @@
                     </tr>
                 </table>
 
-                <hr class="header-divider">
+                <!-- <hr class="header-divider"> -->
 
                 {{-- IDENTITAS PESERTA --}}
                 <table class="identity" cellpadding="0" cellspacing="0">
