@@ -51,7 +51,7 @@
         .card {
             width: 96mm;
             height: 66mm;
-            padding: 2.5mm;
+            /* padding: 1mm; */
             border: 0.8pt solid #475569;
             position: relative;
             page-break-inside: avoid;
@@ -88,9 +88,13 @@
 
         .header-title {
             font-size: 7.5pt;
-            font-weight: bold;
-            line-height: 1.35;
+            /* font-weight: bold; */
+            line-height: 1;
             text-transform: uppercase;
+            border-bottom: 0.8pt solid #475569;
+        }
+        .header-title strong {
+            font-weight: bold;
         }
 
         .header-year {
@@ -249,6 +253,25 @@
 </head>
 
 <body>
+
+<table class="card-grid" cellpadding="0" cellspacing="0">
+    <tr>
+        <td class="card-cell">
+            <div class="card">
+                <div class="header-title" style="text-align: center; font-size: 9pt; margin-top: 10mm;">
+                    <strong>Kartu Peserta Ujian
+                    <br>
+                    {{ strtoupper($school['name']) }}</strong>
+                    <br>
+                    Tahun Ajaran {{ $academic_year['name'] }}
+                </div>
+                <div class="empty" style="text-align: center; font-size: 10pt; margin-top: 20mm;">
+                    
+                </div>
+            </div>
+        </td>
+    </tr>
+</table>
 
 @forelse ($participants as $participant)
 
@@ -489,6 +512,7 @@
     </div>
 
 @endforelse
+
 
 </body>
 </html>
