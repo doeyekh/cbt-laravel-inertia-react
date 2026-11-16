@@ -1,11 +1,10 @@
 import React from 'react';
 import StudentLayout from '@/Layouts/StudentLayout';
 import { useClock } from '@/Hooks/useClock';
-import DeviceReadiness from './Components/DeviceReadiness';
 import ExamAgenda from './Components/ExamAgenda';
-import ExamGuidance from './Components/ExamGuidance';
 import ExamHero from './Components/ExamHero';
 import ParticipantIdentity from './Components/ParticipantIdentity';
+import StudentSidebar from './Components/StudentSidebar';
 
 export default function StudentDashboard({ participant = {}, exams = [], systemInfo = {} }) {
     const { now } = useClock();
@@ -49,9 +48,8 @@ export default function StudentDashboard({ participant = {}, exams = [], systemI
                     <ExamAgenda exams={exams} now={now} />
                 </div>
 
-                <aside className="flex flex-col gap-5 lg:col-span-4">
-                    <DeviceReadiness />
-                    <ExamGuidance />
+                <aside className="lg:col-span-4">
+                    <StudentSidebar />
                 </aside>
             </div>
         </StudentLayout>

@@ -123,7 +123,7 @@ function ActionButton({ exam, status }) {
                     className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 font-label text-[11px] font-semibold text-on-primary transition-opacity hover:opacity-90"
                 >
                     <span className="material-symbols-outlined text-[17px]">key</span>
-                    Masukkan Token
+                    Kerjakan
                 </Link>
             );
         }

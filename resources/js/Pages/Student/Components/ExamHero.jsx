@@ -121,13 +121,13 @@ function TokenPanel({ exam, status }) {
                 {status === 'ongoing' && exam.token_available && !exam.token_access_granted ? (
                     <>
                         <p className="font-label text-[10px] leading-relaxed text-on-surface-variant">
-                            Masukkan token dari proktor untuk membuka akses ujian.
+                            Masukkan token dari proktor untuk memulai ujian.
                         </p>
                         <Link
                             href={route('student.exam-access.create', exam.id)}
                             className="inline-flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-label text-[12px] font-semibold text-on-primary transition-opacity hover:opacity-90"
                         >
-                            Masukkan Token
+                            Kerjakan
                             <span className="material-symbols-outlined text-[18px]">key</span>
                         </Link>
                     </>
