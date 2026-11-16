@@ -41,7 +41,7 @@ const inputClass = `
 
 const inputErrorClass = 'border-error focus:border-error focus:ring-error/15';
 
-export default function StudentLoginForm({ academicYear = null, onShowRules }) {
+export default function StudentLoginForm({ academicYear = null }) {
     const { data, setData, post, processing, errors, clearErrors } = useForm({
         username: '',
         password: '',
