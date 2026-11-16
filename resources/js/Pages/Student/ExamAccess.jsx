@@ -152,7 +152,7 @@ export default function ExamAccess({ exam = {}, participant = {}, systemInfo = {
                         </p>
                     ) : !exam.can_verify ? (
                         <p className="mt-5 rounded-lg bg-surface-container p-4 font-label text-[12px] text-secondary">
-                            Token hanya dapat dimasukkan saat jadwal ujian berlangsung.
+                            Token tidak dapat dimasukkan untuk jadwal ujian ini.
                         </p>
                     ) : (
                         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">

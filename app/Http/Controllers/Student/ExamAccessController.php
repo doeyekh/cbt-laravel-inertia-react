@@ -103,7 +103,7 @@ class ExamAccessController extends Controller
                     && $tokenAvailable
                     && $examPackage->status === ExamPackageStatus::Aktif
                     && $examSchedule->status === ExamScheduleStatus::Aktif
-                    && $this->scheduleIsOpen($examPackage, $examSchedule),
+                    && $this->isWithinPackageDateRange($examPackage, $examSchedule),
             ],
         ]);
     }
@@ -206,6 +206,18 @@ class ExamAccessController extends Controller
                 ->where('school_id', $examPackage->school_id)
                 ->where('academic_year_id', $examPackage->academic_year_id))
             ->exists();
+    }
+
+    /**
+     * Determine whether the exam schedule date falls within the package date range.
+     */
+    private function isWithinPackageDateRange(ExamPackage $examPackage, ExamSchedule $examSchedule): bool
+    {
+        $examDate = $examSchedule->exam_date?->toDateString();
+
+        return $examDate !== null
+            && $examDate >= $examPackage->start_date->toDateString()
+            && $examDate <= $examPackage->end_date->toDateString();
     }
 
     private function scheduleIsOpen(ExamPackage $examPackage, ExamSchedule $examSchedule): bool
