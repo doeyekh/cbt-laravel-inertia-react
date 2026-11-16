@@ -39,10 +39,20 @@ Route::middleware('student.auth')
     ->name('student.')
     ->group(function () {
         Route::get('/', [StudentDashboardController::class, 'index'])->name('dashboard');
+        Route::get('exams/{examSchedule}', function (ExamSchedule $examSchedule) {
+            return Inertia::render('Student/ExamPage', [
+                'exam' => $examSchedule,
+            ]);
+        })->name('exam');
         Route::get('exams/{examSchedule}/access-token', [ExamAccessController::class, 'create'])
             ->name('exam-access.create');
         Route::post('exams/{examSchedule}/access-token', [ExamAccessController::class, 'verify'])
             ->name('exam-access.verify');
+        Route::get('exams/{examSchedule}/start', function (ExamSchedule $examSchedule) {
+            return Inertia::render('Student/ExamStart', [
+                'exam' => $examSchedule,
+            ]);
+        })->name('exam.start');
     });
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -71,6 +81,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 'title' => 'Beranda - CBT Panel',
             ]);
         })->name('dashboard');
+
+        Route::get('/exam/{examSchedule}/start', function (ExamSchedule $examSchedule) {
+            return Inertia::render('Student/ExamStart', [
+                'exam' => $examSchedule,
+            ]);
+        })->name('student.exam.start')->middleware('school-admin');
 
         Route::get('/monitoring', function () {
             return Inertia::render('Monitoring/Index', [

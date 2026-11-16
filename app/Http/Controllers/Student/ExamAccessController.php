@@ -113,9 +113,10 @@ class ExamAccessController extends Controller
      */
     public function verify(
         Request $request,
-        ExamSchedule $examSchedule,
+        $examScheduleId,
         ExamAccessTokenService $tokenService,
     ): RedirectResponse {
+        $examSchedule = ExamSchedule::findOrFail($examScheduleId);
         $participant = ExamParticipant::query()
             ->findOrFail((int) $request->session()->get('student_participant_id'));
 
@@ -172,7 +173,7 @@ class ExamAccessController extends Controller
         $verifiedExamPackages[$examPackage->id] = $examPackage->exam_access_token_hash;
         $request->session()->put('student_exam_packages', $verifiedExamPackages);
 
-        return to_route('student.dashboard')->with('toast', [
+        return to_route('student.exam', ['examSchedule' => $examScheduleId])->with('toast', [
             'type' => 'success',
             'title' => 'Token Terverifikasi',
             'description' => 'Token paket ujian valid untuk seluruh sesi dan ruangan dalam paket ini.',
