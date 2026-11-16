@@ -173,7 +173,7 @@ class ExamAccessController extends Controller
         $verifiedExamPackages[$examPackage->id] = $examPackage->exam_access_token_hash;
         $request->session()->put('student_exam_packages', $verifiedExamPackages);
 
-        return to_route('student.exam', ['examSchedule' => $examScheduleId])->with('toast', [
+        return redirect()->to('/siswa/exams/' . $examScheduleId)->with('toast', [
             'type' => 'success',
             'title' => 'Token Terverifikasi',
             'description' => 'Token paket ujian valid untuk seluruh sesi dan ruangan dalam paket ini.',
