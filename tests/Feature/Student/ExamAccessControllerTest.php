@@ -26,6 +26,44 @@ class ExamAccessControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_student_can_view_their_exam_token_entry_page(): void
+    {
+        $context = $this->createOpenExamContext();
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam-access.create', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/ExamAccess')
+                ->where('exam.id', $context['schedule']->id)
+                ->where('exam.token_available', true)
+                ->where('exam.can_verify', true)
+            );
+    }
+
+    public function test_student_cannot_view_a_token_page_for_a_schedule_assigned_to_another_room(): void
+    {
+        $context = $this->createOpenExamContext();
+        $otherRoom = Room::factory()->forSchool($context['school'])->create();
+        $otherSession = Session::factory()->forSchool($context['school'])->create();
+        $otherSchedule = ExamSchedule::factory()
+            ->forPackage($context['package'])
+            ->create([
+                'class_id' => $context['schoolClass']->id,
+                'subject_id' => Subject::factory()->create()->id,
+                'session_id' => $otherSession->id,
+                'room_id' => $otherRoom->id,
+                'exam_date' => now()->toDateString(),
+                'open_time' => '00:00:00',
+                'close_time' => '23:59:59',
+                'status' => ExamScheduleStatus::Aktif,
+            ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam-access.create', $otherSchedule))
+            ->assertNotFound();
+    }
+
     public function test_student_gets_package_access_after_submitting_the_valid_token(): void
     {
         $context = $this->createOpenExamContext();

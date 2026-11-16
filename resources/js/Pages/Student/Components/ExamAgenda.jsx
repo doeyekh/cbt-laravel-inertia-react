@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { route } from '@/Utils/route';
 import {
     formatCountdown,
@@ -97,9 +97,6 @@ function DateBlock({ exam, status, isToday }) {
 }
 
 function ActionButton({ exam, status }) {
-    const [tokenFormOpen, setTokenFormOpen] = useState(false);
-    const { data, setData, post, processing, errors, reset } = useForm({ token: '' });
-
     if (status === 'finished') {
         return (
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-tertiary-fixed/70 px-4 py-2 font-label text-[11px] font-semibold text-on-tertiary-fixed-variant">
@@ -121,76 +118,13 @@ function ActionButton({ exam, status }) {
     if (status === 'ongoing') {
         if (exam.token_available) {
             return (
-                <div className="flex flex-col items-end gap-2">
-                    {tokenFormOpen ? (
-                        <form
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                post(route('student.exam-access.verify', exam.id), {
-                                    preserveScroll: true,
-                                    onSuccess: () => {
-                                        reset();
-                                        setTokenFormOpen(false);
-                                    },
-                                });
-                            }}
-                            className="flex flex-wrap items-start justify-end gap-2"
-                        >
-                            <div className="w-36">
-                                <input
-                                    type="text"
-                                    value={data.token}
-                                    onChange={(event) =>
-                                        setData('token', event.target.value.toUpperCase())
-                                    }
-                                    maxLength={6}
-                                    autoComplete="one-time-code"
-                                    autoCapitalize="characters"
-                                    aria-label="Token akses ujian"
-                                    aria-invalid={errors.token ? 'true' : undefined}
-                                    placeholder="6 karakter"
-                                    className={`w-full rounded-lg border bg-surface-container-low px-3 py-2 font-mono text-sm font-bold uppercase tracking-[0.2em] text-on-surface outline-none focus:ring-2 focus:ring-primary/20 ${
-                                        errors.token
-                                            ? 'border-error'
-                                            : 'border-outline-variant'
-                                    }`}
-                                />
-                                {errors.token && (
-                                    <p className="mt-1 text-left text-[10px] text-error">
-                                        {errors.token}
-                                    </p>
-                                )}
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={processing || data.token.length !== 6}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 font-label text-[11px] font-semibold text-on-primary transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                {processing ? 'Memeriksa...' : 'Verifikasi'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    reset();
-                                    setTokenFormOpen(false);
-                                }}
-                                disabled={processing}
-                                className="rounded-lg bg-surface-container px-3 py-2 font-label text-[11px] font-medium text-secondary disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Batal
-                            </button>
-                        </form>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={() => setTokenFormOpen(true)}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 font-label text-[11px] font-semibold text-on-primary transition-opacity hover:opacity-90"
-                        >
-                            <span className="material-symbols-outlined text-[17px]">key</span>
-                            Masukkan Token
-                        </button>
-                    )}
-                </div>
+                <Link
+                    href={route('student.exam-access.create', exam.id)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 font-label text-[11px] font-semibold text-on-primary transition-opacity hover:opacity-90"
+                >
+                    <span className="material-symbols-outlined text-[17px]">key</span>
+                    Masukkan Token
+                </Link>
             );
         }
 

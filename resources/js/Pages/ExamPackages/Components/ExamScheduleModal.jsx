@@ -9,6 +9,8 @@ import Button from '@/Components/UI/Button';
 const emptyForm = {
     class_id: '',
     subject_id: '',
+    session_id: '',
+    room_id: '',
     exam_date: '',
     duration_minutes: 90,
     open_time: '07:00:00',
@@ -71,6 +73,8 @@ export default function ExamScheduleModal({
             setData({
                 class_id: String(initialData.class_id ?? ''),
                 subject_id: String(initialData.subject_id ?? ''),
+                session_id: String(initialData.session_id ?? ''),
+                room_id: String(initialData.room_id ?? ''),
                 exam_date: initialData.exam_date ?? '',
                 duration_minutes: initialData.duration_minutes ?? 90,
                 open_time: toTimeValue(initialData.open_time) || emptyForm.open_time,
@@ -266,6 +270,38 @@ export default function ExamScheduleModal({
                             </p>
                         )}
                     </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Select
+                        id="exam-schedule-session"
+                        label="Sesi Ujian"
+                        value={data.session_id}
+                        onChange={(event) => setField('session_id', event.target.value)}
+                        placeholder="Pilih sesi ujian..."
+                    >
+                        {sessions.map((session) => (
+                            <option key={session.id} value={String(session.id)}>
+                                {session.code} — {session.name} ({session.start_time?.slice(0, 5)} s.d. {session.end_time?.slice(0, 5)})
+                            </option>
+                        ))}
+                    </Select>
+
+                    <Select
+                        id="exam-schedule-room"
+                        label="Ruangan Ujian"
+                        value={data.room_id}
+                        onChange={(event) => setField('room_id', event.target.value)}
+                        placeholder="Pilih ruangan ujian..."
+                    >
+                        {rooms.map((room) => (
+                            <option key={room.id} value={String(room.id)}>
+                                {room.code} — {room.name}
+                                {room.building && ` (${room.building})`}
+                                {room.floor && ` Lantai ${room.floor}`}
+                            </option>
+                        ))}
+                    </Select>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

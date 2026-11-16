@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\ExamPackageStatus;
 use App\Enums\ExamScheduleStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\BulkUpdateExamScheduleRequest;
 use App\Http\Requests\Admin\StoreExamScheduleRequest;
 use App\Http\Requests\Admin\UpdateExamScheduleRequest;
 use App\Models\ExamPackage;
 use App\Models\ExamSchedule;
+use App\Models\Room;
+use App\Models\Session;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -109,6 +112,80 @@ class ExamScheduleController extends Controller
             'type' => 'success',
             'title' => $isActive ? 'Jadwal Diaktifkan' : 'Jadwal Dinonaktifkan',
             'description' => "Jadwal {$examSchedule->subject?->name} untuk {$examSchedule->schoolClass?->name} sekarang ".($isActive ? 'aktif' : 'nonaktif').'.',
+        ]);
+    }
+
+    /**
+     * Set the session and room for multiple exam schedules at once.
+     */
+    public function bulkUpdate(
+        BulkUpdateExamScheduleRequest $request,
+        ExamPackage $examPackage,
+    ): RedirectResponse {
+        $this->authorizeScheduleManage($request->user());
+        $this->authorizeRecordAccess($request->user(), $examPackage);
+
+        $data = $request->validated();
+
+        $sessionId = $data['session_id'] ?? null;
+        $roomId = $data['room_id'] ?? null;
+
+        $session = null;
+        $room = null;
+
+        if ($sessionId !== null) {
+            $session = Session::query()->find((int) $sessionId);
+
+            if ($session === null || (int) $session->school_id !== (int) $examPackage->school_id) {
+                return back()->withErrors(['session_id' => 'Sesi harus berasal dari sekolah paket ujian.']);
+            }
+        }
+
+        if ($roomId !== null) {
+            $room = Room::query()->find((int) $roomId);
+
+            if ($room === null || (int) $room->school_id !== (int) $examPackage->school_id) {
+                return back()->withErrors(['room_id' => 'Ruangan harus berasal dari sekolah paket ujian.']);
+            }
+        }
+
+        $attributes = [];
+
+        if ($sessionId !== null) {
+            $attributes['session_id'] = $sessionId;
+        }
+
+        if ($roomId !== null) {
+            $attributes['room_id'] = $roomId;
+        }
+
+        $count = DB::transaction(function () use ($examPackage, $data, $attributes): int {
+            return ExamSchedule::query()
+                ->where('exam_package_id', $examPackage->id)
+                ->whereIn('id', $data['schedule_ids'])
+                ->update($attributes);
+        });
+
+        if ($count === 0) {
+            return back()->withErrors([
+                'schedule_ids' => 'Jadwal ujian yang dipilih tidak ditemukan pada paket ini.',
+            ]);
+        }
+
+        $parts = [];
+
+        if ($session !== null) {
+            $parts[] = "sesi {$session->name}";
+        }
+
+        if ($room !== null) {
+            $parts[] = "ruangan {$room->name}";
+        }
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'title' => 'Sesi dan Ruang Diperbarui',
+            'description' => "{$count} jadwal ujian telah diperbarui dengan ".implode(' dan ', $parts).'.',
         ]);
     }
 

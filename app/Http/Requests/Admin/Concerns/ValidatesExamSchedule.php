@@ -6,7 +6,9 @@ use App\Enums\ExamPackageStatus;
 use App\Models\ExamPackage;
 use App\Models\ExamSchedule;
 use App\Models\QuestionBank;
+use App\Models\Room;
 use App\Models\SchoolClass;
+use App\Models\Session;
 use Illuminate\Validation\Validator;
 
 trait ValidatesExamSchedule
@@ -41,6 +43,8 @@ trait ValidatesExamSchedule
         return [
             'class_id' => ['required', 'integer', 'exists:classes,id'],
             'subject_id' => ['required', 'integer', 'exists:subjects,id'],
+            'session_id' => ['nullable', 'integer', 'exists:exam_sessions,id'],
+            'room_id' => ['nullable', 'integer', 'exists:rooms,id'],
             'exam_date' => ['required', 'date'],
             'duration_minutes' => ['required', 'integer', 'min:1', 'max:600'],
             'open_time' => ['required', 'date_format:H:i:s'],
@@ -63,6 +67,8 @@ trait ValidatesExamSchedule
             'class_id.exists' => 'Kelas tidak valid.',
             'subject_id.required' => 'Mata pelajaran wajib dipilih.',
             'subject_id.exists' => 'Mata pelajaran tidak valid.',
+            'session_id.exists' => 'Sesi tidak valid.',
+            'room_id.exists' => 'Ruangan tidak valid.',
             'exam_date.required' => 'Tanggal ujian wajib diisi.',
             'exam_date.date' => 'Tanggal ujian tidak valid.',
             'duration_minutes.required' => 'Durasi ujian wajib diisi.',
@@ -139,6 +145,25 @@ trait ValidatesExamSchedule
             return;
         }
 
+        $sessionId = $this->input('session_id');
+        $roomId = $this->input('room_id');
+
+        if ($sessionId !== null) {
+            $session = Session::query()->find((int) $sessionId);
+
+            if ($session === null || (int) $session->school_id !== (int) $examPackage->school_id) {
+                $validator->errors()->add('session_id', 'Sesi harus berasal dari sekolah paket ujian.');
+            }
+        }
+
+        if ($roomId !== null) {
+            $room = Room::query()->find((int) $roomId);
+
+            if ($room === null || (int) $room->school_id !== (int) $examPackage->school_id) {
+                $validator->errors()->add('room_id', 'Ruangan harus berasal dari sekolah paket ujian.');
+            }
+        }
+
         $packageQuery = ExamSchedule::query()
             ->where('exam_package_id', $examPackage->id)
             ->when($ignore !== null, fn ($query) => $query->whereKeyNot($ignore->id));
@@ -156,13 +181,30 @@ trait ValidatesExamSchedule
             ->whereHas('examPackage', fn ($query) => $query->where('school_id', $examPackage->school_id))
             ->when($ignore !== null, fn ($query) => $query->whereKeyNot($ignore->id));
 
-        $classConflict = (clone $schoolQuery)
-            ->whereDate('exam_date', $examDate)
-            ->where('class_id', (int) $this->input('class_id'))
-            ->exists();
+        $classId = (int) $this->input('class_id');
 
-        if ($classConflict) {
-            $validator->errors()->add('class_id', 'Kelas sudah memiliki jadwal lain pada tanggal tersebut.');
+        if ($sessionId !== null && $roomId !== null) {
+            $roomConflict = (clone $schoolQuery)
+                ->whereDate('exam_date', $examDate)
+                ->where('session_id', (int) $sessionId)
+                ->where('room_id', (int) $roomId)
+                ->exists();
+
+            if ($roomConflict) {
+                $validator->errors()->add('room_id', 'Ruangan sudah digunakan pada tanggal dan sesi tersebut.');
+            }
+        }
+
+        $classConflictQuery = (clone $schoolQuery)
+            ->whereDate('exam_date', $examDate)
+            ->where('class_id', $classId);
+
+        if ($sessionId !== null) {
+            $classConflictQuery->where('session_id', (int) $sessionId);
+        }
+
+        if ($classConflictQuery->exists()) {
+            $validator->errors()->add('class_id', 'Kelas sudah memiliki jadwal lain pada tanggal dan sesi tersebut.');
         }
     }
 }

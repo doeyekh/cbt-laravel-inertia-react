@@ -5,9 +5,11 @@ import Badge from '@/Components/UI/Badge';
 import Button from '@/Components/UI/Button';
 import Card from '@/Components/UI/Card';
 import DeleteConfirmation from '@/Components/UI/DeleteConfirmation';
+import ConfirmDialog from '@/Components/UI/ConfirmDialog';
 import ToastContainer from '@/Components/Layout/ToastContainer';
 import { useToast } from '@/Hooks/useToast';
 import ExamScheduleModal from './Components/ExamScheduleModal';
+import ExamScheduleBulkModal from './Components/ExamScheduleBulkModal';
 import ExamScheduleList from './Components/ExamScheduleList';
 import { route } from '@/Utils/route';
 
@@ -56,6 +58,10 @@ export default function ExamPackageShow({
     const [deleting, setDeleting] = useState(false);
     const [togglingId, setTogglingId] = useState(null);
     const [accessTokenProcessing, setAccessTokenProcessing] = useState(false);
+    const [bulkModalOpen, setBulkModalOpen] = useState(false);
+    const [bulkSubmitting, setBulkSubmitting] = useState(false);
+    const [tokenConfirmOpen, setTokenConfirmOpen] = useState(false);
+    const [tokenConfirmAction, setTokenConfirmAction] = useState(null);
 
     const handledToast = useRef(null);
 
@@ -149,12 +155,40 @@ export default function ExamPackageShow({
         );
     };
 
+    const handleOpenBulk = () => {
+        setBulkModalOpen(true);
+    };
+
+    const handleCloseBulk = () => {
+        setBulkModalOpen(false);
+    };
+
+    const handleBulkSubmit = (payload) => {
+        setBulkSubmitting(true);
+
+        router.patch(
+            route('admin.exam-schedules.bulk-update', { examPackage: examPackage.id }),
+            payload,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setBulkModalOpen(false);
+                    setBulkSubmitting(false);
+                },
+                onError: () => setBulkSubmitting(false),
+                onFinish: () => setBulkSubmitting(false),
+            }
+        );
+    };
+
     const handleGenerateAccessToken = () => {
-        if (
-            accessTokenProcessing ||
-            (examPackage?.has_access_token &&
-                !window.confirm('Menerbitkan token baru akan membatalkan token yang lama. Lanjutkan?'))
-        ) {
+        if (accessTokenProcessing) {
+            return;
+        }
+
+        if (examPackage?.has_access_token) {
+            setTokenConfirmAction('generate');
+            setTokenConfirmOpen(true);
             return;
         }
 
@@ -170,21 +204,42 @@ export default function ExamPackageShow({
     };
 
     const handleRevokeAccessToken = () => {
-        if (
-            accessTokenProcessing ||
-            !window.confirm('Token ini akan langsung tidak berlaku. Lanjutkan?')
-        ) {
+        if (accessTokenProcessing) {
             return;
         }
 
-        setAccessTokenProcessing(true);
-        router.delete(
-            route('admin.exam-packages.access-token.destroy', examPackage.id),
-            {
-                preserveScroll: true,
-                onFinish: () => setAccessTokenProcessing(false),
-            }
-        );
+        setTokenConfirmAction('revoke');
+        setTokenConfirmOpen(true);
+    };
+
+    const handleConfirmToken = () => {
+        setTokenConfirmOpen(false);
+
+        if (tokenConfirmAction === 'generate') {
+            setAccessTokenProcessing(true);
+            router.post(
+                route('admin.exam-packages.access-token.store', examPackage.id),
+                {},
+                {
+                    preserveScroll: true,
+                    onFinish: () => setAccessTokenProcessing(false),
+                }
+            );
+            return;
+        }
+
+        if (tokenConfirmAction === 'revoke') {
+            setAccessTokenProcessing(true);
+            router.delete(
+                route('admin.exam-packages.access-token.destroy', examPackage.id),
+                {
+                    preserveScroll: true,
+                    onFinish: () => setAccessTokenProcessing(false),
+                }
+            );
+        }
+
+        setTokenConfirmAction(null);
     };
 
     return (
@@ -220,12 +275,20 @@ export default function ExamPackageShow({
                             Kembali
                         </Button>
                         {canAddSchedule && (
-                            <Button onClick={handleOpenCreate}>
-                                <span className="material-symbols-outlined text-[18px]">
-                                    add
-                                </span>
-                                Tambah Jadwal
-                            </Button>
+                            <>
+                                <Button onClick={handleOpenCreate}>
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        add
+                                    </span>
+                                    Tambah Jadwal
+                                </Button>
+                                <Button variant="outline" onClick={handleOpenBulk}>
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        group_add
+                                    </span>
+                                    Atur Sesi &amp; Ruang
+                                </Button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -408,6 +471,16 @@ export default function ExamPackageShow({
                 rooms={rooms}
             />
 
+            <ExamScheduleBulkModal
+                isOpen={bulkModalOpen}
+                onClose={handleCloseBulk}
+                schedules={schedules}
+                sessions={sessions}
+                rooms={rooms}
+                onSubmit={handleBulkSubmit}
+                submitting={bulkSubmitting}
+            />
+
             <DeleteConfirmation
                 isOpen={deleteOpen}
                 itemName={
@@ -418,6 +491,32 @@ export default function ExamPackageShow({
                 onConfirm={handleConfirmDelete}
                 onCancel={handleCloseDelete}
                 loading={deleting}
+            />
+
+            <ConfirmDialog
+                isOpen={tokenConfirmOpen}
+                onCancel={() => {
+                    setTokenConfirmOpen(false);
+                    setTokenConfirmAction(null);
+                }}
+                onConfirm={handleConfirmToken}
+                loading={accessTokenProcessing}
+                title={
+                    tokenConfirmAction === 'generate'
+                        ? 'Terbitkan Token Akses Baru'
+                        : 'Cabut Token Akses'
+                }
+                description={
+                    tokenConfirmAction === 'generate'
+                        ? 'Menerbitkan token baru akan membatalkan token yang lama. Token lama tidak akan dapat digunakan lagi. Lanjutkan?'
+                        : 'Token ini akan langsung tidak berlaku bagi semua peserta ujian. Lanjutkan?'
+                }
+                confirmLabel={
+                    tokenConfirmAction === 'generate' ? 'Terbitkan Token' : 'Cabut Token'
+                }
+                variant={
+                    tokenConfirmAction === 'generate' ? 'primary' : 'danger'
+                }
             />
 
             <ToastContainer toasts={toasts} dismiss={dismiss} />

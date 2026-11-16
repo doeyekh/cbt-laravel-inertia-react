@@ -258,6 +258,136 @@ class ExamScheduleControllerTest extends TestCase
         $this->assertDatabaseMissing('exam_schedules', ['id' => $schedule->id]);
     }
 
+    public function test_bulk_update_sets_session_and_room_for_selected_schedules(): void
+    {
+        $schedules = ExamSchedule::factory()
+            ->count(3)
+            ->forPackage($this->examPackage)
+            ->create();
+
+        $newSession = Session::factory()->create([
+            'school_id' => $this->school->id,
+            'start_time' => '09:00:00',
+            'end_time' => '11:00:00',
+        ]);
+        $newRoom = Room::factory()->create(['school_id' => $this->school->id]);
+
+        $this->patch(
+            $this->scheduleBulkUrl(),
+            array_merge(
+                $this->scheduleBulkPayload(),
+                [
+                    'schedule_ids' => $schedules->pluck('id')->all(),
+                    'session_id' => $newSession->id,
+                    'room_id' => $newRoom->id,
+                ]
+            )
+        )->assertRedirect()->assertSessionHas('toast.type', 'success');
+
+        foreach ($schedules as $schedule) {
+            $schedule->refresh();
+
+            $this->assertSame($newSession->id, $schedule->session_id);
+            $this->assertSame($newRoom->id, $schedule->room_id);
+        }
+    }
+
+    public function test_bulk_update_only_updates_schedules_in_the_package(): void
+    {
+        $schedule = ExamSchedule::factory()->forPackage($this->examPackage)->create();
+        $otherPackage = ExamPackage::factory()->create([
+            'school_id' => $this->school->id,
+            'academic_year_id' => $this->academicYear->id,
+            'exam_type_id' => $this->examPackage->exam_type_id,
+            'start_date' => '2026-09-14',
+            'end_date' => '2026-09-19',
+            'status' => ExamPackageStatus::Draft,
+        ]);
+        $otherSchedule = ExamSchedule::factory()->forPackage($otherPackage)->create();
+
+        $newSession = Session::factory()->create(['school_id' => $this->school->id]);
+
+        $this->patch(
+            $this->scheduleBulkUrl(),
+            array_merge(
+                $this->scheduleBulkPayload(),
+                [
+                    'schedule_ids' => [$schedule->id, $otherSchedule->id],
+                    'session_id' => $newSession->id,
+                ]
+            )
+        )->assertRedirect()->assertSessionHas('toast.type', 'success');
+
+        $schedule->refresh();
+        $otherSchedule->refresh();
+
+        $this->assertSame($newSession->id, $schedule->session_id);
+        $this->assertNull($otherSchedule->session_id);
+    }
+
+    public function test_bulk_update_requires_at_least_one_schedule(): void
+    {
+        $this->patch($this->scheduleBulkUrl(), $this->scheduleBulkPayload())
+            ->assertSessionHasErrors('schedule_ids');
+    }
+
+    public function test_bulk_update_requires_at_least_one_field(): void
+    {
+        $schedule = ExamSchedule::factory()->forPackage($this->examPackage)->create();
+
+        $this->patch(
+            $this->scheduleBulkUrl(),
+            array_merge(
+                $this->scheduleBulkPayload(),
+                ['schedule_ids' => [$schedule->id]]
+            )
+        )->assertSessionHasErrors(['session_id']);
+    }
+
+    public function test_bulk_update_rejects_session_from_another_school(): void
+    {
+        $schedule = ExamSchedule::factory()->forPackage($this->examPackage)->create();
+        $otherSession = Session::factory()->create([
+            'school_id' => School::factory()->create()->id,
+        ]);
+
+        $this->patch(
+            $this->scheduleBulkUrl(),
+            array_merge(
+                $this->scheduleBulkPayload(),
+                [
+                    'schedule_ids' => [$schedule->id],
+                    'session_id' => $otherSession->id,
+                ]
+            )
+        )->assertSessionHasErrors('session_id');
+
+        $schedule->refresh();
+        $this->assertNull($schedule->session_id);
+    }
+
+    public function test_bulk_update_rejects_room_from_another_school(): void
+    {
+        $schedule = ExamSchedule::factory()->forPackage($this->examPackage)->create();
+        $otherRoom = Room::factory()->create([
+            'school_id' => School::factory()->create()->id,
+        ]);
+
+        $this->patch(
+            $this->scheduleBulkUrl(),
+            array_merge(
+                $this->scheduleBulkPayload(),
+                [
+                    'schedule_ids' => [$schedule->id],
+                    'room_id' => $otherRoom->id,
+                ]
+            )
+        )->assertSessionHasErrors('room_id');
+
+        $schedule->refresh();
+        $this->assertNull($schedule->room_id);
+    }
+
     public function test_schedule_must_belong_to_the_package_in_the_route(): void
     {
         $otherPackage = ExamPackage::factory()->create([
@@ -544,5 +674,17 @@ class ExamScheduleControllerTest extends TestCase
             'examPackage' => $this->examPackage->id,
             'examSchedule' => $examSchedule->id,
         ]);
+    }
+
+    private function scheduleBulkPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'schedule_ids' => [],
+        ], $overrides);
+    }
+
+    private function scheduleBulkUrl(): string
+    {
+        return route('admin.exam-schedules.bulk-update', $this->examPackage);
     }
 }

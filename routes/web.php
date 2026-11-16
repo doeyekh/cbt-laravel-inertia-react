@@ -39,6 +39,8 @@ Route::middleware('student.auth')
     ->name('student.')
     ->group(function () {
         Route::get('/', [StudentDashboardController::class, 'index'])->name('dashboard');
+        Route::get('exams/{examSchedule}/access-token', [ExamAccessController::class, 'create'])
+            ->name('exam-access.create');
         Route::post('exams/{examSchedule}/access-token', [ExamAccessController::class, 'verify'])
             ->name('exam-access.verify');
     });
@@ -115,6 +117,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::patch('exam-packages/{examPackage}/schedules/{examSchedule}/status', [ExamScheduleController::class, 'toggleStatus'])
             ->name('exam-schedules.toggle-status');
+
+        Route::patch('exam-packages/{examPackage}/schedules/bulk', [ExamScheduleController::class, 'bulkUpdate'])
+            ->name('exam-schedules.bulk-update');
 
         Route::get('question-banks/{questionBank}/questions', [QuestionController::class, 'index'])
             ->name('question-banks.questions.index');

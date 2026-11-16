@@ -1,4 +1,6 @@
 import React from 'react';
+import { Link } from '@inertiajs/react';
+import { route } from '@/Utils/route';
 import {
     formatCountdown,
     formatExamDate,
@@ -47,11 +49,19 @@ function InfoTile({ label, value, className = '' }) {
     );
 }
 
-function TokenPanel({ status }) {
+function TokenPanel({ exam, status }) {
     const meta = {
         ongoing: {
-            badge: 'Menunggu Token',
-            badgeClass: 'bg-amber-100 text-amber-700',
+            badge: exam.token_access_granted
+                ? 'Token Terverifikasi'
+                : exam.token_available
+                  ? 'Token Tersedia'
+                  : 'Menunggu Token',
+            badgeClass: exam.token_access_granted
+                ? 'bg-primary-fixed text-on-primary-fixed-variant'
+                : exam.token_available
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-surface-container text-secondary',
             note: 'Token sesi aktif hanya dibagikan proktor di ruang ujian.',
         },
         upcoming: {
@@ -108,38 +118,27 @@ function TokenPanel({ status }) {
             </div>
 
             <div className="mt-4 flex flex-col gap-2">
-                <label
-                    htmlFor="student-exam-token"
-                    className="font-label text-[9px] font-semibold uppercase tracking-[0.1em] text-secondary"
-                >
-                    Masukkan 6 karakter token dari proktor:
-                </label>
-                <div className="flex items-center gap-2">
-                    <input
-                        id="student-exam-token"
-                        type="text"
-                        disabled
-                        maxLength={7}
-                        placeholder="XXX-XXX"
-                        aria-label="Token ujian"
-                        className="h-11 w-full rounded-lg bg-surface-container-lowest text-center font-label text-base font-bold uppercase tracking-[0.2em] text-on-surface placeholder:text-on-surface-variant/50 disabled:cursor-not-allowed"
-                    />
-                    <button
-                        type="button"
-                        disabled
-                        title="Ruang ujian dibuka oleh proktor ruangan"
-                        className="flex h-11 shrink-0 items-center gap-2 rounded-lg bg-primary px-4 font-label text-[12px] font-semibold text-on-primary disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        Masuk Ujian
-                        <span className="material-symbols-outlined text-[18px]">login</span>
-                    </button>
-                </div>
+                {status === 'ongoing' && exam.token_available && !exam.token_access_granted ? (
+                    <>
+                        <p className="font-label text-[10px] leading-relaxed text-on-surface-variant">
+                            Masukkan token dari proktor untuk membuka akses ujian.
+                        </p>
+                        <Link
+                            href={route('student.exam-access.create', exam.id)}
+                            className="inline-flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-label text-[12px] font-semibold text-on-primary transition-opacity hover:opacity-90"
+                        >
+                            Masukkan Token
+                            <span className="material-symbols-outlined text-[18px]">key</span>
+                        </Link>
+                    </>
+                ) : (
+                    <p className="font-label text-[10px] leading-relaxed text-on-surface-variant">
+                        {exam.token_access_granted
+                            ? 'Token sudah diverifikasi untuk paket ujian ini.'
+                            : meta.note}
+                    </p>
+                )}
             </div>
-
-            <p className="mt-3 flex items-start gap-1.5 font-label text-[10px] leading-relaxed text-on-surface-variant">
-                <span className="material-symbols-outlined text-[15px] text-outline">lock_clock</span>
-                {meta.note}
-            </p>
         </div>
     );
 }
@@ -263,7 +262,7 @@ export default function ExamHero({ exams = [], now = new Date() }) {
                         </p>
                     </div>
 
-                    <TokenPanel status={status} />
+                    <TokenPanel exam={exam} status={status} />
                 </div>
             </div>
         </section>
