@@ -1,0 +1,288 @@
+<!DOCTYPE html><html lang="id"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>EduTest Pro - Panel Ujian Siswa</title>
+<!-- Tailwind CSS CDN v3 with Forms & Container Queries plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Styles for Print and Utility Adjustments -->
+<style data-purpose="custom-styling">
+    body {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+    /* Scrollbar minimalis */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+<!-- END: Custom Styles -->
+</head>
+<body class="min-h-screen flex flex-col font-sans text-slate-800 antialiased bg-slate-100">
+<!-- BEGIN: MainHeader -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs"><div class="w-full max-w-[1720px] mx-auto px-5 py-2.5 flex items-center justify-between gap-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-blue-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div><div><div class="flex items-center gap-1.5 leading-none"><span class="text-lg font-black tracking-tight text-blue-700">EduTest</span><span class="text-lg font-black tracking-tight text-slate-800">Pro</span></div><p class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mt-0.5">Computer-Based Test</p></div></div><div class="hidden md:flex flex-col items-center text-center"><div class="flex items-center gap-2.5"><h1 class="text-sm font-bold text-slate-900 leading-tight">Penilaian Tengah Semester (PTS) Ganjil TA 2024/2025</h1><span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>Sesi Ujian Aktif</span></div><p class="text-xs text-slate-500 font-medium mt-0.5">Mata Pelajaran: <span class="font-semibold text-slate-700">Matematika Terapan (Peminatan)</span> • Kode: <span class="font-mono text-slate-600">MAT-XII-04</span></p></div><div class="flex items-center gap-4"><div class="flex items-center bg-blue-50/80 border border-blue-200 px-4 py-1.5 rounded-xl shadow-xs"><div class="mr-3 text-blue-600 flex items-center justify-center"><svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" style="animation-duration: 8s;" viewBox="0 0 24 24"><circle class="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" stroke-dasharray="32" stroke-dashoffset="12" stroke-width="2"></circle><path d="M12 6v6l4 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div><div><span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 block leading-tight">Sisa Waktu Ujian</span><span class="font-mono font-extrabold text-xl tracking-tight text-blue-900" id="timer-display">01:24:09</span></div></div><div class="flex items-center pl-3 border-l border-slate-200 gap-3"><div class="relative"><div class="w-9 h-9 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center border-2 border-white shadow-xs">MR</div><span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span></div><div class="text-right hidden sm:block"><p class="text-xs font-bold text-slate-800 leading-tight">Muhammad Rizky Pratama</p><div class="flex items-center justify-end gap-2 text-[11px] text-slate-500 font-medium"><span>NISN: 0064928172</span><span>•</span><span class="text-blue-700 font-semibold">XII MIPA 1</span></div></div></div></div></div></header>
+<!-- END: MainHeader -->
+<!-- BEGIN: SubNavbar Status Strip -->
+
+<!-- END: SubNavbar Status Strip -->
+<!-- BEGIN: MainContentWorkspace -->
+<main class="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 flex flex-col gap-4">
+<!-- BEGIN: LeftColumn QuestionSheet -->
+<section class="flex-1 w-full bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-h-[750px]">
+<!-- Panel Kontrol Soal (Header Kartu Soal) -->
+<div class="px-6 py-4 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-3">
+<span class="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white font-bold text-sm tracking-wide shadow-xs">
+            Soal No. 15
+          </span>
+<span class="text-xs text-slate-400 font-medium">dari 40 Soal</span>
+<span class="px-2.5 py-1 rounded bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
+            Esai / Uraian Terstruktur
+          </span>
+</div>
+<div class="flex items-center gap-4">
+<!-- Bobot Nilai -->
+<div class="text-xs font-medium text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+            Bobot Soal: <span class="font-bold text-blue-700">10 Poin</span>
+</div>
+<!-- Ukuran Font Soal Switcher -->
+<div class="flex items-center bg-white rounded-lg border border-slate-200 p-0.5 shadow-2xs">
+<span class="text-[11px] font-medium text-slate-400 px-2">Ukuran:</span>
+<button class="w-7 h-7 rounded text-xs font-bold text-slate-600 hover:bg-slate-100 flex items-center justify-center transition" title="Perkecil Font" type="button">A-</button>
+<button class="w-7 h-7 rounded text-xs font-bold bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-200" title="Font Standar" type="button">A</button>
+<button class="w-7 h-7 rounded text-xs font-bold text-slate-600 hover:bg-slate-100 flex items-center justify-center transition" title="Perbesar Font" type="button">A+</button>
+</div>
+</div>
+</div>
+<!-- Area Teks Soal & Stimulus Soal & Form Jawaban Esai -->
+<div class="p-6 md:p-8 flex-1 overflow-y-auto space-y-6">
+<!-- Konteks Masalah / Stimulus Soal Studi Kasus Rekayasa -->
+<div class="text-slate-800 text-base leading-relaxed space-y-4">
+<p class="font-normal">
+            Sebuah instalasi pengolahan limbah industri cair merancang bak filtrasi bertingkat dengan debit air limbah masuk sebesar <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-blue-800 font-semibold text-sm">Q(t)</span> liter per menit. Konsentrasi zat polutan organik yang terurai memenuhi persamaan laju reaksi orde satu:
+          </p>
+<!-- Box Stimulus Data & Grafik/Persamaan Ringkas -->
+<div class="bg-slate-50 border border-slate-200 rounded-xl p-5 my-3">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+<div class="border-l-4 border-blue-600 pl-4 py-1">
+<p class="text-xs uppercase font-bold text-slate-400 tracking-wider">Persamaan Laju Penguraian Polutan:</p>
+<p class="font-mono text-slate-800 font-bold text-base mt-1">dC/dt = -k · C(t) + (Qin / V) · (Cin - C(t))</p>
+<p class="text-xs text-slate-500 mt-1">Konstanta peluruhan <span class="font-mono font-semibold">k = 0.08 min⁻¹</span>, Volume reaktor <span class="font-mono font-semibold">V = 1.200 L</span></p>
+</div>
+<div class="border-l-4 border-emerald-500 pl-4 py-1">
+<p class="text-xs uppercase font-bold text-slate-400 tracking-wider">Parameter Efisiensi Target Filtrasi:</p>
+<div class="flex items-center gap-3 mt-1.5 text-xs text-slate-700">
+<div class="bg-white px-2.5 py-1 rounded border border-slate-200">
+<span class="text-slate-400 block text-[10px]">C_awal (inlet)</span>
+<span class="font-mono font-bold text-slate-800">450 mg/L</span>
+</div>
+<span class="text-slate-400">→</span>
+<div class="bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+<span class="text-emerald-600 block text-[10px]">C_aman (outlet)</span>
+<span class="font-mono font-bold text-emerald-800">≤ 45 mg/L (90% Reduksi)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-amber-50/70 border border-amber-200/80 rounded-lg p-3.5 text-xs text-amber-900 leading-relaxed">
+<span class="font-bold text-amber-950 block mb-1">Instruksi Pengerjaan Esai Terstruktur:</span>
+<ol class="list-decimal list-inside space-y-1">
+<li>Tentukan formulasi matematis waktu tinggal rata-rata (<span class="font-mono">retention time / τ</span>) fluida di dalam tangki filtrasi untuk mencapai kondisi tunak (steady-state).</li>
+<li>Hitung debit aliran maksimum fluida limbah (<span class="font-mono">Q_max</span>) yang diperbolehkan agar limbah buangan memenuhi baku mutu lingkungan hidup. Sertakan langkah penalaran diferensial Anda.</li>
+</ol>
+</div>
+</div>
+<!-- Form Jawaban Esai Terstruktur -->
+<div class="pt-2 space-y-3" data-purpose="essay-answer-section">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<p class="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+              Lembar Jawaban Esai:
+            </p>
+<!-- Tombol Upload File Lampiran Manual / Coretan -->
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition shadow-2xs" type="button">
+<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+              Unggah Lembar Jawaban Manual / Coretan (PDF/JPG)
+            </button>
+</div>
+<!-- Rich Text Editor Container -->
+<div class="border border-slate-300 rounded-xl overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white shadow-2xs">
+<!-- Rich Text Toolbar -->
+<div class="bg-slate-50 border-b border-slate-200 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+<!-- Tombol Format Teks Dasar -->
+<div class="flex items-center flex-wrap gap-1">
+<div class="flex items-center bg-white rounded-md border border-slate-200 p-0.5 shadow-2xs">
+<button class="w-7 h-7 rounded text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold" title="Tebal (Ctrl+B)" type="button">B</button>
+<button class="w-7 h-7 rounded text-slate-700 hover:bg-slate-100 flex items-center justify-center italic font-serif" title="Miring (Ctrl+I)" type="button">I</button>
+<button class="w-7 h-7 rounded text-slate-700 hover:bg-slate-100 flex items-center justify-center underline" title="Garis Bawah (Ctrl+U)" type="button">U</button>
+</div>
+<span class="text-slate-300 mx-0.5">|</span>
+<div class="flex items-center bg-white rounded-md border border-slate-200 p-0.5 shadow-2xs">
+<button class="w-7 h-7 rounded text-slate-700 hover:bg-slate-100 flex items-center justify-center" title="Daftar Poin (Bullet List)" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16M2 6h.01M2 12h.01M2 18h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg>
+</button>
+<button class="w-7 h-7 rounded text-slate-700 hover:bg-slate-100 flex items-center justify-center" title="Daftar Nomor" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 6h13M7 12h13M7 18h13M3 5v3h1M3 8h2M3 11h1.5a1.5 1.5 0 011.5 1.5c0 .5-.3.9-.7 1.2L3 16h3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<span class="text-slate-300 mx-0.5">|</span>
+<!-- Tombol Formula Matematika & Simbol -->
+<div class="flex items-center bg-white rounded-md border border-slate-200 p-0.5 shadow-2xs">
+<button class="px-2 h-7 rounded text-blue-700 bg-blue-50/70 hover:bg-blue-100 flex items-center gap-1 font-mono font-bold text-xs" title="Sisipkan Rumus / Math Equation ($f(x)$)" type="button">
+<span class="italic font-serif">fx</span>
+<span class="text-[10px] text-blue-600 font-sans font-medium">Rumus</span>
+</button>
+<button class="w-7 h-7 rounded text-slate-700 hover:bg-slate-100 flex items-center justify-center font-serif text-sm font-semibold" title="Simbol Matematika (π, √, ∫)" type="button">
+                  √x
+                </button>
+<button class="w-7 h-7 rounded text-slate-700 hover:bg-slate-100 flex items-center justify-center" title="Subscript / Superscript" type="button">
+<span class="text-[11px] font-mono">x²</span>
+</button>
+</div>
+<span class="text-slate-300 mx-0.5">|</span>
+<div class="flex items-center bg-white rounded-md border border-slate-200 p-0.5 shadow-2xs">
+<button class="w-7 h-7 rounded text-slate-700 hover:bg-slate-100 flex items-center justify-center" title="Sisipkan Gambar Sketsa / Grafik" type="button">
+<svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+<!-- Undo / Redo Controls -->
+<div class="flex items-center bg-white rounded-md border border-slate-200 p-0.5 shadow-2xs">
+<button class="w-7 h-7 rounded text-slate-600 hover:bg-slate-100 flex items-center justify-center" title="Urungkan (Undo)" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 10h10a5 5 0 015 5v2m0 0l-3-3m3 3l3-3M3 10l3-3M3 10l3 3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<button class="w-7 h-7 rounded text-slate-600 hover:bg-slate-100 flex items-center justify-center" title="Ulangi (Redo)" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 10H11a5 5 0 00-5 5v2m0 0l3-3m-3 3l-3-3m15-4l-3-3m3 3l-3 3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+<!-- Area Textarea Penulisan Jawaban -->
+<div class="relative">
+<textarea class="w-full p-4 min-h-[260px] text-slate-800 text-sm leading-relaxed border-0 focus:ring-0 resize-y font-sans selection:bg-blue-100" placeholder="Tuliskan elaborasi, langkah matematis, serta kesimpulan jawaban Anda di sini...">Langkah 1: Menentukan kondisi tunak (steady-state condition)
+Pada kondisi tunak, konsentrasi polutan dalam tangki tidak lagi berubah terhadap waktu, sehingga dC/dt = 0.
+Maka persamaan diferensial menjadi:
+0 = -k · C_ss + (Q / V) · (Cin - C_ss)
+
+Langkah 2: Menghitung laju alir (Q) maksimum
+Diketahui:
+- Cin = 450 mg/L
+- Target C_ss ≤ 45 mg/L (efisiensi penurunan 90%)
+- k = 0,08 min⁻¹
+- V = 1.200 Liter
+
+Substitusi nilai ke persamaan:
+k · C_ss = (Q / V) · (Cin - C_ss)
+0,08 · 45 = (Q / 1200) · (450 - 45)
+3,6 = (Q / 1200) · 405
+Q = (3,6 · 1200) / 405 = 4320 / 405 ≈ 10,67 L/menit.
+
+Kesimpulan:
+Debit aliran limbah maksimum agar air hasil filtrasi memenuhi baku mutu lingkungan (≤ 45 mg/L) adalah sebesar 10,67 liter per menit dengan waktu tinggal rata-rata τ = V / Q = 112,5 menit.</textarea>
+</div>
+<!-- Status Bar di Bawah Textarea -->
+<div class="bg-slate-50/90 px-4 py-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+<div class="flex items-center gap-2 text-emerald-700">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="font-medium text-[11px]">Tersimpan otomatis pada <span class="font-mono font-semibold">08:41:20 WIB</span> (Draft tersinkron)</span>
+</div>
+<div class="flex items-center gap-3 text-slate-500 font-medium text-[11px]">
+<span class="font-mono text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">148 kata | 920 karakter</span>
+<span class="text-slate-400">•</span>
+<span>Maksimal 500 kata</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Tombol Navigasi Soal -->
+<div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3"><button class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:border-slate-400 font-semibold text-sm transition shadow-2xs" type="button"><svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Soal Sebelumnya</button><label class="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 cursor-pointer hover:bg-amber-100/80 transition select-none"><input class="w-4 h-4 rounded text-amber-600 border-amber-400 focus:ring-amber-500" type="checkbox"><span class="text-xs font-bold flex items-center gap-1.5"><svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Tandai Ragu-Ragu</span></label><div class="flex items-center gap-2.5"><button class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 font-semibold text-sm transition shadow-2xs" type="button"><svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Daftar Soal</button><button class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition shadow-md shadow-blue-500/20 active:scale-98" type="button">Soal Berikutnya<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div></div>
+</section>
+<!-- END: LeftColumn QuestionSheet -->
+<!-- BEGIN: RightColumn NavigationSidebar -->
+
+<!-- END: RightColumn NavigationSidebar -->
+</main>
+<!-- END: MainContentWorkspace -->
+<!-- BEGIN: Minimalist Footer -->
+<footer class="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-500 mt-auto">
+<div class="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+<p>© 2024 EduTest Pro CBT Engine v4.6.2-Rel • Hak Cipta Dilindungi.</p>
+<p class="font-medium text-slate-400">Sinkronisasi Server Terakhir: <span class="font-mono text-slate-600">08:42:15 WIB</span></p>
+</div>
+</footer>
+<!-- END: Minimalist Footer -->
+<!-- BEGIN: Lightweight Interactive Script -->
+<script data-purpose="countdown-and-controls">
+    // Script simulasi hitung mundur timer ujian
+    (function initExamTimer() {
+      let totalSeconds = (1 * 3600) + (24 * 60) + 12; // 01:24:12
+      const timerDisplay = document.getElementById('timer-display');
+      
+      setInterval(function() {
+        if (totalSeconds <= 0) return;
+        totalSeconds--;
+        
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        const formatted = 
+          String(hours).padStart(2, '0') + ':' +
+          String(minutes).padStart(2, '0') + ':' +
+          String(seconds).padStart(2, '0');
+          
+        if (timerDisplay) {
+          timerDisplay.textContent = formatted;
+        }
+      }, 1000);
+    })();
+  </script>
+<!-- END: Lightweight Interactive Script -->
+
+
+</body></html>
