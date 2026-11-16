@@ -10,6 +10,7 @@ use App\Models\ExamPackage;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
 use App\Models\ExamType;
+use App\Models\QuestionBank;
 use App\Models\Room;
 use App\Models\School;
 use App\Models\SchoolClass;
@@ -38,6 +39,7 @@ class ExamAccessControllerTest extends TestCase
                 ->where('exam.id', $context['schedule']->id)
                 ->where('exam.token_available', true)
                 ->where('exam.can_verify', true)
+                ->where('exam.total_questions', 20)
             );
     }
 
@@ -283,6 +285,18 @@ class ExamAccessControllerTest extends TestCase
                 'close_time' => '23:59:59',
                 'status' => ExamScheduleStatus::Aktif,
             ]);
+
+        $questionBank = QuestionBank::factory()->create([
+            'school_id' => $school->id,
+            'academic_year_id' => $academicYear->id,
+            'exam_type_id' => $examType->id,
+            'subject_id' => $schedule->subject_id,
+            'pilihan_ganda_count' => 10,
+            'pilihan_ganda_kompleks_count' => 5,
+            'menjodohkan_count' => 3,
+            'isian_count' => 2,
+            'esai_count' => 0,
+        ]);
 
         $token = 'A2C4E6';
         $tokenHash = app(ExamAccessTokenService::class)->hashToken($token);

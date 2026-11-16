@@ -9,6 +9,7 @@ use App\Models\ClassMember;
 use App\Models\ExamPackage;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
+use App\Models\QuestionBank;
 use App\Services\ExamAccessTokenService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,6 +37,17 @@ class ExamAccessController extends Controller
             'room',
         ]);
         $examPackage = $examSchedule->examPackage;
+
+        $questionBank = QuestionBank::query()
+            ->where('school_id', $examPackage->school_id)
+            ->where('academic_year_id', $examPackage->academic_year_id)
+            ->where('exam_type_id', $examPackage->exam_type_id)
+            ->where('subject_id', $examSchedule->subject_id)
+            ->first();
+
+        $questionComposition = $questionBank?->composition ?? [];
+        $totalQuestions = $questionBank?->getTotalQuestionCountAttribute() ?? 0;
+        $totalScore = $questionBank?->getTotalScoreAttribute() ?? 0;
 
         if ($examPackage === null || ! $this->participantMayAccessSchedule($participant, $examSchedule, $examPackage)) {
             abort(404);
@@ -82,6 +94,9 @@ class ExamAccessController extends Controller
                 'duration_minutes' => $examSchedule->duration_minutes,
                 'session' => $examSchedule->session?->name,
                 'room' => $examSchedule->room?->name,
+                'total_questions' => (int) $totalQuestions,
+                'question_composition' => $questionComposition,
+                'total_score' => (float) $totalScore,
                 'token_available' => $tokenAvailable,
                 'token_access_granted' => $tokenAccessGranted,
                 'can_verify' => ! $tokenAccessGranted

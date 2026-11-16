@@ -102,6 +102,7 @@ export default function StudentLayout({
     appName = 'EduTest CBT',
     systemName = 'Sistem Evaluasi Terpadu',
     version = 'v1.0.0',
+    hideSidebar = false,
 }) {
     const { flash } = usePage().props;
     const { toasts, toast, dismiss } = useToast();
@@ -150,7 +151,8 @@ export default function StudentLayout({
     return (
         <div className="student-portal min-h-screen bg-background font-body text-on-surface selection:bg-primary/15 selection:text-primary">
             <div className="flex min-h-screen">
-                <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r border-outline-variant/60 bg-surface-container-lowest lg:flex">
+                {!hideSidebar && (
+                    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r border-outline-variant/60 bg-surface-container-lowest lg:flex">
                     <div className="px-6 py-6">
                         <StudentBrand appName={appName} systemName={systemName} />
                     </div>
@@ -184,8 +186,9 @@ export default function StudentLayout({
                         </p>
                     </div>
                 </aside>
+                )}
 
-                <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-[260px]">
+                <div className={`flex min-h-screen min-w-0 flex-1 flex-col ${hideSidebar ? '' : 'lg:pl-[260px]'}`}>
                     <header className="sticky top-0 z-20 border-b border-outline-variant/60 bg-surface-container-lowest/95 backdrop-blur">
                         <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
                             <div className="lg:hidden">
