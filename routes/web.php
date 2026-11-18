@@ -29,6 +29,7 @@ use App\Http\Controllers\Student\ExamAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
+use App\Models\Question;
 use App\Models\QuestionBank;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -70,12 +71,18 @@ Route::middleware('student.auth')
                 ->where('academic_year_id', $examPackage->academic_year_id)
                 ->where('exam_type_id', $examPackage->exam_type_id)
                 ->where('subject_id', $examSchedule->subject_id)
-                ->with(['questions' => function ($query) {
-                    $query->where('is_active', true)->orderBy('number');
-                }, 'questions.options', 'questions.pairs', 'questions.blanks'])
                 ->first();
 
-            $questions = $questionBank?->questions ?? collect();
+            if (! $questionBank) {
+                abort(404);
+            }
+
+            $questions = Question::query()
+                ->where('question_bank_id', $questionBank->id)
+                ->where('is_active', true)
+                ->with(['options', 'pairs', 'blanks'])
+                ->orderBy('number')
+                ->get();
 
             return Inertia::render('Student/ExamPage', [
                 'exam' => $examSchedule,
