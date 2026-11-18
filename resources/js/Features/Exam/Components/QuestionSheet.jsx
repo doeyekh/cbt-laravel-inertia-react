@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+
+const getPairId = (pair) => String(pair.id);
 
 /**
  * QuestionSheet - Menampilkan soal beserta instruksi dan area jawaban
@@ -23,6 +25,44 @@ const QuestionSheet = ({
     // currentQuestionNo adalah indeks sequential (1-based), gunakan untuk akses array
     const currentQuestion =
         sortedQuestions[currentQuestionNo - 1] || sortedQuestions[0];
+
+    const sortedPairs = useMemo(
+        () =>
+            Array.isArray(currentQuestion?.pairs)
+                ? [...currentQuestion.pairs].sort(
+                    (a, b) => (a.order ?? 0) - (b.order ?? 0)
+                )
+                : [],
+        [currentQuestion?.pairs],
+    );
+    const shuffledRightPairs = useMemo(() => {
+        const shuffled = [...sortedPairs];
+        let seed = Number(currentQuestion?.id) >>> 0;
+
+        for (let index = shuffled.length - 1; index > 0; index -= 1) {
+            seed = (Math.imul(seed || 1, 1664525) + 1013904223) >>> 0;
+            const swapIndex = seed % (index + 1);
+            [shuffled[index], shuffled[swapIndex]] = [
+                shuffled[swapIndex],
+                shuffled[index],
+            ];
+        }
+
+        if (
+            shuffled.length > 1
+            && shuffled.some(
+                (pair, index) => getPairId(pair) === getPairId(sortedPairs[index])
+            )
+        ) {
+            const offset = (seed % (shuffled.length - 1)) + 1;
+
+            return sortedPairs.map(
+                (_, index) => sortedPairs[(index + offset) % sortedPairs.length]
+            );
+        }
+
+        return shuffled;
+    }, [currentQuestion?.id, sortedPairs]);
 
     const currentQuestionNoIndex = currentQuestion
         ? sortedQuestions.findIndex((q) => q.id === currentQuestion.id) + 1
@@ -82,29 +122,24 @@ const QuestionSheet = ({
         )
         : [];
 
-    // Sort pairs by order column
-    const sortedPairs = Array.isArray(currentQuestion.pairs)
-        ? [...currentQuestion.pairs].sort(
-            (a, b) => (a.order ?? 0) - (b.order ?? 0)
-        )
-        : [];
-
     const currentAnswer = answers[currentQuestion.id] ?? null;
-    const isAnswered =
-        currentAnswer !== null &&
-        currentAnswer !== undefined &&
-        currentAnswer !== '' &&
-        currentAnswer !== 'flagged' &&
-        !(Array.isArray(currentAnswer) && currentAnswer.length === 0);
-
     const isFlagged = currentAnswer === 'flagged';
+    const matchingAnswer = Array.isArray(currentAnswer) ? currentAnswer : [];
+    const matchingAnswers = sortedPairs.map((_, index) => {
+        const answer = matchingAnswer[index];
+
+        return typeof answer === 'string'
+            && shuffledRightPairs.some((pair) => getPairId(pair) === answer)
+            ? answer
+            : '';
+    });
 
     const textStyle = fontSize === 'small' ? 'text-sm' : fontSize === 'large' ? 'text-lg' : 'text-base';
 
     return (
         <section className="flex-1 w-full flex flex-col min-h-[750px]">
             {/* Panel Kontrol Soal (Header Kartu Soal) */}
-            
+
 
             {/* Area Teks Soal & Stimulus Soal */}
             <div className={`p-6 md:p-8 flex-1 overflow-y-auto space-y-6 ${textStyle}`}>
@@ -177,30 +212,30 @@ const QuestionSheet = ({
                                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${isSelected ? 'bg-purple-50 border-purple-200 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-purple-200'}`}
                                 >
                                     <input
-    type="checkbox"
-    name={`question_${currentQuestion.id}`}
-    value={option.text ?? ''}
-    checked={Boolean(isSelected)}
-    onChange={(e) => {
-        const selected = currentAnswer
-            ? Array.isArray(currentAnswer)
-                ? [...currentAnswer]
-                : [currentAnswer]
-            : [];
-        if (e.target.checked) {
-            if (!selected.includes(option.text)) {
-                selected.push(option.text);
-            }
-        } else {
-            const idx = selected.indexOf(option.text);
-            if (idx >= 0) {
-                selected.splice(idx, 1);
-            }
-        }
-        onAnswerChange(currentQuestion.id, selected);
-    }}
-    className="w-4 h-4 text-purple-600 border-slate-300 focus:ring-purple-500"
-/>
+                                        type="checkbox"
+                                        name={`question_${currentQuestion.id}`}
+                                        value={option.text ?? ''}
+                                        checked={Boolean(isSelected)}
+                                        onChange={(e) => {
+                                            const selected = currentAnswer
+                                                ? Array.isArray(currentAnswer)
+                                                    ? [...currentAnswer]
+                                                    : [currentAnswer]
+                                                : [];
+                                            if (e.target.checked) {
+                                                if (!selected.includes(option.text)) {
+                                                    selected.push(option.text);
+                                                }
+                                            } else {
+                                                const idx = selected.indexOf(option.text);
+                                                if (idx >= 0) {
+                                                    selected.splice(idx, 1);
+                                                }
+                                            }
+                                            onAnswerChange(currentQuestion.id, selected);
+                                        }}
+                                        className="w-4 h-4 text-purple-600 border-slate-300 focus:ring-purple-500"
+                                    />
                                     <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border border-slate-300">
                                         {option.label}
                                     </span>
@@ -214,71 +249,149 @@ const QuestionSheet = ({
                 )}
 
                 {currentQuestion.type === 'menjodohkan' && (
-                    <div className="space-y-6">
-                        <p className="font-semibold text-slate-800 mb-2">
-                            Pasangkan entitas di Kolom A dengan Kolom B:
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Kolom A */}
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 py-3">
+                            <p className="text-sm font-medium leading-relaxed text-indigo-950">
+                                Pilih pasangan Kolom B untuk setiap pernyataan di Kolom A. Jika memilih pasangan yang sudah digunakan, pasangan akan otomatis ditukar.
+                            </p>
+                            <span className="shrink-0 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-bold text-indigo-700">
+                                {matchingAnswers.filter(Boolean).length}/{sortedPairs.length} terpasang
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
                             <div className="space-y-3">
-                                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
-                                    <span className="w-5 h-5 rounded-md bg-slate-800 text-white flex items-center justify-center text-[11px] font-mono">
+                                <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-800 font-mono text-[11px] text-white">
                                         A
                                     </span>
-                                    Kolom A
+                                    Kolom A · Pernyataan
                                 </h4>
-                                {sortedPairs.map((pair, index) => (
-                                    <div
-                                        key={pair.id}
-                                        className={`p-3 rounded-xl border cursor-pointer transition flex items-center justify-between gap-3 group ${isFlagged ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}
-                                        onClick={() => {
-                                            if (isFlagged) {
-                                                onAnswerChange(currentQuestion.id, null);
-                                            } else {
-                                                onAnswerChange(
-                                                    currentQuestion.id,
-                                                    `pair_${index}`
-                                                );
-                                            }
-                                        }}
-                                    >
-                                        <span className="text-xs font-bold text-blue-950">
-                                            {pair.left_text}
-                                        </span>
-                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isFlagged ? 'bg-amber-500 text-white' : 'bg-blue-100 text-blue-600'}`}>
-                                            {String(index + 1)}
-                                        </span>
-                                    </div>
-                                ))}
+
+                                {sortedPairs.map((pair, index) => {
+                                    const selectedRightId = matchingAnswers[index];
+                                    const selectedRightIndex = shuffledRightPairs.findIndex(
+                                        (rightPair) => getPairId(rightPair) === selectedRightId
+                                    );
+                                    const selectId = `matching-answer-${currentQuestion.id}-${index}`;
+
+                                    return (
+                                        <div
+                                            key={pair.id}
+                                            className={`rounded-xl border p-4 transition ${selectedRightId
+                                                ? 'border-emerald-300 bg-emerald-50/60'
+                                                : 'border-slate-200 bg-white hover:border-indigo-200'
+                                                }`}
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-800 font-mono text-xs font-bold text-white">
+                                                    A{index + 1}
+                                                </span>
+                                                <p className="min-w-0 flex-1 text-sm font-medium leading-relaxed text-slate-800">
+                                                    {stripHtml(pair.left_text)}
+                                                </p>
+                                            </div>
+
+                                            <div className="mt-4">
+                                                <label
+                                                    htmlFor={selectId}
+                                                    className="mb-1.5 block text-xs font-semibold text-slate-600"
+                                                >
+                                                    Pasangkan dengan:
+                                                </label>
+                                                <select
+                                                    id={selectId}
+                                                    value={selectedRightId}
+                                                    onChange={(event) => {
+                                                        const nextAnswers = [...matchingAnswers];
+                                                        const nextRightId = event.target.value;
+                                                        const previousRightId = matchingAnswers[index];
+                                                        const previousOwnerIndex = nextRightId
+                                                            ? matchingAnswers.findIndex(
+                                                                (answer, answerIndex) =>
+                                                                    answerIndex !== index
+                                                                    && answer === nextRightId
+                                                            )
+                                                            : -1;
+
+                                                        nextAnswers[index] = nextRightId;
+
+                                                        if (previousOwnerIndex >= 0) {
+                                                            nextAnswers[previousOwnerIndex] = previousRightId;
+                                                        }
+
+                                                        onAnswerChange(
+                                                            currentQuestion.id,
+                                                            nextAnswers.some(Boolean) ? nextAnswers : null
+                                                        );
+                                                    }}
+                                                    className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm leading-relaxed text-slate-800 shadow-xs outline-none transition focus:ring-2 ${selectedRightId
+                                                        ? 'border-emerald-300 focus:border-emerald-500 focus:ring-emerald-100'
+                                                        : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-100'
+                                                        }`}
+                                                >
+                                                    <option value="">Pilih pasangan Kolom B</option>
+                                                    {shuffledRightPairs.map((rightPair, rightIndex) => {
+                                                        const rightPairId = getPairId(rightPair);
+
+                                                        return (
+                                                            <option
+                                                                key={rightPair.id}
+                                                                value={rightPairId}
+                                                            >
+                                                                B{rightIndex + 1} — {stripHtml(rightPair.right_text)}
+                                                            </option>
+                                                        );
+                                                    })}
+                                                </select>
+                                                {selectedRightIndex >= 0 && (
+                                                    <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                                                        <span className="material-symbols-outlined text-[15px]">check_circle</span>
+                                                        Terpasang dengan B{selectedRightIndex + 1}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                            {/* Kolom B */}
-                            <div className="space-y-3">
-                                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
-                                    <span className="w-5 h-5 rounded-md bg-blue-700 text-white flex items-center justify-center text-[11px] font-mono">
+
+                            <aside className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+                                <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-800">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-700 font-mono text-[11px] text-white">
                                         B
                                     </span>
-                                    Kolom B
+                                    Pilihan Kolom B
                                 </h4>
-                                {sortedPairs.map((pair, index) => (
-                                    <div
-                                        key={`target_${pair.id}`}
-                                        className="p-3 rounded-xl border flex items-center justify-between gap-3 group"
-                                    >
-                                        <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600">
-                                            {String(index + 1)}
-                                        </span>
-                                        <span className="text-sm text-slate-700">
-                                            {pair.right_text}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
+                                <ol className="space-y-2">
+                                    {shuffledRightPairs.map((pair, index) => {
+                                        const isUsed = matchingAnswers.includes(getPairId(pair));
+
+                                        return (
+                                            <li
+                                                key={pair.id}
+                                                className={`flex items-start gap-3 rounded-lg border p-3 transition ${isUsed
+                                                    ? 'border-blue-200 bg-white/70'
+                                                    : 'border-slate-200 bg-white'
+                                                    }`}
+                                            >
+                                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-100 font-mono text-[11px] font-bold text-blue-700">
+                                                    B{index + 1}
+                                                </span>
+                                                <span className="text-sm leading-relaxed text-slate-700">
+                                                    {stripHtml(pair.right_text)}
+                                                </span>
+                                                {isUsed && (
+                                                    <span className="material-symbols-outlined ml-auto shrink-0 text-[16px] text-emerald-600" aria-label="Sudah dipilih">
+                                                        check_circle
+                                                    </span>
+                                                )}
+                                            </li>
+                                        );
+                                    })}
+                                </ol>
+                            </aside>
                         </div>
-                        {isFlagged && (
-                            <p className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
-                                Menjodohkan: {currentAnswer}
-                            </p>
-                        )}
                     </div>
                 )}
 
@@ -320,7 +433,7 @@ const QuestionSheet = ({
                 )}
             </div>
 
-           
+
         </section>
     );
 };

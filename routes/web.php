@@ -86,21 +86,33 @@ Route::middleware('student.auth')
                 ->orderBy('number')
                 ->get();
 
-            $answers = ExamAttempt::query()
+            $attempt = ExamAttempt::query()
                 ->where('exam_participant_id', $participant->id)
                 ->where('exam_schedule_id', $examSchedule->id)
                 ->with('answers')
-                ->first()
-                ?->answers
+                ->first();
+
+            $answers = $attempt?->answers
                 ->mapWithKeys(fn (ExamAnswer $answer): array => [
                     $answer->question_id => ExamAnswer::restoreAnswer($answer->answer),
                 ])
                 ->all() ?? [];
+            $lastSavedAt = $attempt?->updated_at;
+            $secondsSinceLastSave = $lastSavedAt === null
+                ? 0
+                : max(0, now()->getTimestamp() - $lastSavedAt->getTimestamp());
+            $remainingSeconds = max(
+                0,
+                ($examSchedule->duration_minutes * 60)
+                    - ($attempt?->time_spent_seconds ?? 0)
+                    - $secondsSinceLastSave,
+            );
 
             return Inertia::render('Student/ExamPage', [
                 'exam' => $examSchedule,
                 'questions' => $questions,
                 'answers' => $answers,
+                'remaining_seconds' => $remainingSeconds,
             ]);
         })->name('exam');
         Route::post('exams/{examSchedule}/answers', [ExamAnswerController::class, 'store'])

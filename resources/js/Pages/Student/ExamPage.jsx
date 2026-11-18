@@ -5,8 +5,18 @@ import QuestionListModal from '@/Features/Exam/Components/QuestionListModal';
 import SubmitConfirmationModal from '@/Features/Exam/Components/SubmitConfirmationModal';
 import useExamSession from '@/Features/Exam/Hooks/useExamSession';
 
-export default function ExamPage({ exam, questions = [], answers = {} }) {
-    const examSession = useExamSession({ exam, questions, initialAnswers: answers });
+export default function ExamPage({
+    exam,
+    questions = [],
+    answers = {},
+    remaining_seconds: remainingSeconds,
+}) {
+    const examSession = useExamSession({
+        exam,
+        questions,
+        initialAnswers: answers,
+        initialTimeRemainingSeconds: remainingSeconds,
+    });
 
     return (
         <div className="min-h-screen bg-slate-100 font-sans">
@@ -26,6 +36,7 @@ export default function ExamPage({ exam, questions = [], answers = {} }) {
                     examType={examSession.examType}
                     durationMinutes={examSession.durationMinutes}
                     totalQuestions={examSession.totalQuestions}
+                    answeredCount={examSession.answeredCount}
                     currentQuestionNo={examSession.currentQuestionNo}
                     fontSize={examSession.fontSize}
                     setFontSize={examSession.setFontSize}
@@ -35,6 +46,7 @@ export default function ExamPage({ exam, questions = [], answers = {} }) {
                     goToPreviousQuestion={examSession.goToPreviousQuestion}
                     goToNextQuestion={examSession.goToNextQuestion}
                     setShowQuestionModal={examSession.setShowQuestionModal}
+                    setShowSubmitModal={examSession.setShowSubmitModal}
                 />
 
                 <SubmitConfirmationModal

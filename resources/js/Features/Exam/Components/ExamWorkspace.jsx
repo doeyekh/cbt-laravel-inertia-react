@@ -7,6 +7,7 @@ const ExamWorkspace = ({
     examType,
     durationMinutes,
     totalQuestions,
+    answeredCount,
     currentQuestionNo,
     fontSize,
     setFontSize,
@@ -16,10 +17,13 @@ const ExamWorkspace = ({
     goToPreviousQuestion,
     goToNextQuestion,
     setShowQuestionModal,
+    setShowSubmitModal,
 }) => {
     const sortedQuestions = [...questions].sort((first, second) => (first.number ?? 0) - (second.number ?? 0));
     const currentQuestion = sortedQuestions[currentQuestionNo - 1] || sortedQuestions[0];
     const currentQuestionId = currentQuestion?.id ?? currentQuestionNo;
+    const isLastQuestion = currentQuestionNo >= totalQuestions;
+    const hasUnansweredQuestions = totalQuestions === 0 || answeredCount < totalQuestions;
 
     const handleFlagToggle = () => {
         const isFlagged = answers[currentQuestionId] === 'flagged';
@@ -124,13 +128,20 @@ const ExamWorkspace = ({
                         <span>Daftar Soal</span>
                     </button>
                     <button
-                        onClick={goToNextQuestion}
-                        disabled={currentQuestionNo >= totalQuestions}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition shadow-md shadow-blue-500/20 active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={isLastQuestion ? () => setShowSubmitModal(true) : goToNextQuestion}
+                        disabled={isLastQuestion && hasUnansweredQuestions}
+                        title={isLastQuestion && hasUnansweredQuestions ? 'Jawab semua soal terlebih dahulu sebelum menyelesaikan ujian.' : undefined}
+                        className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-semibold text-sm transition shadow-md active:scale-98 disabled:cursor-not-allowed disabled:opacity-50 ${
+                            isLastQuestion
+                                ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'
+                                : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
+                        }`}
                         type="button"
                     >
-                        Soal Berikutnya
-                        <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                        {isLastQuestion ? 'Selesaikan Ujian' : 'Soal Berikutnya'}
+                        <span className="material-symbols-outlined text-[16px]">
+                            {isLastQuestion ? 'task_alt' : 'arrow_forward'}
+                        </span>
                     </button>
                 </div>
             </div>

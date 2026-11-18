@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useHttp } from '@inertiajs/react';
 import { useToast } from '@/Hooks/useToast';
 
-export default function useExamSession({ exam, questions = [], initialAnswers = {} }) {
+export default function useExamSession({
+    exam,
+    questions = [],
+    initialAnswers = {},
+    initialTimeRemainingSeconds,
+}) {
     const { toast } = useToast();
     const {
         setData: setSaveData,
@@ -20,8 +25,12 @@ export default function useExamSession({ exam, questions = [], initialAnswers = 
     const sessionName = exam.session?.name ?? exam.session ?? '-';
     const totalQuestions = questions.length > 0 ? questions.length : (exam.total_questions ?? 40);
     const durationMinutes = exam.duration_minutes ?? 0;
+    const durationSeconds = durationMinutes * 60;
+    const countdownStartSeconds = Number.isFinite(initialTimeRemainingSeconds)
+        ? Math.max(0, Math.min(durationSeconds, initialTimeRemainingSeconds))
+        : durationSeconds;
 
-    const [timeRemaining, setTimeRemaining] = useState(durationMinutes * 60);
+    const [timeRemaining, setTimeRemaining] = useState(countdownStartSeconds);
     const [isRunning, setIsRunning] = useState(true);
     const [answers, setAnswers] = useState(() => initialAnswers);
     const [currentQuestionNo, setCurrentQuestionNo] = useState(1);
@@ -31,33 +40,60 @@ export default function useExamSession({ exam, questions = [], initialAnswers = 
     const timerRef = useRef(null);
 
     useEffect(() => {
-        timerRef.current = setInterval(() => {
-            setTimeRemaining((previous) => {
-                if (previous <= 0) {
-                    clearInterval(timerRef.current);
-                    setIsRunning(false);
-                    return 0;
-                }
-                return previous - 1;
-            });
-        }, 1000);
+        const deadline = Date.now() + countdownStartSeconds * 1000;
+        const updateTimeRemaining = () => {
+            const remainingSeconds = Math.max(
+                0,
+                Math.ceil((deadline - Date.now()) / 1000),
+            );
+            setTimeRemaining(remainingSeconds);
+
+            if (remainingSeconds === 0) {
+                clearInterval(timerRef.current);
+                setIsRunning(false);
+            }
+        };
+
+        if (countdownStartSeconds === 0) {
+            setIsRunning(false);
+        } else {
+            timerRef.current = setInterval(updateTimeRemaining, 1000);
+        }
 
         return () => {
             clearInterval(timerRef.current);
         };
-    }, []);
+    }, [countdownStartSeconds]);
 
-    const answerStats = useMemo(() => Object.values(answers).reduce(
-        (stats, answer) => {
+    const answerStats = useMemo(() => questions.reduce(
+        (stats, question) => {
+            const answer = answers[question.id];
+
             if (answer === 'flagged') {
                 stats.flagged += 1;
-            } else if (answer !== null && answer !== undefined && answer !== '') {
+            } else if (question.type === 'menjodohkan') {
+                const pairCount = question.pairs?.length ?? 0;
+                const allPairsAnswered = Array.isArray(answer)
+                    && pairCount > 0
+                    && answer.length >= pairCount
+                    && answer.slice(0, pairCount).every(
+                        (pairAnswer) => typeof pairAnswer === 'string' && pairAnswer !== ''
+                    );
+
+                if (allPairsAnswered) {
+                    stats.answered += 1;
+                }
+            } else if (
+                Array.isArray(answer)
+                    ? answer.some((value) => value !== '')
+                    : answer !== null && answer !== undefined && answer !== ''
+            ) {
                 stats.answered += 1;
             }
             return stats;
         },
         { answered: 0, flagged: 0 },
-    ), [answers]);
+    ), [answers, questions]);
 
     const formattedTime = useMemo(() => {
         const hours = Math.floor(timeRemaining / 3600);
@@ -66,21 +102,26 @@ export default function useExamSession({ exam, questions = [], initialAnswers = 
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }, [timeRemaining]);
 
-    const saveAnswersToServer = async (nextAnswers, showModal = true) => {
+    const handleExitExam = () => {
+        setShowSubmitModal(false);
+        window.location.href = route('student.dashboard');
+    };
+
+    const saveAnswersToServer = async (nextAnswers, exitAfterSave = false) => {
         if (Object.keys(nextAnswers).length === 0) {
             return;
         }
 
         setSaveData({
             answers: nextAnswers,
-            time_spent_seconds: durationMinutes * 60 - timeRemaining,
+            time_spent_seconds: durationSeconds - timeRemaining,
         });
 
         try {
             await postAnswers(route('student.exam-answers.store', exam.id), {
                 onSuccess: () => {
-                    if (showModal) {
-                        setShowSubmitModal(true);
+                    if (exitAfterSave) {
+                        handleExitExam();
                     }
                 },
                 onError: () => {
@@ -118,12 +159,13 @@ export default function useExamSession({ exam, questions = [], initialAnswers = 
         if (event) {
             event.preventDefault();
         }
-        await saveAnswersToServer(answers, true);
-    };
 
-    const handleExitExam = () => {
-        setShowSubmitModal(false);
-        window.location.href = route('student.dashboard');
+        const answersToSubmit = questions.reduce((submission, question) => {
+            submission[question.id] = answers[question.id] ?? null;
+            return submission;
+        }, {});
+
+        await saveAnswersToServer(answersToSubmit, true);
     };
 
     const goToPreviousQuestion = () => {

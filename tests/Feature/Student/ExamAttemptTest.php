@@ -6,6 +6,7 @@ use App\Enums\ExamPackageStatus;
 use App\Enums\ExamScheduleStatus;
 use App\Models\AcademicYear;
 use App\Models\ClassMember;
+use App\Models\ExamAttempt;
 use App\Models\ExamPackage;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
@@ -46,6 +47,38 @@ class ExamAttemptTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/ExamPage')
                 ->where('exam.id', $context['schedule']->id)
+                ->where('remaining_seconds', $context['schedule']->duration_minutes * 60)
+            );
+    }
+
+    public function test_student_exam_page_restores_remaining_time_from_saved_attempt(): void
+    {
+        $context = $this->createOpenExamContext();
+        $lastSavedAt = now()->subMinutes(5);
+
+        ExamAttempt::factory()->create([
+            'exam_participant_id' => $context['participant']->id,
+            'exam_schedule_id' => $context['schedule']->id,
+            'exam_package_id' => $context['package']->id,
+            'duration_minutes' => 90,
+            'time_spent_seconds' => 120,
+            'started_at' => $lastSavedAt->copy()->subMinutes(5),
+            'created_at' => $lastSavedAt->copy()->subMinutes(5),
+            'updated_at' => $lastSavedAt,
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/ExamPage')
+                ->where('remaining_seconds', 4980)
             );
     }
 

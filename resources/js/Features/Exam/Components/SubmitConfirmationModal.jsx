@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 const SubmitConfirmationModal = ({
     isOpen,
@@ -12,6 +12,14 @@ const SubmitConfirmationModal = ({
     totalQuestions,
     isAutoSaving,
 }) => {
+    const [isConfirmed, setIsConfirmed] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setIsConfirmed(false);
+        }
+    }, [isOpen]);
+
     if (!isOpen) {
         return null;
     }
@@ -106,6 +114,8 @@ const SubmitConfirmationModal = ({
                         <input
                             className="w-4 h-4 rounded text-blue-600 border-slate-400 focus:ring-blue-500 shrink-0 mt-0.5"
                             type="checkbox"
+                            checked={isConfirmed}
+                            onChange={(event) => setIsConfirmed(event.target.checked)}
                         />
                         <span className="text-xs text-slate-700 leading-relaxed">
                             Saya menyatakan telah memeriksa seluruh lembar jawaban dengan teliti dan yakin untuk mengakhiri sesi ujian ini sekarang.
@@ -124,12 +134,12 @@ const SubmitConfirmationModal = ({
                         </button>
                         <button
                             onClick={onSubmit}
-                            disabled={isAutoSaving}
+                            disabled={isAutoSaving || !isConfirmed}
                             className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm transition shadow-md shadow-blue-500/20 active:scale-98 flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
                             type="button"
                         >
                             <span className="material-symbols-outlined text-[18px]">send</span>
-                            <span>{isAutoSaving ? 'Mengumpulkan...' : 'Ya, Selesaikan &amp; Kumpulkan'}</span>
+                            <span>{isAutoSaving ? 'Mengumpulkan...' : 'Ya, Selesaikan & Kumpulkan'}</span>
                         </button>
                     </div>
                     <p className="text-[11px] text-center text-slate-400 font-medium">
