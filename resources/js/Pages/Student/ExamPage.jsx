@@ -202,7 +202,7 @@ export default function ExamPage({ exam }) {
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
             {/* Modal Konfirmasi Keluar */}
             <div

@@ -264,7 +264,7 @@ const QuestionSheet = ({ question, exam, onFlagChange, onNavigate }) => {
                         </div>
                     </div>
                 </div>
-            </section>
+            </div>
         </section>
     );
 };
