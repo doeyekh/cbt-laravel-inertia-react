@@ -27,6 +27,8 @@ use App\Http\Controllers\Auth\StudentLoginController;
 use App\Http\Controllers\Student\ExamAccessController;
 use App\Http\Controllers\Student\ExamAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
+use App\Models\ExamAnswer;
+use App\Models\ExamAttempt;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
 use App\Models\Question;
@@ -84,9 +86,21 @@ Route::middleware('student.auth')
                 ->orderBy('number')
                 ->get();
 
+            $answers = ExamAttempt::query()
+                ->where('exam_participant_id', $participant->id)
+                ->where('exam_schedule_id', $examSchedule->id)
+                ->with('answers')
+                ->first()
+                ?->answers
+                ->mapWithKeys(fn (ExamAnswer $answer): array => [
+                    $answer->question_id => ExamAnswer::restoreAnswer($answer->answer),
+                ])
+                ->all() ?? [];
+
             return Inertia::render('Student/ExamPage', [
                 'exam' => $examSchedule,
                 'questions' => $questions,
+                'answers' => $answers,
             ]);
         })->name('exam');
         Route::post('exams/{examSchedule}/answers', [ExamAnswerController::class, 'store'])

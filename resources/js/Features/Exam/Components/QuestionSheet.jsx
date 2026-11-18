@@ -177,35 +177,30 @@ const QuestionSheet = ({
                                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${isSelected ? 'bg-purple-50 border-purple-200 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-purple-200'}`}
                                 >
                                     <input
-                                        type="checkbox"
-                                        name={`question_${currentQuestion.id}`}
-                                        value={option.text}
-                                        checked={isSelected}
-                                        onChange={(e) => {
-                                            const selected = currentAnswer
-                                                ? Array.isArray(currentAnswer)
-                                                    ? [...currentAnswer]
-                                                    : [currentAnswer]
-                                                : [];
-                                            if (e.target.checked) {
-                                                if (!selected.includes(option.text)) {
-                                                    selected.push(option.text);
-                                                }
-                                            } else {
-                                                const idx = selected.indexOf(
-                                                    option.text
-                                                );
-                                                if (idx >= 0) {
-                                                    selected.splice(idx, 1);
-                                                }
-                                            }
-                                            onAnswerChange(
-                                                currentQuestion.id,
-                                                selected
-                                            );
-                                        }}
-                                        className="w-4 h-4 text-purple-600 border-slate-300 focus:ring-purple-500"
-                                    />
+    type="checkbox"
+    name={`question_${currentQuestion.id}`}
+    value={option.text ?? ''}
+    checked={Boolean(isSelected)}
+    onChange={(e) => {
+        const selected = currentAnswer
+            ? Array.isArray(currentAnswer)
+                ? [...currentAnswer]
+                : [currentAnswer]
+            : [];
+        if (e.target.checked) {
+            if (!selected.includes(option.text)) {
+                selected.push(option.text);
+            }
+        } else {
+            const idx = selected.indexOf(option.text);
+            if (idx >= 0) {
+                selected.splice(idx, 1);
+            }
+        }
+        onAnswerChange(currentQuestion.id, selected);
+    }}
+    className="w-4 h-4 text-purple-600 border-slate-300 focus:ring-purple-500"
+/>
                                     <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border border-slate-300">
                                         {option.label}
                                     </span>

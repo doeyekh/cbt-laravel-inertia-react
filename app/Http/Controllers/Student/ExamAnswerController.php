@@ -12,6 +12,7 @@ use App\Models\ExamPackage;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
 use App\Models\QuestionBank;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -53,7 +54,24 @@ class ExamAnswerController extends Controller
 
         $request->validate([
             'answers' => 'required|array',
-            'answers.*' => 'nullable|string',
+            'answers.*' => [
+                'nullable',
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    if (is_string($value)) {
+                        return;
+                    }
+
+                    if (
+                        is_array($value)
+                        && array_is_list($value)
+                        && collect($value)->every(fn (mixed $answer): bool => is_string($answer))
+                    ) {
+                        return;
+                    }
+
+                    $fail('The answer must be a string or a list of strings.');
+                },
+            ],
             'time_spent_seconds' => 'required|integer|min:0',
         ]);
 
@@ -99,7 +117,7 @@ class ExamAnswerController extends Controller
                 ],
                 [
                     'question_no' => $this->getQuestionNo($questionBank, $questionId),
-                    'answer' => $answer,
+                    'answer' => ExamAnswer::serializeAnswer($answer),
                 ]
             );
         }

@@ -20,6 +20,7 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Services\ExamAccessTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -60,6 +61,12 @@ class ExamAttemptTest extends TestCase
     public function test_student_can_save_exam_answers(): void
     {
         $context = $this->createOpenExamContext();
+        $examDate = $context['schedule']->exam_date->toDateString();
+        $context['schedule']->update([
+            'open_time' => '07:00:00',
+            'close_time' => '11:30:00',
+        ]);
+        $this->travelTo(Carbon::parse("{$examDate} 03:00:00", 'UTC'));
 
         // Verifikasi token
         $this->withSession($this->studentSession($context['participant']))
@@ -70,11 +77,17 @@ class ExamAttemptTest extends TestCase
 
         // Simpan jawaban
         $question = $context['questionBank']->questions()->first();
+        $multipleAnswerQuestion = $context['questionBank']->questions()
+            ->orderBy('number')
+            ->get()
+            ->get(1);
+        $multipleAnswerQuestion->update(['type' => 'pilihan_ganda_kompleks']);
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-answers.store', $context['schedule']), [
                 'answers' => [
                     $question->id => 'A',
+                    $multipleAnswerQuestion->id => ['B', 'C'],
                 ],
                 'time_spent_seconds' => 120,
             ])
@@ -92,6 +105,20 @@ class ExamAttemptTest extends TestCase
             'question_id' => $question->id,
             'answer' => 'A',
         ]);
+
+        $this->assertDatabaseHas('exam_answers', [
+            'question_id' => $multipleAnswerQuestion->id,
+            'answer' => '__array__:["B","C"]',
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/ExamPage')
+                ->where("answers.{$question->id}", 'A')
+                ->where("answers.{$multipleAnswerQuestion->id}", ['B', 'C'])
+            );
     }
 
     public function test_student_cannot_save_answers_without_token_verification(): void

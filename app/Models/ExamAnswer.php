@@ -14,6 +14,8 @@ class ExamAnswer extends Model
     /** @use HasFactory<ExamAnswerFactory> */
     use HasFactory;
 
+    private const ARRAY_ANSWER_PREFIX = '__array__:';
+
     /**
      * Get the attributes that should be cast.
      *
@@ -43,5 +45,35 @@ class ExamAnswer extends Model
     public function question(): BelongsTo
     {
         return $this->belongsTo(Question::class, 'question_id');
+    }
+
+    /**
+     * Serialize supported answer values for storage in the text column.
+     *
+     * @param  string|array<int, string>|null  $answer
+     */
+    public static function serializeAnswer(string|array|null $answer): ?string
+    {
+        if (! is_array($answer)) {
+            return $answer;
+        }
+
+        return self::ARRAY_ANSWER_PREFIX.json_encode($answer, JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Restore an answer value from its stored representation.
+     *
+     * @return string|array<int, string>|null
+     */
+    public static function restoreAnswer(?string $answer): string|array|null
+    {
+        if (! is_string($answer) || ! str_starts_with($answer, self::ARRAY_ANSWER_PREFIX)) {
+            return $answer;
+        }
+
+        $decodedAnswer = json_decode(substr($answer, strlen(self::ARRAY_ANSWER_PREFIX)), true);
+
+        return is_array($decodedAnswer) ? $decodedAnswer : $answer;
     }
 }
