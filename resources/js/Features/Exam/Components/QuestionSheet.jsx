@@ -59,6 +59,16 @@ const QuestionSheet = ({
         );
     }
 
+    // Sort options by order column
+    const sortedOptions = [...(currentQuestion.options || [])].sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0)
+    );
+
+    // Sort pairs by order column
+    const sortedPairs = [...(currentQuestion.pairs || [])].sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0)
+    );
+
     const currentAnswer = answers[currentQuestion.id] ?? null;
     const isAnswered =
         currentAnswer !== null &&
@@ -139,14 +149,14 @@ const QuestionSheet = ({
 
                 {/* Teks Soal */}
                 <div className="prose prose-slate max-w-none">
-                    <p className={textStyle}>{currentQuestion.body}</p>
+                    <p className={textStyle} dangerouslySetInnerHTML={{ __html: currentQuestion.body }} />
                 </div>
 
                 {/* Area Jawaban Berdasarkan Tipe Soal */}
                 {currentQuestion.type === 'pilihan_ganda' && (
                     <div className="space-y-3">
                         <p className="font-semibold text-slate-800 mb-2">Pilih salah satu jawaban:</p>
-                        {currentQuestion.options?.map((option) => (
+                        {sortedOptions.map((option) => (
                             <label
                                 key={option.id}
                                 className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition hover:bg-slate-50 hover:border-blue-200"
@@ -154,17 +164,20 @@ const QuestionSheet = ({
                                 <input
                                     type="radio"
                                     name={`question_${currentQuestion.id}`}
-                                    value={option.option_text}
-                                    checked={currentAnswer === option.option_text}
+                                    value={option.text}
+                                    checked={currentAnswer === option.text}
                                     onChange={() =>
                                         onAnswerChange(
                                             currentQuestion.id,
-                                            option.option_text
+                                            option.text
                                         )
                                     }
                                     className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
                                 />
-                                <span className={textStyle}>{option.option_text}</span>
+                                <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border border-slate-300">
+                                    {option.label}
+                                </span>
+                                <span className={textStyle}>{option.text}</span>
                             </label>
                         ))}
                     </div>
@@ -184,7 +197,7 @@ const QuestionSheet = ({
                                     </span>
                                     Kolom A
                                 </h4>
-                                {currentQuestion.pairs?.map((pair, index) => (
+                                {sortedPairs.map((pair, index) => (
                                     <div
                                         key={pair.id}
                                         className={`p-3 rounded-xl border cursor-pointer transition flex items-center justify-between gap-3 group ${isFlagged ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}
@@ -200,7 +213,7 @@ const QuestionSheet = ({
                                         }}
                                     >
                                         <span className="text-xs font-bold text-blue-950">
-                                            {pair.premise_text ?? pair.premise}
+                                            {pair.left_text}
                                         </span>
                                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isFlagged ? 'bg-amber-500 text-white' : 'bg-blue-100 text-blue-600'}`}>
                                             {String(index + 1)}
@@ -216,7 +229,7 @@ const QuestionSheet = ({
                                     </span>
                                     Kolom B
                                 </h4>
-                                {currentQuestion.pairs?.map((pair, index) => (
+                                {sortedPairs.map((pair, index) => (
                                     <div
                                         key={`target_${pair.id}`}
                                         className="p-3 rounded-xl border flex items-center justify-between gap-3 group"
@@ -225,7 +238,7 @@ const QuestionSheet = ({
                                             {String(index + 1)}
                                         </span>
                                         <span className="text-sm text-slate-700">
-                                            {pair.target_text ?? pair.target}
+                                            {pair.right_text}
                                         </span>
                                     </div>
                                 ))}
