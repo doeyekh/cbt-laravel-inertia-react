@@ -76,14 +76,18 @@ const QuestionSheet = ({
     }
 
     // Sort options by order column
-    const sortedOptions = [...(currentQuestion.options || [])].sort(
-        (a, b) => (a.order ?? 0) - (b.order ?? 0)
-    );
+    const sortedOptions = Array.isArray(currentQuestion.options)
+        ? [...currentQuestion.options].sort(
+            (a, b) => (a.order ?? 0) - (b.order ?? 0)
+        )
+        : [];
 
     // Sort pairs by order column
-    const sortedPairs = [...(currentQuestion.pairs || [])].sort(
-        (a, b) => (a.order ?? 0) - (b.order ?? 0)
-    );
+    const sortedPairs = Array.isArray(currentQuestion.pairs)
+        ? [...currentQuestion.pairs].sort(
+            (a, b) => (a.order ?? 0) - (b.order ?? 0)
+        )
+        : [];
 
     const currentAnswer = answers[currentQuestion.id] ?? null;
     const isAnswered =
