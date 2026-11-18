@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ExamPackageController;
 use App\Http\Controllers\Admin\ExamParticipantController;
 use App\Http\Controllers\Admin\ExamScheduleController;
 use App\Http\Controllers\Admin\ExamTypeController;
+use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\QuestionBankController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\QuestionImportController;
@@ -26,16 +27,9 @@ use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\StudentLoginController;
 use App\Http\Controllers\Student\ExamAccessController;
 use App\Http\Controllers\Student\ExamAnswerController;
+use App\Http\Controllers\Student\ExamController;
 use App\Http\Controllers\Student\StudentDashboardController;
-use App\Models\ExamAnswer;
-use App\Models\ExamAttempt;
-use App\Models\ExamParticipant;
-use App\Models\ExamSchedule;
-use App\Models\Question;
-use App\Models\QuestionBank;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/', [StudentLoginController::class, 'create'])->name('student.login');
 Route::get('/login', [StudentLoginController::class, 'create'])->name('login');
@@ -47,74 +41,7 @@ Route::middleware('student.auth')
     ->name('student.')
     ->group(function () {
         Route::get('/', [StudentDashboardController::class, 'index'])->name('dashboard');
-        Route::get('exams/{examSchedule}', function (ExamSchedule $examSchedule, Request $request) {
-            $participant = ExamParticipant::query()
-                ->findOrFail((int) $request->session()->get('student_participant_id'));
-
-            $examSchedule->loadMissing(['examPackage', 'subject']);
-            $examPackage = $examSchedule->examPackage;
-
-            if ($examPackage === null) {
-                abort(404);
-            }
-
-            $verifiedExamPackages = $request->session()->get('student_exam_packages', []);
-            $storedHash = is_array($verifiedExamPackages)
-                ? ($verifiedExamPackages[$examPackage->id] ?? null)
-                : null;
-            $currentHash = $examPackage->exam_access_token_hash;
-
-            if (! is_string($storedHash) || ! is_string($currentHash) || ! hash_equals($currentHash, $storedHash)) {
-                return to_route('student.exam-access.create', $examSchedule);
-            }
-
-            $questionBank = QuestionBank::query()
-                ->where('school_id', $examPackage->school_id)
-                ->where('academic_year_id', $examPackage->academic_year_id)
-                ->where('exam_type_id', $examPackage->exam_type_id)
-                ->where('subject_id', $examSchedule->subject_id)
-                ->first();
-
-            if (! $questionBank) {
-                abort(404);
-            }
-
-            $questions = Question::query()
-                ->where('question_bank_id', $questionBank->id)
-                ->where('is_active', true)
-                ->with(['options', 'pairs', 'blanks'])
-                ->orderBy('number')
-                ->get();
-
-            $attempt = ExamAttempt::query()
-                ->where('exam_participant_id', $participant->id)
-                ->where('exam_schedule_id', $examSchedule->id)
-                ->with('answers')
-                ->first();
-
-            $answers = $attempt?->answers
-                ->mapWithKeys(fn (ExamAnswer $answer): array => [
-                    $answer->question_id => ExamAnswer::restoreAnswer($answer->answer),
-                ])
-                ->all() ?? [];
-            $lastSavedAt = $attempt?->updated_at;
-            $secondsSinceLastSave = $lastSavedAt === null
-                ? 0
-                : max(0, now()->getTimestamp() - $lastSavedAt->getTimestamp());
-            $remainingSeconds = max(
-                0,
-                ($examSchedule->duration_minutes * 60)
-                    - ($attempt?->time_spent_seconds ?? 0)
-                    - $secondsSinceLastSave,
-            );
-
-            return Inertia::render('Student/ExamPage', [
-                'exam' => $examSchedule,
-                'questions' => $questions,
-                'answers' => $answers,
-                'remaining_seconds' => $remainingSeconds,
-            ]);
-        })->name('exam');
+        Route::get('exams/{examSchedule}', [ExamController::class, 'show'])->name('exam');
         Route::post('exams/{examSchedule}/answers', [ExamAnswerController::class, 'store'])
             ->name('exam-answers.store');
         Route::get('exams/{examSchedule}/access-token', [ExamAccessController::class, 'create'])
@@ -144,23 +71,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/password/update', [PasswordUpdateController::class, 'update'])
             ->name('password.update');
 
-        Route::get('/', function () {
-            return Inertia::render('Home', [
-                'title' => 'Beranda - CBT Panel',
-            ]);
-        })->name('dashboard');
+        Route::get('/', [PageController::class, 'dashboard'])->name('dashboard');
 
-        Route::get('/exam/{examSchedule}/start', function (ExamSchedule $examSchedule) {
-            return Inertia::render('Student/ExamStart', [
-                'exam' => $examSchedule,
-            ]);
-        })->name('student.exam.start')->middleware('school-admin');
+        Route::get('/exam/{examSchedule}/start', [PageController::class, 'examStart'])
+            ->name('student.exam.start')->middleware('school-admin');
 
-        Route::get('/monitoring', function () {
-            return Inertia::render('Monitoring/Index', [
-                'title' => 'Monitoring Ujian',
-            ]);
-        })->middleware('school-admin')->name('monitoring.index');
+        Route::get('/monitoring', [PageController::class, 'monitoring'])
+            ->middleware('school-admin')->name('monitoring.index');
 
         Route::patch('schools/{school}/credential-template', [ExamParticipantController::class, 'updateCredentialTemplate'])
             ->name('schools.credential-template');
