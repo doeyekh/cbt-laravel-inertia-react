@@ -49,6 +49,18 @@ const QuestionSheet = ({
         return colors[type] ?? 'bg-slate-100 border-slate-200 text-slate-600';
     };
 
+    /**
+     * Strip HTML tags from text for safe display.
+     */
+    const stripHtml = (html) => {
+        if (!html) {
+            return '';
+        }
+        const tmp = document.createElement('DIV');
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || '';
+    };
+
     if (!currentQuestion) {
         return (
             <section className="flex-1 w-full bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-h-[750px]">
@@ -74,7 +86,8 @@ const QuestionSheet = ({
         currentAnswer !== null &&
         currentAnswer !== undefined &&
         currentAnswer !== '' &&
-        currentAnswer !== 'flagged';
+        currentAnswer !== 'flagged' &&
+        !(Array.isArray(currentAnswer) && currentAnswer.length === 0);
 
     const isFlagged = currentAnswer === 'flagged';
 
@@ -156,30 +169,92 @@ const QuestionSheet = ({
                 {currentQuestion.type === 'pilihan_ganda' && (
                     <div className="space-y-3">
                         <p className="font-semibold text-slate-800 mb-2">Pilih salah satu jawaban:</p>
-                        {sortedOptions.map((option) => (
-                            <label
-                                key={option.id}
-                                className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition hover:bg-slate-50 hover:border-blue-200"
-                            >
-                                <input
-                                    type="radio"
-                                    name={`question_${currentQuestion.id}`}
-                                    value={option.text}
-                                    checked={currentAnswer === option.text}
-                                    onChange={() =>
-                                        onAnswerChange(
-                                            currentQuestion.id,
-                                            option.text
-                                        )
-                                    }
-                                    className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                                />
-                                <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border border-slate-300">
-                                    {option.label}
-                                </span>
-                                <span className={textStyle}>{option.text}</span>
-                            </label>
-                        ))}
+                        {sortedOptions.map((option) => {
+                            const isSelected = currentAnswer === option.text;
+                            return (
+                                <label
+                                    key={option.id}
+                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${isSelected ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-blue-200'}`}
+                                >
+                                    <input
+                                        type="radio"
+                                        name={`question_${currentQuestion.id}`}
+                                        value={option.text}
+                                        checked={currentAnswer === option.text}
+                                        onChange={() =>
+                                            onAnswerChange(
+                                                currentQuestion.id,
+                                                option.text
+                                            )
+                                        }
+                                        className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
+                                    />
+                                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border border-slate-300">
+                                        {option.label}
+                                    </span>
+                                    <span className={textStyle}>
+                                        {stripHtml(option.text)}
+                                    </span>
+                                </label>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {currentQuestion.type === 'pilihan_ganda_kompleks' && (
+                    <div className="space-y-3">
+                        <p className="font-semibold text-slate-800 mb-2">
+                            Pilih satu atau lebih jawaban yang benar:
+                        </p>
+                        {sortedOptions.map((option) => {
+                            const isSelected =
+                                currentAnswer &&
+                                Array.isArray(currentAnswer) &&
+                                currentAnswer.includes(option.text);
+                            return (
+                                <label
+                                    key={option.id}
+                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${isSelected ? 'bg-purple-50 border-purple-200 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-purple-200'}`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        name={`question_${currentQuestion.id}`}
+                                        value={option.text}
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                            const selected = currentAnswer
+                                                ? Array.isArray(currentAnswer)
+                                                    ? [...currentAnswer]
+                                                    : [currentAnswer]
+                                                : [];
+                                            if (e.target.checked) {
+                                                if (!selected.includes(option.text)) {
+                                                    selected.push(option.text);
+                                                }
+                                            } else {
+                                                const idx = selected.indexOf(
+                                                    option.text
+                                                );
+                                                if (idx >= 0) {
+                                                    selected.splice(idx, 1);
+                                                }
+                                            }
+                                            onAnswerChange(
+                                                currentQuestion.id,
+                                                selected
+                                            );
+                                        }}
+                                        className="w-4 h-4 text-purple-600 border-slate-300 focus:ring-purple-500"
+                                    />
+                                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border border-slate-300">
+                                        {option.label}
+                                    </span>
+                                    <span className={textStyle}>
+                                        {stripHtml(option.text)}
+                                    </span>
+                                </label>
+                            );
+                        })}
                     </div>
                 )}
 
@@ -269,15 +344,19 @@ const QuestionSheet = ({
                     </div>
                 )}
 
-                {(currentQuestion.type === 'isian_singkat' ||
-                    currentQuestion.type === 'pilihan_ganda_kompleks') && (
+                {currentQuestion.type === 'isian_singkat' && (
                     <div className="space-y-3">
-                        <p className="font-semibold text-slate-800 mb-2">Masukkan jawaban Anda:</p>
+                        <p className="font-semibold text-slate-800 mb-2">
+                            Masukkan jawaban Anda:
+                        </p>
                         <input
                             type="text"
                             value={currentAnswer ?? ''}
                             onChange={(e) =>
-                                onAnswerChange(currentQuestion.id, e.target.value)
+                                onAnswerChange(
+                                    currentQuestion.id,
+                                    e.target.value
+                                )
                             }
                             className="w-full p-3 text-slate-800 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-sans"
                             placeholder="Jawaban..."
