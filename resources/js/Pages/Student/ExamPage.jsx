@@ -19,15 +19,16 @@ export default function ExamPage({ exam, questions = [] }) {
     const [timeRemaining, setTimeRemaining] = useState(durationMinutes * 60);
     const [isRunning, setIsRunning] = useState(true);
     const [answers, setAnswers] = useState({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showSubmitModal, setShowSubmitModal] = useState(false);
-    const [showQuestionModal, setShowQuestionModal] = useState(false);
-    const [fontSize, setFontSize] = useState('normal');
+    const [isAutoSaving, setIsAutoSaving] = useState(false);
     const [currentQuestionNo, setCurrentQuestionNo] = useState(1);
     const [answeredCount, setAnsweredCount] = useState(0);
     const [flaggedCount, setFlaggedCount] = useState(0);
 
     const timerRef = useRef(null);
+    const autoSaveRef = useRef(null);
+    const [showSubmitModal, setShowSubmitModal] = useState(false);
+    const [showQuestionModal, setShowQuestionModal] = useState(false);
+    const [fontSize, setFontSize] = useState('normal');
 
     // Inisialisasi timer saat komponen mount
     useEffect(() => {
@@ -42,7 +43,12 @@ export default function ExamPage({ exam, questions = [] }) {
             });
         }, 1000);
 
-        return () => clearInterval(timerRef.current);
+        return () => {
+            clearInterval(timerRef.current);
+            if (autoSaveRef.current) {
+                clearTimeout(autoSaveRef.current);
+            }
+        };
     }, []);
 
     // Format waktu menjadi HH:MM:SS
@@ -71,25 +77,29 @@ export default function ExamPage({ exam, questions = [] }) {
         setFlaggedCount(answerStats.flagged);
     }, [answers]);
 
-    // Simpan jawaban ke state lokal
+    // Simpan jawaban ke state lokal dan auto-save ke server
     const handleAnswerChange = (questionNo, answer) => {
         setAnswers(prev => ({
             ...prev,
             [questionNo]: answer,
         }));
-    };
 
-    // Pindah soal tanpa mereset timer
-    const handleQuestionChange = (newQuestionNo) => {
-        setCurrentQuestionNo(newQuestionNo);
-    };
-
-    // Submit semua jawaban ke server
-    const handleSubmitAnswer = async (e) => {
-        if (e) {
-            e.preventDefault();
+        // Debounce auto-save: simpan ke server setelah 2 detik tidak ada aktivitas
+        if (autoSaveRef.current) {
+            clearTimeout(autoSaveRef.current);
         }
-        setIsSubmitting(true);
+        autoSaveRef.current = setTimeout(() => {
+            saveAnswersToServer(false);
+        }, 2000);
+    };
+
+    // Simpan jawaban ke server
+    const saveAnswersToServer = async (showModal = true) => {
+        if (Object.keys(answers).length === 0) {
+            return;
+        }
+
+        setIsAutoSaving(true);
 
         try {
             const response = await fetch(route('student.exam-answers.store', exam.id), {
@@ -107,7 +117,9 @@ export default function ExamPage({ exam, questions = [] }) {
             });
 
             if (response.ok) {
-                setShowSubmitModal(true);
+                if (showModal) {
+                    setShowSubmitModal(true);
+                }
             } else {
                 toast({
                     title: 'Gagal Menyimpan',
@@ -122,8 +134,22 @@ export default function ExamPage({ exam, questions = [] }) {
                 type: 'error',
             });
         } finally {
-            setIsSubmitting(false);
+            setIsAutoSaving(false);
         }
+    };
+
+    // Submit semua jawaban ke server (tombol manual)
+    const handleSubmitAnswer = async (e) => {
+        if (e) {
+            e.preventDefault();
+        }
+
+        // Clear auto-save timer
+        if (autoSaveRef.current) {
+            clearTimeout(autoSaveRef.current);
+        }
+
+        await saveAnswersToServer(true);
     };
 
     // Status soal untuk daftar nomor soal
@@ -280,6 +306,27 @@ export default function ExamPage({ exam, questions = [] }) {
                             fontSize={fontSize}
                             currentQuestionNo={currentQuestionNo}
                         />
+                    </div>
+
+                    {/* Auto-save Status Bar */}
+                    <div className="bg-slate-50/90 px-4 py-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2">
+                            <span
+                                className={`w-2 h-2 rounded-full ${isAutoSaving ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'}`}
+                            ></span>
+                            <span className="font-medium text-[11px]">
+                                {isAutoSaving
+                                    ? 'Menyimpan otomatis...'
+                                    : 'Tersimpan otomatis ke server'}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-slate-500 font-medium text-[11px]">
+                            <span className="font-mono text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                {Object.keys(answers).length} Jawaban
+                            </span>
+                            <span className="text-slate-400">•</span>
+                            <span>Maksimal {totalQuestions} Soal</span>
+                        </div>
                     </div>
 
                     {/* Footer Tombol Navigasi Soal */}
@@ -440,12 +487,12 @@ export default function ExamPage({ exam, questions = [] }) {
                                     </button>
                                     <button
                                         onClick={() => handleSubmitAnswer()}
-                                        disabled={isSubmitting}
+                                        disabled={isAutoSaving}
                                         className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm transition shadow-md shadow-blue-500/20 active:scale-98 flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
                                         type="button"
                                     >
                                         <span className="material-symbols-outlined text-[18px]">send</span>
-                                        <span>{isSubmitting ? 'Mengumpulkan...' : 'Ya, Selesaikan &amp; Kumpulkan'}</span>
+                                        <span>{isAutoSaving ? 'Mengumpulkan...' : 'Ya, Selesaikan &amp; Kumpulkan'}</span>
                                     </button>
                                 </div>
                                 <p className="text-[11px] text-center text-slate-400 font-medium">
