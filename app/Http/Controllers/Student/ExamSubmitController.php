@@ -43,6 +43,10 @@ class ExamSubmitController extends Controller
             return response()->json(['message' => 'Token ujian belum diverifikasi.'], 403);
         }
 
+        if (! $examAccess->isActive($examPackage, $examSchedule)) {
+            return response()->json(['message' => 'Paket atau jadwal ujian sudah tidak aktif.'], 403);
+        }
+
         $request->validate([
             'answers' => 'sometimes|array',
             'answers.*' => [
@@ -97,6 +101,15 @@ class ExamSubmitController extends Controller
                     continue;
                 }
 
+                if (! $this->hasAnswerContent($answer)) {
+                    ExamAnswer::query()
+                        ->where('exam_attempt_id', $attempt->id)
+                        ->where('question_id', $questionId)
+                        ->delete();
+
+                    continue;
+                }
+
                 ExamAnswer::updateOrCreate(
                     [
                         'exam_attempt_id' => $attempt->id,
@@ -120,5 +133,23 @@ class ExamSubmitController extends Controller
             'time_spent_seconds' => $attempt->time_spent_seconds,
             'server_now' => now()->toIso8601String(),
         ]);
+    }
+
+    /**
+     * Determine whether an answer payload contains a usable value.
+     */
+    private function hasAnswerContent(string|array|null $answer): bool
+    {
+        if ($answer === null || $answer === 'flagged') {
+            return false;
+        }
+
+        if (is_string($answer)) {
+            return $answer !== '';
+        }
+
+        return collect($answer)
+            ->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
+            ->isNotEmpty();
     }
 }

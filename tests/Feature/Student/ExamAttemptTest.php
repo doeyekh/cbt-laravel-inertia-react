@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Student;
 
+use App\Enums\ExamAttemptStatus;
 use App\Enums\ExamPackageStatus;
 use App\Enums\ExamScheduleStatus;
 use App\Models\AcademicYear;
 use App\Models\ClassMember;
+use App\Models\ExamAnswer;
 use App\Models\ExamAttempt;
 use App\Models\ExamPackage;
 use App\Models\ExamParticipant;
@@ -288,6 +290,167 @@ class ExamAttemptTest extends TestCase
         ]);
     }
 
+    public function test_submitted_attempt_cannot_accept_new_answers(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-submit.store', $context['schedule']), [
+                'answers' => [$question->id => 'A'],
+            ])
+            ->assertOk();
+
+        $attempt = ExamAttempt::query()->firstOrFail();
+
+        $this->assertSame(ExamAttemptStatus::Submitted, $attempt->status);
+        $this->assertNotNull($attempt->submitted_at);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'answers' => [$question->id => 'B'],
+            ])
+            ->assertStatus(409)
+            ->assertJson([
+                'status' => 'submitted',
+            ]);
+
+        $this->assertDatabaseHas('exam_answers', [
+            'exam_attempt_id' => $attempt->id,
+            'question_id' => $question->id,
+            'answer' => 'A',
+        ]);
+        $this->assertDatabaseMissing('exam_answers', [
+            'exam_attempt_id' => $attempt->id,
+            'question_id' => $question->id,
+            'answer' => 'B',
+        ]);
+    }
+
+    public function test_submit_after_deadline_is_finalized_and_saves_the_last_answer(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $attempt = ExamAttempt::query()->createOrFirst(
+            [
+                'exam_participant_id' => $context['participant']->id,
+                'exam_schedule_id' => $context['schedule']->id,
+            ],
+            [
+                'exam_package_id' => $context['package']->id,
+                'status' => ExamAttemptStatus::InProgress,
+                'duration_minutes' => 90,
+                'time_spent_seconds' => 0,
+                'started_at' => now()->subMinutes(91),
+                'deadline_at' => now()->subMinutes(1),
+            ]
+        );
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-submit.store', $context['schedule']), [
+                'answers' => [$question->id => 'A'],
+            ])
+            ->assertOk()
+            ->assertJson([
+                'status' => 'submitted',
+            ]);
+
+        $attempt->refresh();
+
+        $this->assertSame(ExamAttemptStatus::Submitted, $attempt->status);
+        $this->assertNotNull($attempt->submitted_at);
+        $this->assertDatabaseHas('exam_answers', [
+            'exam_attempt_id' => $attempt->id,
+            'question_id' => $question->id,
+            'answer' => 'A',
+        ]);
+    }
+
+    public function test_flag_keeps_answer_and_clearing_answer_deletes_the_answer_row(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'answers' => [$question->id => 'A'],
+                'flags' => [$question->id],
+            ])
+            ->assertOk();
+
+        $examAnswer = ExamAnswer::query()
+            ->where('question_id', $question->id)
+            ->firstOrFail();
+
+        $this->assertSame('A', $examAnswer->answer);
+        $this->assertTrue($examAnswer->is_flagged);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'answers' => [$question->id => null],
+                'flags' => [$question->id],
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('exam_answers', [
+            'exam_attempt_id' => $examAnswer->exam_attempt_id,
+            'question_id' => $question->id,
+            'answer' => null,
+            'is_flagged' => true,
+        ]);
+    }
+
+    public function test_student_cannot_open_an_exam_schedule_assigned_to_another_class(): void
+    {
+        $context = $this->createOpenExamContext();
+
+        $otherClass = SchoolClass::factory()
+            ->forSchool($context['school'], $context['academicYear']->id)
+            ->active()
+            ->create();
+        $otherSchedule = ExamSchedule::factory()
+            ->forPackage($context['package'])
+            ->create([
+                'class_id' => $otherClass->id,
+                'subject_id' => $context['schedule']->subject_id,
+                'session_id' => $context['schedule']->session_id,
+                'room_id' => $context['schedule']->room_id,
+                'exam_date' => now()->toDateString(),
+                'open_time' => '00:00:00',
+                'close_time' => '23:59:59',
+                'status' => ExamScheduleStatus::Aktif,
+            ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $otherSchedule))
+            ->assertNotFound();
+    }
+
     public function test_elapsed_time_is_calculated_by_the_server(): void
     {
         $context = $this->createOpenExamContext();
@@ -318,6 +481,9 @@ class ExamAttemptTest extends TestCase
             ]);
 
         $this->assertSame(300, ExamAttempt::query()->firstOrFail()->time_spent_seconds);
+        $attempt = ExamAttempt::query()->firstOrFail();
+        $this->assertNull($attempt->submitted_at);
+        $this->assertSame(ExamAttemptStatus::InProgress, $attempt->status);
     }
 
     public function test_legacy_attempt_without_deadline_uses_creation_time_as_fallback(): void

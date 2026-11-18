@@ -62,6 +62,7 @@ export default function useExamSession({
         flags: [],
     });
     const {
+        setData: setSubmitData,
         post: postSubmit,
         processing: isSubmitting,
     } = useHttp({
@@ -318,13 +319,11 @@ export default function useExamSession({
             return submission;
         }, {});
 
-        const saved = await saveAnswersToServer(answersToSubmit, flaggedQuestionIds);
-
-        if (!saved) {
-            return;
-        }
-
         try {
+            setSubmitData({
+                answers: answersToSubmit,
+            });
+
             await postSubmit(route('student.exam-submit.store', exam.id), {
                 onSuccess: () => {
                     handleExitExam();

@@ -8,6 +8,7 @@ use App\Models\School;
 use App\Models\Student;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -150,6 +151,96 @@ class StudentLoginTest extends TestCase
         $response->assertSessionHas('student_participant_id', $participant->id);
         $response->assertSessionHas('student_name', 'Budi Pratama');
         $response->assertSessionHas('toast.type', 'success');
+    }
+
+    public function test_student_login_is_rate_limited_after_five_incorrect_passwords(): void
+    {
+        $school = School::factory()->create();
+        $academicYear = AcademicYear::factory()->create(['is_active' => true]);
+        $student = Student::factory()->create();
+
+        ExamParticipant::create([
+            'student_id' => $student->id,
+            'school_id' => $school->id,
+            'academic_year_id' => $academicYear->id,
+            'username' => 'LIMITED001',
+            'participant_number' => '01-001',
+            'password' => Hash::make('rahasia123'),
+            'password_plain' => 'rahasia123',
+        ]);
+
+        $throttleKey = 'student-login:limited001|127.0.0.1';
+        RateLimiter::clear($throttleKey);
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->from('/login')->post('/login', [
+                'username' => 'LIMITED001',
+                'password' => 'salah',
+            ])->assertRedirect('/login');
+        }
+
+        $response = $this->from('/login')->post('/login', [
+            'username' => 'LIMITED001',
+            'password' => 'rahasia123',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['username']);
+        $response->assertSessionMissing('student_participant_id');
+    }
+
+    public function test_duplicate_active_username_is_rejected_instead_of_selecting_an_account(): void
+    {
+        $academicYear = AcademicYear::factory()->create(['is_active' => true]);
+        $firstSchool = School::factory()->create();
+        $secondSchool = School::factory()->create();
+
+        foreach ([$firstSchool, $secondSchool] as $school) {
+            ExamParticipant::create([
+                'student_id' => Student::factory()->create()->id,
+                'school_id' => $school->id,
+                'academic_year_id' => $academicYear->id,
+                'username' => 'DUPLIKAT001',
+                'participant_number' => '01-001',
+                'password' => Hash::make('rahasia123'),
+                'password_plain' => 'rahasia123',
+            ]);
+        }
+
+        $response = $this->from('/login')->post('/login', [
+            'username' => 'DUPLIKAT001',
+            'password' => 'rahasia123',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['username']);
+        $response->assertSessionMissing('student_participant_id');
+    }
+
+    public function test_password_plain_is_not_used_as_a_login_fallback(): void
+    {
+        $school = School::factory()->create();
+        $academicYear = AcademicYear::factory()->create(['is_active' => true]);
+        $student = Student::factory()->create();
+
+        ExamParticipant::create([
+            'student_id' => $student->id,
+            'school_id' => $school->id,
+            'academic_year_id' => $academicYear->id,
+            'username' => 'NOHASH001',
+            'participant_number' => '01-001',
+            'password' => null,
+            'password_plain' => 'rahasia123',
+        ]);
+
+        $response = $this->from('/login')->post('/login', [
+            'username' => 'NOHASH001',
+            'password' => 'rahasia123',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['password']);
+        $response->assertSessionMissing('student_participant_id');
     }
 
     public function test_student_can_logout(): void

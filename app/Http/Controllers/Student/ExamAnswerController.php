@@ -126,6 +126,15 @@ class ExamAnswerController extends Controller
                 continue;
             }
 
+            if (! $this->hasAnswerContent($answer)) {
+                ExamAnswer::query()
+                    ->where('exam_attempt_id', $attempt->id)
+                    ->where('question_id', $questionId)
+                    ->delete();
+
+                continue;
+            }
+
             ExamAnswer::updateOrCreate(
                 [
                     'exam_attempt_id' => $attempt->id,
@@ -205,5 +214,23 @@ class ExamAnswerController extends Controller
             ->pluck('question_id')
             ->map(fn (mixed $questionId): int => (int) $questionId)
             ->all();
+    }
+
+    /**
+     * Determine whether an answer payload contains a usable value.
+     */
+    private function hasAnswerContent(string|array|null $answer): bool
+    {
+        if ($answer === null || $answer === 'flagged') {
+            return false;
+        }
+
+        if (is_string($answer)) {
+            return $answer !== '';
+        }
+
+        return collect($answer)
+            ->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
+            ->isNotEmpty();
     }
 }

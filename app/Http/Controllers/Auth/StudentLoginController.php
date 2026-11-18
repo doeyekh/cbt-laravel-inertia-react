@@ -66,19 +66,22 @@ class StudentLoginController extends Controller
 
         // Cari peserta ujian pada tahun pelajaran aktif agar username yang
         // sama di sekolah/tahun lain tidak mengambil akun yang salah.
-        $participant = ExamParticipant::query()
+        $participants = ExamParticipant::query()
             ->with(['student', 'school', 'academicYear', 'session', 'room'])
             ->where('username', $username)
             ->whereHas('academicYear', fn ($query) => $query->where('is_active', true))
-            ->first();
+            ->limit(2)
+            ->get();
 
-        if (! $participant) {
+        if ($participants->count() !== 1) {
             RateLimiter::hit($throttleKey, 60);
 
             return back()->withErrors([
                 'username' => 'Username atau kata sandi tidak sesuai dengan kartu ujian Anda.',
             ])->withInput($request->only('username'));
         }
+
+        $participant = $participants->first();
 
         // Hanya hash password yang diterima. `password_plain` tetap disimpan
         // untuk cetak kartu peserta, tetapi tidak pernah dipakai untuk login.

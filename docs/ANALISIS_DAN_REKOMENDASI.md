@@ -3,9 +3,9 @@
 **Tanggal analisis:** 18 November 2026
 **Cakupan:** seluruh modul `app/`, `routes/web.php`, `resources/js`, `database/migrations`, `tests/`
 **Metode:** pembacaan kode statis + verifikasi alur request → response + menjalankan test suite
-**Status test saat ini:** `471 passed`, `2664 assertions` (`php artisan test --compact`)
+**Status test saat ini:** `478 passed`, `2717 assertions` (`php artisan test --compact`)
 **Sifat dokumen:** analisis dan rekomendasi.
-**Status perbaikan:** **P0-1 dan P0-2 sudah diperbaiki** pada 18 November 2026 — lihat §11.
+**Status perbaikan:** **P0-1 sampai P0-6 sudah diperbaiki** pada 18 November 2026 — lihat §11 dan §12.
 
 ---
 
@@ -17,12 +17,12 @@ Masalah utama justru ada di **mesin ujian (exam engine)** — bagian yang paling
 
 | # | Temuan | Dampak | Prioritas |
 |---|---|---|---|
-| 1 | **Kunci jawaban ikut terkirim ke browser siswa** (`is_correct`, `question_blanks.answers`) | Siswa bisa melihat jawaban benar dari DevTools/Network tab → ujian tidak valid | **P0 — Kritis** ✅ diperbaiki |
-| 2 | **Batas waktu ujian tidak ditegakkan di server**; `time_spent_seconds` dipercaya dari client | Siswa bisa mengulang waktu, atau terus menjawab sampai `close_time` walau durasi habis | **P0 — Kritis** ✅ diperbaiki |
-| 3 | **`submitted_at` diisi di setiap autosave**, `started_at` ikut di-reset | Tidak ada status "sudah dikumpulkan", jawaban masih bisa diubah setelah submit | **P0 — Kritis** |
-| 4 | **Flag "ragu-ragu" menimpa jawaban** (`answer = 'flagged'`) | Jawaban siswa hilang saat ditandai ragu-ragu, dan siswa bisa terkunci tidak bisa submit | **P0 — Kritis** |
-| 5 | **Login siswa tanpa throttle, fallback password plaintext, tanpa `session()->regenerate()`, username tidak unik global** | Brute force PIN, session fixation, salah ambil akun antar sekolah/tahun | **P0 — Kritis** |
-| 6 | **`ExamController@show` tidak memvalidasi kepemilikan jadwal** | Siswa bisa membuka soal kelas/ruangan lain dalam paket yang sama | **P1 — Tinggi** |
+| 1 | **Kunci jawaban ikut terkirim ke browser siswa** (`is_correct`, `question_blanks.answers`) | Siswa bisa melihat jawaban benar dari DevTools/Network tab → ujian tidak valid | **Diperbaiki** |
+| 2 | **Batas waktu ujian tidak ditegakkan di server**; `time_spent_seconds` dipercaya dari client | Siswa bisa mengulang waktu, atau terus menjawab sampai `close_time` walau durasi habis | **Diperbaiki** |
+| 3 | **`submitted_at` diisi di setiap autosave**, `started_at` ikut di-reset | Tidak ada status "sudah dikumpulkan", jawaban masih bisa diubah setelah submit | **Diperbaiki** |
+| 4 | **Flag "ragu-ragu" menimpa jawaban** (`answer = 'flagged'`) | Jawaban siswa hilang saat ditandai ragu-ragu, dan siswa bisa terkunci tidak bisa submit | **Diperbaiki** |
+| 5 | **Login siswa tanpa throttle, fallback password plaintext, tanpa `session()->regenerate()`, username tidak unik global** | Brute force PIN, session fixation, salah ambil akun antar sekolah/tahun | **Diperbaiki** |
+| 6 | **`ExamController@show` tidak memvalidasi kepemilikan jadwal** | Siswa bisa membuka soal kelas/ruangan lain dalam paket yang sama | **Diperbaiki** |
 | 7 | **Belum ada submit final, penilaian, dan halaman hasil** | Tidak ada skor, tidak ada rekap, monitoring tidak punya data progres | **P1 — Tinggi** |
 | 8 | **Autosave tanpa debounce, kirim seluruh peta jawaban setiap ketikan** | Load server tinggi saat 30–40 siswa mengetik esai bersamaan | **P1 — Tinggi** |
 
@@ -77,7 +77,7 @@ Rekomendasi utamanya: **jangan lanjut menambah fitur UI dulu**. Selesaikan dulu 
 
 ## 2. Temuan Kritis (P0)
 
-### P0-1 — Kunci jawaban bocor ke browser siswa
+### P0-1 — Kunci jawaban bocor ke browser siswa — **Diperbaiki**
 
 **Lokasi:**
 - `app/Http/Controllers/Student/ExamController.php:52-57`
@@ -146,7 +146,7 @@ public function toArray(Request $request): array
 
 ---
 
-### P0-2 — Durasi ujian tidak ditegakkan di server
+### P0-2 — Durasi ujian tidak ditegakkan di server — **Diperbaiki**
 
 **Lokasi:**
 - `app/Http/Controllers/Student/ExamAnswerController.php:90-102` (menyimpan `time_spent_seconds` dari client apa adanya)
@@ -213,7 +213,7 @@ if ($attempt->deadline_at->isPast()) {
 
 ---
 
-### P0-3 — `started_at` dan `submitted_at` ditimpa setiap autosave
+### P0-3 — `started_at` dan `submitted_at` ditimpa setiap autosave — **Diperbaiki**
 
 **Lokasi:** `app/Http/Controllers/Student/ExamAnswerController.php:90-102`
 
@@ -250,7 +250,7 @@ Tambahkan `status` (`in_progress` / `submitted` / `graded`) sebagai sumber keben
 
 ---
 
-### P0-4 — Flag "ragu-ragu" merusak jawaban siswa
+### P0-4 — Flag "ragu-ragu" merusak jawaban siswa — **Diperbaiki**
 
 **Lokasi:**
 - `resources/js/Features/Exam/Components/ExamWorkspace.jsx:28-31`
@@ -281,7 +281,7 @@ Penanda ragu-ragu disimpan **di slot jawaban yang sama**. Konsekuensi berantai:
 
 ---
 
-### P0-5 — Keamanan login siswa
+### P0-5 — Keamanan login siswa — **Diperbaiki**
 
 **Lokasi:** `app/Http/Controllers/Auth/StudentLoginController.php`
 
@@ -334,7 +334,7 @@ if ($participant === null) { /* pesan generik, jangan bedakan username vs passwo
 
 ---
 
-### P0-6 — `ExamController@show` tanpa cek kepemilikan jadwal
+### P0-6 — `ExamController@show` tanpa cek kepemilikan jadwal — **Diperbaiki**
 
 **Lokasi:** `app/Http/Controllers/Student/ExamController.php:19-57`
 
@@ -510,12 +510,12 @@ Kolom `exam_schedules.shuffle_questions`, `shuffle_options`, `show_score_to_stud
 
 ### Sprint 0 — Integritas & Keamanan (2–3 hari) — **wajib sebelum ujian nyata**
 
-1. Sembunyikan kunci jawaban dari payload siswa (P0-1) + test regresi.
-2. `deadline_at` + penegakan durasi server + tolak save setelah deadline (P0-2).
-3. Pisahkan `started_at`/`submitted_at` (P0-3).
-4. Pisahkan flag dari jawaban + `is_flagged` (P0-4).
-5. Perbaiki login siswa: throttle, hapus fallback plaintext, `session()->regenerate()`, scope username (P0-5).
-6. Cek kepemilikan jadwal di `ExamController@show` (P0-6) via service akses (P1-5).
+1. ✅ Sembunyikan kunci jawaban dari payload siswa (P0-1) + test regresi — **Diperbaiki**.
+2. ✅ `deadline_at` + penegakan durasi server + tolak save setelah deadline (P0-2) — **Diperbaiki**.
+3. ✅ Pisahkan `started_at`/`submitted_at` (P0-3) — **Diperbaiki**.
+4. ✅ Pisahkan flag dari jawaban + `is_flagged` (P0-4) — **Diperbaiki**.
+5. ✅ Perbaiki login siswa: throttle, hapus fallback plaintext, `session()->regenerate()`, scope username (P0-5) — **Diperbaiki**.
+6. ✅ Cek kepemilikan jadwal di `ExamController@show` (P0-6) via service akses (P1-5) — **Diperbaiki**.
 
 **Kriteria selesai:** test baru untuk tiap poin; tidak ada `is_correct` di response siswa; save setelah deadline → 409.
 
@@ -667,12 +667,12 @@ Untuk frontend, minimal tambahkan unit test pada fungsi murni (`answerStats`, pe
 
 **Sebelum ujian pertama:**
 
-- [ ] Kunci jawaban tidak lagi dikirim ke browser.
-- [ ] `deadline_at` ditegakkan server; save setelah waktu habis ditolak.
-- [ ] Status attempt jelas (`in_progress` / `submitted` / `graded`).
-- [ ] Flag ragu-ragu tidak menghapus jawaban.
-- [ ] Login siswa punya throttle + session regenerate + tanpa fallback plaintext.
-- [ ] `ExamController@show` memvalidasi kepemilikan jadwal.
+- [x] Kunci jawaban tidak lagi dikirim ke browser — **Diperbaiki**.
+- [x] `deadline_at` ditegakkan server; save setelah waktu habis ditolak — **Diperbaiki**.
+- [x] Status attempt jelas (`in_progress` / `submitted` / `graded`) — **Diperbaiki**.
+- [x] Flag ragu-ragu tidak menghapus jawaban — **Diperbaiki**.
+- [x] Login siswa punya throttle + session regenerate + tanpa fallback plaintext — **Diperbaiki**.
+- [x] `ExamController@show` memvalidasi kepemilikan jadwal — **Diperbaiki**.
 - [ ] Submit final + skor tersimpan.
 - [ ] Uji beban: 40 siswa autosave bersamaan.
 
@@ -742,7 +742,7 @@ Verifikasi: `php artisan test --compact` → **468 passed**. Migrasi sudah dijal
 
 ### Konsekuensi yang perlu diketahui
 
-- `submitted_at` kini hanya diisi saat attempt dibuat, tidak lagi di-reset setiap autosave. Namun `submitted_at` **belum** menjadi penanda submit final — itu tetap pekerjaan **P0-3/P1-1**.
+- `submitted_at` kini hanya diisi oleh endpoint submit final dan tidak lagi di-reset setiap autosave. P0-3 sudah diperbaiki.
 - Saat tenggat tercapai, server menolak penyimpanan, tetapi belum ada auto-submit dan penilaian otomatis. Itu bagian **P1-1**.
 - Timer di browser masih berjalan sendiri untuk tampilan; nilai otoritatif tetap dari server saat halaman dimuat dan saat save ditolak.
 - Batas waktu tidak memperpanjang `close_time`: bila siswa baru mulai 10 menit sebelum jadwal tutup, sisa waktunya hanya 10 menit.

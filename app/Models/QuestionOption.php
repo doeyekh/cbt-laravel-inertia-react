@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['question_id', 'label', 'text', 'is_correct', 'score', 'order', 'image_path', 'audio_path'])]
-#[Hidden(['is_correct'])]
+#[Hidden(['is_correct', 'score'])]
 class QuestionOption extends Model
 {
     /** @use HasFactory<QuestionOptionFactory> */
