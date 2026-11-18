@@ -9,6 +9,7 @@ export default function ExamPage({
     exam,
     questions = [],
     answers = {},
+    flags = [],
     remaining_seconds: remainingSeconds,
     duration_seconds: durationSeconds,
     deadline_at: deadlineAt,
@@ -18,6 +19,7 @@ export default function ExamPage({
         exam,
         questions,
         initialAnswers: answers,
+        initialFlags: flags,
         initialTimeRemainingSeconds: remainingSeconds,
         initialDurationSeconds: durationSeconds,
         initialDeadlineAt: deadlineAt,
@@ -47,8 +49,10 @@ export default function ExamPage({
                     fontSize={examSession.fontSize}
                     setFontSize={examSession.setFontSize}
                     answers={examSession.answers}
+                    flaggedQuestionIds={examSession.flaggedQuestionIds}
                     isAutoSaving={examSession.isAutoSaving}
                     handleAnswerChange={examSession.handleAnswerChange}
+                    handleFlagToggle={examSession.handleFlagToggle}
                     goToPreviousQuestion={examSession.goToPreviousQuestion}
                     goToNextQuestion={examSession.goToNextQuestion}
                     setShowQuestionModal={examSession.setShowQuestionModal}
@@ -65,7 +69,7 @@ export default function ExamPage({
                     answeredCount={examSession.answeredCount}
                     flaggedCount={examSession.flaggedCount}
                     totalQuestions={examSession.totalQuestions}
-                    isAutoSaving={examSession.isAutoSaving}
+                    isAutoSaving={examSession.isAutoSaving || examSession.isSubmitting}
                 />
 
                 <QuestionListModal
@@ -80,6 +84,7 @@ export default function ExamPage({
                     flaggedCount={examSession.flaggedCount}
                     currentQuestionNo={examSession.currentQuestionNo}
                     answers={examSession.answers}
+                    flaggedQuestionIds={examSession.flaggedQuestionIds}
                 />
             </main>
         </div>

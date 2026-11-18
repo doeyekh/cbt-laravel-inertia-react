@@ -123,7 +123,6 @@ const QuestionSheet = ({
         : [];
 
     const currentAnswer = answers[currentQuestion.id] ?? null;
-    const isFlagged = currentAnswer === 'flagged';
     const matchingAnswer = Array.isArray(currentAnswer) ? currentAnswer : [];
     const matchingAnswers = sortedPairs.map((_, index) => {
         const answer = matchingAnswer[index];

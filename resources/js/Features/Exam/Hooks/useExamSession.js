@@ -25,10 +25,28 @@ function resolveDeadlineTimestamp(deadlineAt, fallbackRemainingSeconds, clockSke
     return Date.now() + clockSkewMs + fallbackRemainingSeconds * 1000;
 }
 
+/**
+ * Ambil `status` dari respons error HTTP Inertia.
+ */
+function responseStatus(error) {
+    const rawBody = error?.response?.data;
+
+    if (typeof rawBody === 'string') {
+        try {
+            return JSON.parse(rawBody)?.status;
+        } catch {
+            return undefined;
+        }
+    }
+
+    return rawBody?.status;
+}
+
 export default function useExamSession({
     exam,
     questions = [],
     initialAnswers = {},
+    initialFlags = [],
     initialTimeRemainingSeconds,
     initialDeadlineAt = null,
     initialServerNow = null,
@@ -39,6 +57,13 @@ export default function useExamSession({
         setData: setSaveData,
         post: postAnswers,
         processing: isAutoSaving,
+    } = useHttp({
+        answers: {},
+        flags: [],
+    });
+    const {
+        post: postSubmit,
+        processing: isSubmitting,
     } = useHttp({
         answers: {},
     });
@@ -74,6 +99,7 @@ export default function useExamSession({
     const [deadlineVersion, setDeadlineVersion] = useState(0);
     const [isRunning, setIsRunning] = useState(true);
     const [answers, setAnswers] = useState(() => initialAnswers);
+    const [flagged, setFlagged] = useState(() => new Set(initialFlags.map(Number)));
     const [currentQuestionNo, setCurrentQuestionNo] = useState(1);
     const [showSubmitModal, setShowSubmitModal] = useState(false);
     const [showQuestionModal, setShowQuestionModal] = useState(false);
@@ -111,13 +137,13 @@ export default function useExamSession({
         };
     }, [durationSeconds, deadlineVersion]);
 
+    const flaggedQuestionIds = useMemo(() => Array.from(flagged), [flagged]);
+
     const answerStats = useMemo(() => questions.reduce(
         (stats, question) => {
             const answer = answers[question.id];
 
-            if (answer === 'flagged') {
-                stats.flagged += 1;
-            } else if (question.type === 'menjodohkan') {
+            if (question.type === 'menjodohkan') {
                 const pairCount = question.pairs?.length ?? 0;
                 const allPairsAnswered = Array.isArray(answer)
                     && pairCount > 0
@@ -136,10 +162,15 @@ export default function useExamSession({
             ) {
                 stats.answered += 1;
             }
+
+            if (flagged.has(question.id)) {
+                stats.flagged += 1;
+            }
+
             return stats;
         },
         { answered: 0, flagged: 0 },
-    ), [answers, questions]);
+    ), [answers, flagged, questions]);
 
     const formattedTime = useMemo(() => {
         const hours = Math.floor(timeRemaining / 3600);
@@ -183,13 +214,10 @@ export default function useExamSession({
         setDeadlineVersion((version) => version + 1);
     };
 
-    const saveAnswersToServer = async (nextAnswers, exitAfterSave = false) => {
-        if (Object.keys(nextAnswers).length === 0) {
-            return;
-        }
-
+    const saveAnswersToServer = async (nextAnswers, nextFlaggedIds) => {
         setSaveData({
             answers: nextAnswers,
+            flags: nextFlaggedIds,
         });
 
         try {
@@ -197,8 +225,8 @@ export default function useExamSession({
                 onSuccess: (response) => {
                     syncTimerWithServer(response);
 
-                    if (exitAfterSave) {
-                        handleExitExam();
+                    if (Array.isArray(response?.flags)) {
+                        setFlagged(new Set(response.flags.map(Number)));
                     }
                 },
                 onError: () => {
@@ -209,8 +237,23 @@ export default function useExamSession({
                     });
                 },
             });
+
+            return true;
         } catch (error) {
             const status = error?.response?.status;
+            const serverStatus = responseStatus(error);
+
+            if (status === 409 && serverStatus === 'submitted') {
+                toast({
+                    title: 'Ujian Sudah Dikumpulkan',
+                    description: 'Jawaban sudah final di server. Anda akan diarahkan ke portal siswa.',
+                    type: 'info',
+                });
+
+                window.location.href = route('student.dashboard');
+
+                return false;
+            }
 
             if (status === 409) {
                 clearInterval(timerRef.current);
@@ -223,7 +266,7 @@ export default function useExamSession({
                     type: 'error',
                 });
 
-                return;
+                return false;
             }
 
             toast({
@@ -235,6 +278,8 @@ export default function useExamSession({
                         : 'Terjadi kesalahan jaringan saat menyimpan jawaban.',
                 type: 'error',
             });
+
+            return false;
         }
     };
 
@@ -244,7 +289,23 @@ export default function useExamSession({
             [questionNo]: answer,
         };
         setAnswers(nextAnswers);
-        await saveAnswersToServer(nextAnswers, false);
+        await saveAnswersToServer(nextAnswers, flaggedQuestionIds);
+    };
+
+    /**
+     * Tandai atau lepas tanda ragu-ragu tanpa menyentuh jawaban tersimpan.
+     */
+    const handleFlagToggle = async (questionId) => {
+        const nextFlagged = new Set(flagged);
+
+        if (nextFlagged.has(questionId)) {
+            nextFlagged.delete(questionId);
+        } else {
+            nextFlagged.add(questionId);
+        }
+
+        setFlagged(nextFlagged);
+        await saveAnswersToServer(answers, Array.from(nextFlagged));
     };
 
     const handleSubmitAnswer = async (event) => {
@@ -257,7 +318,34 @@ export default function useExamSession({
             return submission;
         }, {});
 
-        await saveAnswersToServer(answersToSubmit, true);
+        const saved = await saveAnswersToServer(answersToSubmit, flaggedQuestionIds);
+
+        if (!saved) {
+            return;
+        }
+
+        try {
+            await postSubmit(route('student.exam-submit.store', exam.id), {
+                onSuccess: () => {
+                    handleExitExam();
+                },
+                onError: () => {
+                    toast({
+                        title: 'Gagal Mengumpulkan',
+                        description: 'Server menolak pengumpulan ujian. Periksa koneksi lalu coba kembali.',
+                        type: 'error',
+                    });
+                },
+            });
+        } catch (error) {
+            toast({
+                title: 'Gagal Mengumpulkan',
+                description: error?.response?.status
+                    ? `Server menolak pengumpulan ujian (HTTP ${error.response.status}).`
+                    : 'Terjadi kesalahan jaringan saat mengumpulkan ujian.',
+                type: 'error',
+            });
+        }
     };
 
     const goToPreviousQuestion = () => {
@@ -284,7 +372,9 @@ export default function useExamSession({
         timeRemaining,
         isRunning,
         answers,
+        flaggedQuestionIds,
         isAutoSaving,
+        isSubmitting,
         currentQuestionNo,
         answeredCount: answerStats.answered,
         flaggedCount: answerStats.flagged,
@@ -296,6 +386,7 @@ export default function useExamSession({
         setFontSize,
         formattedTime,
         handleAnswerChange,
+        handleFlagToggle,
         handleSubmitAnswer,
         handleExitExam,
         goToPreviousQuestion,

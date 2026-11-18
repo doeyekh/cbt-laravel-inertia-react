@@ -23,6 +23,7 @@ class ExamAnswerFactory extends Factory
             'question_id' => Question::factory(),
             'question_no' => 1,
             'answer' => fake()->randomElement(['A', 'B', 'C', 'D']),
+            'is_flagged' => false,
         ];
     }
 }

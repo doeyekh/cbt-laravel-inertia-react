@@ -28,6 +28,7 @@ use App\Http\Controllers\Auth\StudentLoginController;
 use App\Http\Controllers\Student\ExamAccessController;
 use App\Http\Controllers\Student\ExamAnswerController;
 use App\Http\Controllers\Student\ExamController;
+use App\Http\Controllers\Student\ExamSubmitController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,6 +45,8 @@ Route::middleware('student.auth')
         Route::get('exams/{examSchedule}', [ExamController::class, 'show'])->name('exam');
         Route::post('exams/{examSchedule}/answers', [ExamAnswerController::class, 'store'])
             ->name('exam-answers.store');
+        Route::post('exams/{examSchedule}/submit', [ExamSubmitController::class, 'store'])
+            ->name('exam-submit.store');
         Route::get('exams/{examSchedule}/access-token', [ExamAccessController::class, 'create'])
             ->name('exam-access.create');
         Route::post('exams/{examSchedule}/access-token', [ExamAccessController::class, 'verify'])

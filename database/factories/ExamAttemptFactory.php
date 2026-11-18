@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ExamAttemptStatus;
 use App\Models\ExamAttempt;
 use App\Models\ExamPackage;
 use App\Models\ExamParticipant;
@@ -24,6 +25,7 @@ class ExamAttemptFactory extends Factory
             'exam_participant_id' => ExamParticipant::factory(),
             'exam_schedule_id' => ExamSchedule::factory(),
             'exam_package_id' => ExamPackage::factory(),
+            'status' => ExamAttemptStatus::InProgress,
             'duration_minutes' => 90,
             'time_spent_seconds' => 0,
             'started_at' => now(),

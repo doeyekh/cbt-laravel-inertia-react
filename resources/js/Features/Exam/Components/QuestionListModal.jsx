@@ -12,41 +12,62 @@ const QuestionListModal = ({
     flaggedCount,
     currentQuestionNo,
     answers,
+    flaggedQuestionIds = [],
 }) => {
     if (!isOpen) {
         return null;
     }
+
+    const getQuestion = (questionNo) => questions[questionNo - 1];
+
+    const getQuestionAnswer = (questionNo) => {
+        const question = getQuestion(questionNo);
+
+        return answers[question?.id ?? questionNo];
+    };
+
+    const hasAnswer = (answer) => (Array.isArray(answer)
+        ? answer.some((value) => value !== '')
+        : answer !== null && answer !== undefined && answer !== '');
+
+    const isFlaggedQuestion = (questionNo) => flaggedQuestionIds.includes(
+        getQuestion(questionNo)?.id ?? questionNo,
+    );
 
     const getQuestionStatus = (questionNo) => {
         if (questionNo === currentQuestionNo) {
             return 'active';
         }
 
-        const answer = answers[questions[questionNo - 1]?.id ?? questionNo];
-        if (answer === 'flagged') {
+        if (isFlaggedQuestion(questionNo)) {
             return 'flagged';
         }
-        if (answer !== null && answer !== undefined && answer !== '') {
+
+        if (hasAnswer(getQuestionAnswer(questionNo))) {
             return 'answered';
         }
+
         return 'empty';
     };
 
     const getQuestionLabel = (questionNo) => {
-        const answer = answers[questions[questionNo - 1]?.id ?? questionNo];
-        if (answer === 'flagged') {
+        if (isFlaggedQuestion(questionNo)) {
             return '?';
         }
-        if (answer !== null && answer !== undefined && answer !== '') {
+
+        const answer = getQuestionAnswer(questionNo);
+
+        if (hasAnswer(answer)) {
             return answer;
         }
+
         return '--';
     };
 
     const progress = totalQuestions > 0
         ? Math.round((answeredCount / totalQuestions) * 100)
         : 0;
-    const unansweredCount = totalQuestions - answeredCount - flaggedCount;
+    const unansweredCount = Math.max(0, totalQuestions - answeredCount);
 
     return (
         <div

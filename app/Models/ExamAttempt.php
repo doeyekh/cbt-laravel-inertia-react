@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ExamAttemptStatus;
 use Database\Factories\ExamAttemptFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
-#[Fillable(['exam_participant_id', 'exam_schedule_id', 'exam_package_id', 'duration_minutes', 'time_spent_seconds', 'started_at', 'deadline_at', 'submitted_at'])]
+#[Fillable(['exam_participant_id', 'exam_schedule_id', 'exam_package_id', 'status', 'duration_minutes', 'time_spent_seconds', 'started_at', 'deadline_at', 'submitted_at'])]
 class ExamAttempt extends Model
 {
     /** @use HasFactory<ExamAttemptFactory> */
@@ -27,6 +28,7 @@ class ExamAttempt extends Model
             'exam_participant_id' => 'integer',
             'exam_schedule_id' => 'integer',
             'exam_package_id' => 'integer',
+            'status' => ExamAttemptStatus::class,
             'duration_minutes' => 'integer',
             'time_spent_seconds' => 'integer',
             'started_at' => 'datetime',
@@ -104,6 +106,34 @@ class ExamAttempt extends Model
         $durationSeconds = $this->durationSeconds();
 
         return (int) max(0, min($durationSeconds, $durationSeconds - $this->remainingSeconds()));
+    }
+
+    /**
+     * Determine whether the attempt has already been submitted.
+     */
+    public function isSubmitted(): bool
+    {
+        return $this->status !== null && ! $this->status->allowsAnswerChanges();
+    }
+
+    /**
+     * Finalize the attempt so its answers can no longer be changed.
+     */
+    public function submit(): bool
+    {
+        if ($this->isSubmitted()) {
+            return false;
+        }
+
+        $submittedAt = now();
+
+        $this->forceFill([
+            'status' => ExamAttemptStatus::Submitted,
+            'submitted_at' => $submittedAt,
+            'time_spent_seconds' => $this->elapsedSeconds(),
+        ])->save();
+
+        return true;
     }
 
     /**

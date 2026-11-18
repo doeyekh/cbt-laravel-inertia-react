@@ -5,12 +5,10 @@ namespace App\Http\Controllers\Student;
 use App\Enums\ExamPackageStatus;
 use App\Enums\ExamScheduleStatus;
 use App\Http\Controllers\Controller;
-use App\Models\ClassMember;
-use App\Models\ExamPackage;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
-use App\Models\QuestionBank;
 use App\Services\ExamAccessTokenService;
+use App\Services\ExamScheduleAccessService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -19,6 +17,10 @@ use Inertia\Response;
 
 class ExamAccessController extends Controller
 {
+    public function __construct(
+        private ExamScheduleAccessService $examAccess,
+    ) {}
+
     /**
      * Show the token entry page for the participant's scheduled exam.
      */
@@ -37,20 +39,14 @@ class ExamAccessController extends Controller
         ]);
         $examPackage = $examSchedule->examPackage;
 
-        $questionBank = QuestionBank::query()
-            ->where('school_id', $examPackage->school_id)
-            ->where('academic_year_id', $examPackage->academic_year_id)
-            ->where('exam_type_id', $examPackage->exam_type_id)
-            ->where('subject_id', $examSchedule->subject_id)
-            ->first();
+        if ($examPackage === null || ! $this->examAccess->participantMayAccess($participant, $examSchedule, $examPackage)) {
+            abort(404);
+        }
 
+        $questionBank = $this->examAccess->resolveQuestionBank($examSchedule, $examPackage);
         $questionComposition = $questionBank?->composition ?? [];
         $totalQuestions = $questionBank?->getTotalQuestionCountAttribute() ?? 0;
         $totalScore = $questionBank?->getTotalScoreAttribute() ?? 0;
-
-        if ($examPackage === null || ! $this->participantMayAccessSchedule($participant, $examSchedule, $examPackage)) {
-            abort(404);
-        }
 
         $verifiedExamPackages = $request->session()->get('student_exam_packages', []);
         $storedHash = is_array($verifiedExamPackages)
@@ -102,7 +98,7 @@ class ExamAccessController extends Controller
                     && $tokenAvailable
                     && $examPackage->status === ExamPackageStatus::Aktif
                     && $examSchedule->status === ExamScheduleStatus::Aktif
-                    && $this->isWithinPackageDateRange($examPackage, $examSchedule),
+                    && $this->examAccess->isWithinPackageDateRange($examPackage, $examSchedule),
             ],
         ]);
     }
@@ -122,7 +118,7 @@ class ExamAccessController extends Controller
         $examSchedule->loadMissing('examPackage');
         $examPackage = $examSchedule->examPackage;
 
-        if ($examPackage === null || ! $this->participantMayAccessSchedule($participant, $examSchedule, $examPackage)) {
+        if ($examPackage === null || ! $this->examAccess->participantMayAccess($participant, $examSchedule, $examPackage)) {
             abort(404);
         }
 
@@ -176,47 +172,6 @@ class ExamAccessController extends Controller
             'title' => 'Token Terverifikasi',
             'description' => 'Token paket ujian valid untuk seluruh sesi dan ruangan dalam paket ini.',
         ]);
-    }
-
-    private function participantMayAccessSchedule(
-        ExamParticipant $participant,
-        ExamSchedule $examSchedule,
-        ExamPackage $examPackage,
-    ): bool {
-        if (
-            (int) $participant->school_id !== (int) $examPackage->school_id
-            || (int) $participant->academic_year_id !== (int) $examPackage->academic_year_id
-        ) {
-            return false;
-        }
-
-        if (
-            ($examSchedule->session_id !== null && (int) $participant->session_id !== (int) $examSchedule->session_id)
-            || ($examSchedule->room_id !== null && (int) $participant->room_id !== (int) $examSchedule->room_id)
-        ) {
-            return false;
-        }
-
-        return ClassMember::query()
-            ->where('student_id', $participant->student_id)
-            ->where('academic_year_id', $examPackage->academic_year_id)
-            ->where('class_id', $examSchedule->class_id)
-            ->whereHas('schoolClass', fn ($query) => $query
-                ->where('school_id', $examPackage->school_id)
-                ->where('academic_year_id', $examPackage->academic_year_id))
-            ->exists();
-    }
-
-    /**
-     * Determine whether the exam schedule date falls within the package date range.
-     */
-    private function isWithinPackageDateRange(ExamPackage $examPackage, ExamSchedule $examSchedule): bool
-    {
-        $examDate = $examSchedule->exam_date?->toDateString();
-
-        return $examDate !== null
-            && $examDate >= $examPackage->start_date->toDateString()
-            && $examDate <= $examPackage->end_date->toDateString();
     }
 
     /**

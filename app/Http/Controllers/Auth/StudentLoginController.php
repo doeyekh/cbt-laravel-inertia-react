@@ -8,6 +8,8 @@ use App\Models\ExamParticipant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -52,31 +54,46 @@ class StudentLoginController extends Controller
         $username = trim($credentials['username']);
         $password = $credentials['password'];
 
-        // Cari peserta ujian berdasarkan username
-        $participant = ExamParticipant::query()
-            ->with(['student', 'school', 'academicYear', 'session', 'room'])
-            ->where('username', $username)
-            ->first();
+        $throttleKey = 'student-login:'.Str::lower($username).'|'.$request->ip();
 
-        if (! $participant) {
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+
             return back()->withErrors([
-                'username' => 'Username tidak ditemukan. Pastikan data sesuai dengan kartu ujian.',
+                'username' => 'Terlalu banyak percobaan masuk. Silakan coba lagi dalam '.$seconds.' detik.',
             ])->withInput($request->only('username'));
         }
 
-        // Verifikasi password peserta (bisa hash atau plain match sesuai implementasi)
-        $passwordMatches = false;
-        if (! empty($participant->password) && Hash::check($password, $participant->password)) {
-            $passwordMatches = true;
-        } elseif ($participant->password_plain === $password) {
-            $passwordMatches = true;
+        // Cari peserta ujian pada tahun pelajaran aktif agar username yang
+        // sama di sekolah/tahun lain tidak mengambil akun yang salah.
+        $participant = ExamParticipant::query()
+            ->with(['student', 'school', 'academicYear', 'session', 'room'])
+            ->where('username', $username)
+            ->whereHas('academicYear', fn ($query) => $query->where('is_active', true))
+            ->first();
+
+        if (! $participant) {
+            RateLimiter::hit($throttleKey, 60);
+
+            return back()->withErrors([
+                'username' => 'Username atau kata sandi tidak sesuai dengan kartu ujian Anda.',
+            ])->withInput($request->only('username'));
         }
 
-        if (! $passwordMatches) {
+        // Hanya hash password yang diterima. `password_plain` tetap disimpan
+        // untuk cetak kartu peserta, tetapi tidak pernah dipakai untuk login.
+        if (empty($participant->password) || ! Hash::check($password, $participant->password)) {
+            RateLimiter::hit($throttleKey, 60);
+
             return back()->withErrors([
                 'password' => 'Kata sandi atau PIN ujian salah. Periksa kembali kartu peserta Anda.',
             ])->withInput($request->only('username'));
         }
+
+        RateLimiter::clear($throttleKey);
+
+        // Regenerasi ID sesi mencegah session fixation setelah login.
+        $request->session()->regenerate();
 
         // Simpan sesi login siswa
         $request->session()->forget('student_exam_packages');
@@ -95,11 +112,8 @@ class StudentLoginController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $request->session()->forget([
-            'student_participant_id',
-            'student_name',
-            'student_exam_packages',
-        ]);
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return redirect()->route('student.login')->with('toast', [
             'type' => 'info',

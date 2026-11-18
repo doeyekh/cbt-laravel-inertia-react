@@ -12,8 +12,10 @@ const ExamWorkspace = ({
     fontSize,
     setFontSize,
     answers,
+    flaggedQuestionIds = [],
     isAutoSaving,
     handleAnswerChange,
+    handleFlagToggle,
     goToPreviousQuestion,
     goToNextQuestion,
     setShowQuestionModal,
@@ -23,12 +25,7 @@ const ExamWorkspace = ({
     const currentQuestion = sortedQuestions[currentQuestionNo - 1] || sortedQuestions[0];
     const currentQuestionId = currentQuestion?.id ?? currentQuestionNo;
     const isLastQuestion = currentQuestionNo >= totalQuestions;
-    const hasUnansweredQuestions = totalQuestions === 0 || answeredCount < totalQuestions;
-
-    const handleFlagToggle = () => {
-        const isFlagged = answers[currentQuestionId] === 'flagged';
-        handleAnswerChange(currentQuestionId, isFlagged ? null : 'flagged');
-    };
+    const isCurrentQuestionFlagged = flaggedQuestionIds.includes(currentQuestionId);
 
     return (
         <section className="flex-1 w-full bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-h-[750px]">
@@ -108,8 +105,8 @@ const ExamWorkspace = ({
                     <input
                         className="w-4 h-4 rounded text-amber-600 border-amber-400 focus:ring-amber-500"
                         type="checkbox"
-                        checked={answers[currentQuestionId] === 'flagged'}
-                        onChange={handleFlagToggle}
+                        checked={isCurrentQuestionFlagged}
+                        onChange={() => handleFlagToggle(currentQuestionId)}
                     />
                     <span className="text-xs font-bold flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-[16px] text-amber-600">flag</span>
@@ -129,8 +126,6 @@ const ExamWorkspace = ({
                     </button>
                     <button
                         onClick={isLastQuestion ? () => setShowSubmitModal(true) : goToNextQuestion}
-                        disabled={isLastQuestion && hasUnansweredQuestions}
-                        title={isLastQuestion && hasUnansweredQuestions ? 'Jawab semua soal terlebih dahulu sebelum menyelesaikan ujian.' : undefined}
                         className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-semibold text-sm transition shadow-md active:scale-98 disabled:cursor-not-allowed disabled:opacity-50 ${
                             isLastQuestion
                                 ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'
