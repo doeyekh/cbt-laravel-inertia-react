@@ -145,23 +145,20 @@ class ExamAccessControllerTest extends TestCase
             );
     }
 
-    public function test_student_cannot_verify_the_token_outside_the_schedule_window(): void
+    public function test_student_can_verify_token_outside_schedule_window(): void
     {
         $context = $this->createOpenExamContext();
-        $context['schedule']->update([
-            'close_time' => '11:59:59',
-        ]);
 
+        // Verifikasi token berhasil bahkan di luar jendela waktu ujian
         $this->withSession($this->studentSession($context['participant']))
-            ->from(route('student.dashboard'))
             ->post(route('student.exam-access.verify', $context['schedule']), [
                 'token' => $context['token'],
             ])
-            ->assertRedirect(route('student.dashboard'))
-            ->assertSessionHasErrors([
-                'token' => 'Jadwal ujian belum dibuka, sudah ditutup, atau tidak aktif.',
-            ])
-            ->assertSessionMissing("student_exam_packages.{$context['package']->id}");
+            ->assertRedirect(route('student.exam', $context['schedule']))
+            ->assertSessionHas(
+                "student_exam_packages.{$context['package']->id}",
+                $context['token_hash'],
+            );
     }
 
     public function test_student_cannot_get_package_access_with_an_incorrect_token(): void

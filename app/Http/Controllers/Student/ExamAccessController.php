@@ -13,7 +13,6 @@ use App\Models\QuestionBank;
 use App\Services\ExamAccessTokenService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -130,10 +129,9 @@ class ExamAccessController extends Controller
         if (
             $examPackage->status !== ExamPackageStatus::Aktif
             || $examSchedule->status !== ExamScheduleStatus::Aktif
-            || ! $this->scheduleIsOpen($examPackage, $examSchedule)
         ) {
             return back()->withErrors([
-                'token' => 'Jadwal ujian belum dibuka, sudah ditutup, atau tidak aktif.',
+                'token' => 'Paket ujian atau jadwal ujian tidak aktif.',
             ]);
         }
 
@@ -173,7 +171,7 @@ class ExamAccessController extends Controller
         $verifiedExamPackages[$examPackage->id] = $examPackage->exam_access_token_hash;
         $request->session()->put('student_exam_packages', $verifiedExamPackages);
 
-        return redirect()->to('/siswa/exams/' . $examScheduleId)->with('toast', [
+        return redirect()->to('/siswa/exams/'.$examScheduleId)->with('toast', [
             'type' => 'success',
             'title' => 'Token Terverifikasi',
             'description' => 'Token paket ujian valid untuk seluruh sesi dan ruangan dalam paket ini.',
@@ -219,23 +217,6 @@ class ExamAccessController extends Controller
         return $examDate !== null
             && $examDate >= $examPackage->start_date->toDateString()
             && $examDate <= $examPackage->end_date->toDateString();
-    }
-
-    private function scheduleIsOpen(ExamPackage $examPackage, ExamSchedule $examSchedule): bool
-    {
-        if (
-            $examSchedule->exam_date->lt($examPackage->start_date)
-            || $examSchedule->exam_date->gt($examPackage->end_date)
-        ) {
-            return false;
-        }
-
-        $examDate = $examSchedule->exam_date->toDateString();
-        $opensAt = Carbon::parse("{$examDate} {$examSchedule->open_time}");
-        $closesAt = Carbon::parse("{$examDate} {$examSchedule->close_time}");
-        $currentTime = now();
-
-        return $currentTime->gte($opensAt) && $currentTime->lte($closesAt);
     }
 
     /**
