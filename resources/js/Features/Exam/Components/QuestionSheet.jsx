@@ -15,13 +15,17 @@ const QuestionSheet = ({
     currentQuestionNo,
 }) => {
     const questions = exam?.questions || [];
-    const totalQuestions = questions.length;
-    const currentQuestion = questions.find(
-        (q) => q.number === currentQuestionNo
-    ) || questions[0];
+    // Urutkan soal berdasarkan nomor untuk navigasi yang konsisten
+    const sortedQuestions = [...questions].sort(
+        (a, b) => (a.number ?? 0) - (b.number ?? 0)
+    );
+    const totalQuestions = sortedQuestions.length;
+    // currentQuestionNo adalah indeks sequential (1-based), gunakan untuk akses array
+    const currentQuestion =
+        sortedQuestions[currentQuestionNo - 1] || sortedQuestions[0];
 
     const currentQuestionNoIndex = currentQuestion
-        ? questions.findIndex((q) => q.id === currentQuestion.id) + 1
+        ? sortedQuestions.findIndex((q) => q.id === currentQuestion.id) + 1
         : 1;
 
     const currentQuestionPoints = currentQuestion?.score ?? 0;
@@ -94,57 +98,9 @@ const QuestionSheet = ({
     const textStyle = fontSize === 'small' ? 'text-sm' : fontSize === 'large' ? 'text-lg' : 'text-base';
 
     return (
-        <section className="flex-1 w-full bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-h-[750px]">
+        <section className="flex-1 w-full flex flex-col min-h-[750px]">
             {/* Panel Kontrol Soal (Header Kartu Soal) */}
-            <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    <span className="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white font-bold text-sm tracking-wide shadow-xs">
-                        Soal No. {currentQuestion.number}
-                    </span>
-                    <span className="text-xs text-slate-400 font-medium">
-                        dari {totalQuestions} Soal
-                    </span>
-                    <span className={`px-2.5 py-1 rounded text-xs font-semibold ${getQuestionTypeBadge(currentQuestion.type)}`}>
-                        {getTypeLabel(currentQuestion.type)}
-                    </span>
-                </div>
-                <div className="flex items-center gap-4">
-                    {/* Bobot Nilai */}
-                    <div className="text-xs font-medium text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
-                        Bobot Soal: <span className="font-bold text-blue-700">{currentQuestionPoints} Poin</span>
-                    </div>
-                    {/* Ukuran Font Soal Switcher */}
-                    <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5 shadow-2xs">
-                        <span className="text-[11px] font-medium text-slate-400 px-2">Ukuran:</span>
-                        <button
-                            onClick={() => { /* handled in parent */ }}
-                            className="w-7 h-7 rounded text-xs font-bold flex items-center justify-center transition text-slate-600 hover:bg-slate-100"
-                            title="Perkecil Font"
-                            type="button"
-                            disabled
-                        >
-                            A-
-                        </button>
-                        <button
-                            className="w-7 h-7 rounded text-xs font-bold bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-200"
-                            title="Font Standar"
-                            type="button"
-                            disabled
-                        >
-                            A
-                        </button>
-                        <button
-                            onClick={() => { /* handled in parent */ }}
-                            className="w-7 h-7 rounded text-xs font-bold flex items-center justify-center transition text-slate-600 hover:bg-slate-100"
-                            title="Perbesar Font"
-                            type="button"
-                            disabled
-                        >
-                            A+
-                        </button>
-                    </div>
-                </div>
-            </div>
+            
 
             {/* Area Teks Soal & Stimulus Soal */}
             <div className={`p-6 md:p-8 flex-1 overflow-y-auto space-y-6 ${textStyle}`}>
@@ -365,26 +321,7 @@ const QuestionSheet = ({
                 )}
             </div>
 
-            {/* Status Bar di Bawah Area Jawaban */}
-            <div className="bg-slate-50/90 px-4 py-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-2">
-                    <span
-                        className={`w-2 h-2 rounded-full ${isAnswered ? 'bg-emerald-500' : 'bg-slate-400'} ${isFlagged ? 'animate-ping' : ''}`}
-                    ></span>
-                    <span className="font-medium text-[11px]">
-                        {isFlagged
-                            ? 'Tandai ragu-ragu'
-                            : isAnswered
-                              ? 'Sudah dijawab'
-                              : 'Belum dijawab'}
-                    </span>
-                </div>
-                <div className="flex items-center gap-3 text-slate-500 font-medium text-[11px]">
-                    <span className="font-mono text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
-                        Soal {currentQuestionNoIndex} dari {totalQuestions}
-                    </span>
-                </div>
-            </div>
+           
         </section>
     );
 };

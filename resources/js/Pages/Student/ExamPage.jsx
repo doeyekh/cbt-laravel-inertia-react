@@ -221,7 +221,7 @@ export default function ExamPage({ exam, questions = [] }) {
             </header>
 
             {/* Main Content Workspace */}
-            <main className="flex-1 w-full max-w-[1720px] mx-auto p-4 sm:p-5 flex flex-col gap-5 items-start">
+            <main className="flex-1 w-full max-w-[1720px] mx-auto p-4 sm:p-5 flex flex-col gap-3 items-start">
                 {/* Question Sheet Section */}
                 <section className="flex-1 w-full bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-h-[750px]">
                     {/* Panel Kontrol Soal (Header Kartu Soal) */}
@@ -272,7 +272,7 @@ export default function ExamPage({ exam, questions = [] }) {
                     </div>
 
                     {/* Area Teks Soal & Stimulus Soal */}
-                    <div className={`p-6 md:p-8 flex-1 overflow-y-auto space-y-6 ${fontSize === 'small' ? 'text-sm' : fontSize === 'large' ? 'text-lg' : 'text-base'}`}>
+                    <div className={` flex-1 overflow-y-auto space-y-6 ${fontSize === 'small' ? 'text-sm' : fontSize === 'large' ? 'text-lg' : 'text-base'}`}>
                         <QuestionSheet
                             exam={{ ...exam, questions }}
                             onAnswerChange={handleAnswerChange}
@@ -280,22 +280,6 @@ export default function ExamPage({ exam, questions = [] }) {
                             fontSize={fontSize}
                             currentQuestionNo={currentQuestionNo}
                         />
-                        {/* Status Bar di bawah area jawaban */}
-                        <div className="bg-slate-50/90 px-4 py-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-                            <div className="flex items-center gap-2 text-emerald-700">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span className="font-medium text-[11px]">
-                                    Tersimpan otomatis pada <span className="font-mono font-semibold">{new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} WIB</span> (Draft tersinkron)
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-3 text-slate-500 font-medium text-[11px]">
-                                <span className="font-mono text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
-                                    {Object.keys(answers).length} Jawaban
-                                </span>
-                                <span className="text-slate-400">•</span>
-                                <span>Maksimal {totalQuestions} Soal</span>
-                            </div>
-                        </div>
                     </div>
 
                     {/* Footer Tombol Navigasi Soal */}
