@@ -1,58 +1,98 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CBT Laravel Inertia React
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+CBT adalah aplikasi ujian berbasis komputer untuk mengelola master data sekolah, ujian, bank soal, peserta, jadwal, pelaksanaan ujian, dan hasil ujian. Aplikasi menyediakan portal admin serta portal siswa.
 
-## About Laravel
+## Teknologi
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Laravel 13
+- PHP 8.3
+- Inertia.js 3 dan React 19
+- Vite 8
+- Tailwind CSS 4
+- SQLite untuk pengembangan lokal
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Fitur
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Manajemen sekolah, tahun pelajaran, kelas, siswa, guru, mata pelajaran, ruangan, dan sesi.
+- Manajemen jenis ujian, jenis penilaian, bank soal, paket ujian, jadwal, dan peserta.
+- Import soal serta import data siswa.
+- Pengerjaan ujian oleh siswa, token akses, jawaban ujian, pengumpulan, dan hasil.
+- Monitoring ujian, penilaian esai, reset percobaan, pencetakan kartu peserta, dan pengelolaan akun.
 
-## Learning Laravel
+## Persyaratan
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- PHP 8.3
+- Composer
+- Node.js dan npm
+- Ekstensi PHP yang dibutuhkan Laravel
+- Laragon direkomendasikan untuk penggunaan di Windows
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Instalasi Singkat
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+1. Masuk ke direktori proyek:
 
-## Agentic Development
+   ```powershell
+   cd C:\laragon\www\cbt
+   ```
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+2. Salin konfigurasi dan buat file database SQLite:
 
-```bash
-composer require laravel/boost --dev
+   ```powershell
+   Copy-Item .env.example .env
+   New-Item database\database.sqlite -ItemType File -Force
+   ```
 
-php artisan boost:install
+3. Instal dependensi backend dan frontend:
+
+   ```powershell
+   composer install
+   npm install
+   ```
+
+4. Buat application key dan jalankan migrasi beserta data contoh:
+
+   ```powershell
+   php artisan key:generate
+   php artisan migrate:fresh --seed
+   ```
+
+5. Jalankan aplikasi:
+
+   ```powershell
+   composer run dev
+   ```
+
+6. Buka aplikasi melalui:
+
+   - Portal admin: `http://localhost:8000/admin/login`
+   - Portal siswa: `http://localhost:8000`
+
+## Akun Contoh
+
+Data contoh dibuat oleh seeder:
+
+| Peran | Username | Password |
+|---|---|---|
+| Super Admin | `superadmin` | `password` |
+| Admin Sekolah | `adminsekolah` | `password` |
+
+Hapus atau ubah akun contoh sebelum menggunakan aplikasi di lingkungan produksi.
+
+## Perintah Pengembangan
+
+```powershell
+# Jalankan server Laravel, queue, dan Vite
+composer run dev
+
+# Jalankan build produksi frontend
+npm run build
+
+# Jalankan test
+php artisan test --compact
+
+# Reset dan isi ulang database
+php artisan migrate:fresh --seed
+
+# Lihat daftar route
+php artisan route:list --except-vendor
 ```
-
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
