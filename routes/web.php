@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AcademicYearController;
 use App\Http\Controllers\Admin\AssessmentTypeController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\ClassMemberController;
+use App\Http\Controllers\Admin\ExamAttemptResetController;
 use App\Http\Controllers\Admin\ExamEssayGradeController;
 use App\Http\Controllers\Admin\ExamPackageController;
 use App\Http\Controllers\Admin\ExamParticipantController;
@@ -83,6 +84,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/monitoring', [PageController::class, 'monitoring'])
             ->middleware('school-admin')->name('monitoring.index');
         Route::middleware('school-admin')->group(function () {
+            Route::delete('exam-attempts/{examAttempt}/reset', [ExamAttemptResetController::class, 'destroy'])
+                ->name('exam-attempts.reset');
             Route::get('exam-attempts/{examAttempt}/essays', [ExamEssayGradeController::class, 'index'])
                 ->name('exam-attempts.essays.index');
             Route::patch('exam-attempts/{examAttempt}/essays/{examAnswer}', [ExamEssayGradeController::class, 'update'])

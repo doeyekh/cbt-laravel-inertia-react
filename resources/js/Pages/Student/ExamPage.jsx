@@ -7,6 +7,7 @@ import useExamSession from '@/Features/Exam/Hooks/useExamSession';
 
 export default function ExamPage({
     exam,
+    attempt_id: attemptId,
     questions = [],
     answers = {},
     flags = [],
@@ -17,6 +18,7 @@ export default function ExamPage({
 }) {
     const examSession = useExamSession({
         exam,
+        attemptId,
         questions,
         initialAnswers: answers,
         initialFlags: flags,

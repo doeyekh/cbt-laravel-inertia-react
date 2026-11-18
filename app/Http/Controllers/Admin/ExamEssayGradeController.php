@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\GradeExamEssayRequest;
 use App\Models\ExamAnswer;
 use App\Models\ExamAttempt;
 use App\Services\GradeExamAttemptService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,7 +16,7 @@ use Inertia\Response;
 
 class ExamEssayGradeController extends Controller
 {
-    public function index(Request $request, ExamAttempt $examAttempt): Response
+    public function index(Request $request, ExamAttempt $examAttempt): Response|JsonResponse
     {
         $this->authorizeAttemptSchool($request, $examAttempt);
 
@@ -27,7 +28,7 @@ class ExamEssayGradeController extends Controller
             'answers.question',
         ]);
 
-        return Inertia::render('ExamAttempts/GradeEssays', [
+        $gradeData = [
             'attempt' => [
                 'id' => $examAttempt->id,
                 'student_name' => $examAttempt->participant?->student?->name,
@@ -52,7 +53,13 @@ class ExamEssayGradeController extends Controller
                 ])
                 ->values()
                 ->all(),
-        ]);
+        ];
+
+        if ($request->expectsJson()) {
+            return response()->json($gradeData);
+        }
+
+        return Inertia::render('ExamAttempts/GradeEssays', $gradeData);
     }
 
     public function update(

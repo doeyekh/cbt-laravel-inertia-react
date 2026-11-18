@@ -111,6 +111,7 @@ class PageController extends Controller
 
         return [
             'id' => "{$examSchedule->id}-{$participant->id}",
+            'attempt_id' => $attempt?->id,
             'no' => (string) $participant->participant_number,
             'name' => $participant->student?->name ?? 'Peserta Ujian',
             'nisn' => $participant->student?->nisn ?? '-',

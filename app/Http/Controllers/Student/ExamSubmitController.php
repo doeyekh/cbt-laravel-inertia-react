@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Student;
 
-use App\Enums\ExamAttemptStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ExamAnswer;
 use App\Models\ExamAttempt;
@@ -50,7 +49,20 @@ class ExamSubmitController extends Controller
             return response()->json(['message' => 'Paket atau jadwal ujian sudah tidak aktif.'], 403);
         }
 
+        $attempt = ExamAttempt::query()
+            ->where('exam_participant_id', $participant->id)
+            ->where('exam_schedule_id', $examSchedule->id)
+            ->first();
+
+        if ($attempt === null || ! $request->has('attempt_id')) {
+            return response()->json([
+                'message' => 'Attempt telah direset. Muat ulang halaman ujian untuk memulai kembali.',
+                'status' => 'reset',
+            ], 409);
+        }
+
         $request->validate([
+            'attempt_id' => ['required', 'integer', 'min:1'],
             'answers' => 'sometimes|array',
             'answers.*' => [
                 'nullable',
@@ -72,22 +84,12 @@ class ExamSubmitController extends Controller
             ],
         ]);
 
-        $startedAt = now();
-
-        $attempt = ExamAttempt::query()->createOrFirst(
-            [
-                'exam_participant_id' => $participant->id,
-                'exam_schedule_id' => $examSchedule->id,
-            ],
-            [
-                'exam_package_id' => $examPackage->id,
-                'status' => ExamAttemptStatus::InProgress,
-                'duration_minutes' => $examSchedule->duration_minutes,
-                'time_spent_seconds' => 0,
-                'started_at' => $startedAt,
-                'deadline_at' => $examAccess->deadlineFor($examSchedule, $startedAt),
-            ]
-        );
+        if ($request->integer('attempt_id') !== (int) $attempt->id) {
+            return response()->json([
+                'message' => 'Attempt telah direset. Muat ulang halaman ujian untuk memulai kembali.',
+                'status' => 'reset',
+            ], 409);
+        }
 
         if (! $attempt->isSubmitted()) {
             DB::transaction(function () use ($attempt, $examAccess, $examPackage, $examSchedule, $request, $grading): void {

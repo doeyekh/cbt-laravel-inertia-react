@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\ExamAttempt;
 use App\Models\School;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,5 +55,18 @@ class MonitoringAuthorizationTest extends TestCase
         $this->actingAs(User::factory()->guru()->create())
             ->get(route('admin.monitoring.index'))
             ->assertForbidden();
+    }
+
+    public function test_school_admin_cannot_reset_an_attempt_from_another_school(): void
+    {
+        $attempt = ExamAttempt::factory()->create();
+        $schoolAdmin = User::factory()->guru()->create();
+        School::factory()->create(['admin_id' => $schoolAdmin->id]);
+
+        $this->actingAs($schoolAdmin)
+            ->delete(route('admin.exam-attempts.reset', $attempt))
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('exam_attempts', ['id' => $attempt->id]);
     }
 }

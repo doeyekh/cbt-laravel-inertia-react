@@ -44,6 +44,7 @@ function responseStatus(error) {
 
 export default function useExamSession({
     exam,
+    attemptId,
     questions = [],
     initialAnswers = {},
     initialFlags = [],
@@ -58,6 +59,7 @@ export default function useExamSession({
         post: postAnswers,
         processing: isAutoSaving,
     } = useHttp({
+        attempt_id: attemptId,
         answers: {},
         flags: [],
     });
@@ -66,6 +68,7 @@ export default function useExamSession({
         post: postSubmit,
         processing: isSubmitting,
     } = useHttp({
+        attempt_id: attemptId,
         answers: {},
     });
 
@@ -225,7 +228,11 @@ export default function useExamSession({
     };
 
     const sendAnswerDiffToServer = async (answerDiff, nextFlaggedIds) => {
-        setSaveData({ answers: answerDiff, flags: nextFlaggedIds });
+        setSaveData({
+            attempt_id: attemptId,
+            answers: answerDiff,
+            flags: nextFlaggedIds,
+        });
 
         try {
             await postAnswers(route('student.exam-answers.store', exam.id), {
@@ -249,6 +256,12 @@ export default function useExamSession({
         } catch (error) {
             const status = error?.response?.status;
             const serverStatus = responseStatus(error);
+
+            if (status === 409 && serverStatus === 'reset') {
+                window.location.href = route('student.exam', exam.id);
+
+                return false;
+            }
 
             if (status === 409 && serverStatus === 'submitted') {
                 toast({
@@ -384,6 +397,7 @@ export default function useExamSession({
             await saveQueueRef.current;
 
             setSubmitData({
+                attempt_id: attemptId,
                 answers: answersToSubmit,
             });
 
@@ -402,6 +416,12 @@ export default function useExamSession({
             });
         } catch (error) {
             submissionInProgressRef.current = false;
+            if (error?.response?.status === 409 && responseStatus(error) === 'reset') {
+                window.location.href = route('student.exam', exam.id);
+
+                return;
+            }
+
             toast({
                 title: 'Gagal Mengumpulkan',
                 description: error?.response?.status
@@ -453,6 +473,7 @@ export default function useExamSession({
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
             const body = JSON.stringify({
                 _token: csrfToken,
+                attempt_id: attemptId,
                 answers: answerDiff,
                 flags: Array.from(flaggedRef.current),
             });

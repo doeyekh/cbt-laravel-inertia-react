@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { router } from '@inertiajs/react';
 import Avatar from '@/Components/UI/Avatar';
+import ConfirmDialog from '@/Components/UI/ConfirmDialog';
 import Table, {
     TableHead,
     TableHeadCell,
@@ -12,6 +14,8 @@ import ConnectionStatus from './ConnectionStatus';
 import IntegrityStatus from './IntegrityStatus';
 import ProgressBar from './ProgressBar';
 import RowActions from './RowActions';
+import EssayGradeModal from './EssayGradeModal';
+import { route } from '@/Utils/route';
 
 const PAGE_SIZE = 10;
 
@@ -44,6 +48,9 @@ export default function StudentTable({
     className = '',
 }) {
     const [page, setPage] = useState(1);
+    const [gradeTarget, setGradeTarget] = useState(null);
+    const [resetTarget, setResetTarget] = useState(null);
+    const [isResetting, setIsResetting] = useState(false);
 
     useEffect(() => {
         setPage(1);
@@ -60,6 +67,19 @@ export default function StudentTable({
     const visibleStudents = filteredStudents.slice(startIndex, startIndex + PAGE_SIZE);
     const showingFrom = filteredStudents.length === 0 ? 0 : startIndex + 1;
     const showingTo = Math.min(startIndex + PAGE_SIZE, filteredStudents.length);
+
+    const handleConfirmReset = () => {
+        if (!resetTarget || isResetting) {
+            return;
+        }
+
+        setIsResetting(true);
+        router.delete(route('admin.exam-attempts.reset', resetTarget.attempt_id), {
+            preserveScroll: true,
+            onSuccess: () => setResetTarget(null),
+            onFinish: () => setIsResetting(false),
+        });
+    };
 
     return (
         <div className={`overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm ${className}`}>
@@ -128,7 +148,11 @@ export default function StudentTable({
                                     <IntegrityStatus flaggedCount={student.flagged_count} />
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <RowActions student={student} />
+                                    <RowActions
+                                        student={student}
+                                        onGrade={setGradeTarget}
+                                        onReset={setResetTarget}
+                                    />
                                 </TableCell>
                             </TableRow>
                         ))
@@ -136,7 +160,7 @@ export default function StudentTable({
                         <TableRow>
                             <TableCell colSpan={7} className="py-12 text-center text-on-surface-variant">
                                 {students.length === 0
-                                    ? 'Belum ada peserta dengan attempt pada jadwal yang sedang berlangsung.'
+                                    ? 'Belum ada peserta terjadwal pada sesi ujian yang sedang berlangsung.'
                                     : 'Tidak ada siswa yang cocok dengan pencarian.'}
                             </TableCell>
                         </TableRow>
@@ -153,6 +177,28 @@ export default function StudentTable({
                 total={filteredStudents.length}
                 itemLabel="Peserta Terpantau"
                 className="bg-surface-container-low p-4"
+            />
+
+            <EssayGradeModal
+                isOpen={Boolean(gradeTarget)}
+                onClose={() => setGradeTarget(null)}
+                student={gradeTarget}
+            />
+
+            <ConfirmDialog
+                isOpen={Boolean(resetTarget)}
+                onCancel={() => {
+                    if (!isResetting) {
+                        setResetTarget(null);
+                    }
+                }}
+                onConfirm={handleConfirmReset}
+                loading={isResetting}
+                title="Reset ujian peserta?"
+                description={resetTarget
+                    ? `Semua jawaban, flag, dan nilai ${resetTarget.name} untuk ${resetTarget.subject} akan dihapus permanen. Peserta dapat memulai ulang ujian.`
+                    : ''}
+                confirmLabel="Reset Jawaban & Nilai"
             />
         </div>
     );

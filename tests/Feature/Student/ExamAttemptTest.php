@@ -125,11 +125,13 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-answers.store', $context['schedule']), [
-                'answers' => [
-                    $question->id => 'A',
-                    $multipleAnswerQuestion->id => ['B', 'C'],
-                ],
-                'time_spent_seconds' => 120,
+                ...$this->attemptPayload($context, [
+                    'answers' => [
+                        $question->id => 'A',
+                        $multipleAnswerQuestion->id => ['B', 'C'],
+                    ],
+                    'time_spent_seconds' => 120,
+                ]),
             ])
             ->assertOk()
             ->assertJson([
@@ -261,7 +263,9 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-answers.store', $context['schedule']), [
-                'answers' => [$question->id => 'A'],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'A'],
+                ]),
             ])
             ->assertOk();
 
@@ -273,7 +277,9 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-answers.store', $context['schedule']), [
-                'answers' => [$question->id => 'B'],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'B'],
+                ]),
             ])
             ->assertStatus(409)
             ->assertJson([
@@ -305,7 +311,9 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-submit.store', $context['schedule']), [
-                'answers' => [$question->id => 'A'],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'A'],
+                ]),
             ])
             ->assertOk();
 
@@ -316,7 +324,9 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-answers.store', $context['schedule']), [
-                'answers' => [$question->id => 'B'],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'B'],
+                ]),
             ])
             ->assertStatus(409)
             ->assertJson([
@@ -363,7 +373,9 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-submit.store', $context['schedule']), [
-                'answers' => [$question->id => 'A'],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'A'],
+                ]),
             ])
             ->assertOk()
             ->assertJson([
@@ -394,8 +406,10 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-answers.store', $context['schedule']), [
-                'answers' => [$question->id => 'A'],
-                'flags' => [$question->id],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'A'],
+                    'flags' => [$question->id],
+                ]),
             ])
             ->assertOk();
 
@@ -408,8 +422,10 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-answers.store', $context['schedule']), [
-                'answers' => [$question->id => null],
-                'flags' => [$question->id],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => null],
+                    'flags' => [$question->id],
+                ]),
             ])
             ->assertOk();
 
@@ -466,7 +482,9 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-answers.store', $context['schedule']), [
-                'answers' => [$question->id => 'A'],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'A'],
+                ]),
             ])
             ->assertOk();
 
@@ -474,7 +492,9 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-answers.store', $context['schedule']), [
-                'answers' => [$question->id => 'B'],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'B'],
+                ]),
             ])
             ->assertOk()
             ->assertJson([
@@ -629,7 +649,9 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-submit.store', $context['schedule']), [
-                'answers' => [$question->id => (string) $correctOption->id],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => (string) $correctOption->id],
+                ]),
             ])
             ->assertOk()
             ->assertJson(['status' => 'graded']);
@@ -666,7 +688,9 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-submit.store', $context['schedule']), [
-                'answers' => [$question->id => 'Jawaban esai siswa'],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'Jawaban esai siswa'],
+                ]),
             ])
             ->assertOk()
             ->assertJson(['status' => 'submitted']);
@@ -731,11 +755,13 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-submit.store', $context['schedule']), [
-                'answers' => [
-                    $complexQuestion->id => $correctComplexOptions->pluck('id')->map(fn ($id) => (string) $id)->all(),
-                    $matchingQuestion->id => [(string) $firstPair->id, (string) $firstPair->id],
-                    $shortAnswerQuestion->id => ['  JAWABAN   BENAR '],
-                ],
+                ...$this->attemptPayload($context, [
+                    'answers' => [
+                        $complexQuestion->id => $correctComplexOptions->pluck('id')->map(fn ($id) => (string) $id)->all(),
+                        $matchingQuestion->id => [(string) $firstPair->id, (string) $firstPair->id],
+                        $shortAnswerQuestion->id => ['  JAWABAN   BENAR '],
+                    ],
+                ]),
             ])
             ->assertOk()
             ->assertJson(['status' => 'graded']);
@@ -773,7 +799,9 @@ class ExamAttemptTest extends TestCase
 
         $this->withSession($this->studentSession($context['participant']))
             ->post(route('student.exam-submit.store', $context['schedule']), [
-                'answers' => [$question->id => 'Jawaban yang perlu dinilai'],
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'Jawaban yang perlu dinilai'],
+                ]),
             ])
             ->assertOk();
 
@@ -781,6 +809,21 @@ class ExamAttemptTest extends TestCase
         $answer = ExamAnswer::query()->where('question_id', $question->id)->firstOrFail();
         $schoolAdmin = User::factory()->guru()->create();
         $context['school']->update(['admin_id' => $schoolAdmin->id]);
+
+        $this->actingAs($schoolAdmin)
+            ->getJson(route('admin.exam-attempts.essays.index', $attempt))
+            ->assertOk()
+            ->assertJsonPath('attempt.id', $attempt->id)
+            ->assertJsonPath('essays.0.id', $answer->id)
+            ->assertJsonPath('essays.0.answer', 'Jawaban yang perlu dinilai');
+
+        $this->actingAs($schoolAdmin)
+            ->get(route('admin.exam-attempts.essays.index', $attempt))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ExamAttempts/GradeEssays')
+                ->where('attempt.id', $attempt->id)
+            );
 
         $this->actingAs($schoolAdmin)
             ->patch(route('admin.exam-attempts.essays.update', [$attempt, $answer]), [
@@ -903,8 +946,138 @@ class ExamAttemptTest extends TestCase
                 ->where('participants.0.progress.current', 1)
                 ->where('participants.0.progress.percent', 20)
                 ->where('participants.0.time_spent_seconds', 120)
+                ->where('participants.0.attempt_id', $attempt->id)
                 ->where('participants.0.flagged_count', 1)
             );
+    }
+
+    public function test_school_admin_can_reset_attempt_and_stale_page_cannot_restore_answers(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->firstOrFail();
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                ...$this->attemptPayload($context, [
+                    'answers' => [$question->id => 'Jawaban yang akan dihapus'],
+                ]),
+            ])
+            ->assertOk();
+
+        $attempt = ExamAttempt::query()->firstOrFail();
+        $schoolAdmin = User::factory()->guru()->create();
+        $context['school']->update(['admin_id' => $schoolAdmin->id]);
+
+        $this->actingAs($schoolAdmin)
+            ->delete(route('admin.exam-attempts.reset', $attempt))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('exam_attempts', ['id' => $attempt->id]);
+        $this->assertDatabaseMissing('exam_answers', ['exam_attempt_id' => $attempt->id]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'attempt_id' => $attempt->id,
+                'answers' => [$question->id => 'Jawaban lama dari tab terbuka'],
+            ])
+            ->assertStatus(409)
+            ->assertJson(['status' => 'reset']);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'answers' => [$question->id => 'Jawaban lama tanpa identitas attempt'],
+            ])
+            ->assertStatus(409)
+            ->assertJson(['status' => 'reset']);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-submit.store', $context['schedule']), [
+                'attempt_id' => $attempt->id,
+                'answers' => [$question->id => 'Jawaban lama dari tab terbuka'],
+            ])
+            ->assertStatus(409)
+            ->assertJson(['status' => 'reset']);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-submit.store', $context['schedule']), [
+                'answers' => [$question->id => 'Jawaban lama tanpa identitas attempt'],
+            ])
+            ->assertStatus(409)
+            ->assertJson(['status' => 'reset']);
+
+        $this->assertDatabaseMissing('exam_attempts', [
+            'exam_participant_id' => $context['participant']->id,
+            'exam_schedule_id' => $context['schedule']->id,
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertOk();
+
+        $newAttempt = ExamAttempt::query()
+            ->where('exam_participant_id', $context['participant']->id)
+            ->where('exam_schedule_id', $context['schedule']->id)
+            ->firstOrFail();
+        $this->assertNotSame($attempt->id, $newAttempt->id);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'attempt_id' => $attempt->id,
+                'answers' => [$question->id => 'Jawaban lama setelah ujian dimulai ulang'],
+            ])
+            ->assertStatus(409)
+            ->assertJson(['status' => 'reset']);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-submit.store', $context['schedule']), [
+                'attempt_id' => $attempt->id,
+                'answers' => [$question->id => 'Jawaban lama setelah ujian dimulai ulang'],
+            ])
+            ->assertStatus(409)
+            ->assertJson(['status' => 'reset']);
+
+        $this->assertDatabaseMissing('exam_answers', [
+            'exam_attempt_id' => $newAttempt->id,
+            'question_id' => $question->id,
+        ]);
+        $this->assertDatabaseHas('exam_attempts', [
+            'id' => $newAttempt->id,
+            'status' => ExamAttemptStatus::InProgress->value,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function attemptPayload(array $context, array $payload): array
+    {
+        $attempt = ExamAttempt::query()
+            ->where('exam_participant_id', $context['participant']->id)
+            ->where('exam_schedule_id', $context['schedule']->id)
+            ->first();
+
+        if ($attempt === null) {
+            $this->withSession($this->studentSession($context['participant']))
+                ->get(route('student.exam', $context['schedule']))
+                ->assertOk();
+
+            $attempt = ExamAttempt::query()
+                ->where('exam_participant_id', $context['participant']->id)
+                ->where('exam_schedule_id', $context['schedule']->id)
+                ->firstOrFail();
+        }
+
+        return [
+            'attempt_id' => $attempt->id,
+            ...$payload,
+        ];
     }
 
     /**

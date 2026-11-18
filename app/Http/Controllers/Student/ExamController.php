@@ -145,6 +145,7 @@ class ExamController extends Controller
         return Inertia::render('Student/ExamPage', [
             'exam' => $examSchedule,
             'questions' => $this->presentShuffledQuestions($questions, $attempt, $examSchedule),
+            'attempt_id' => $attempt->id,
             'answers' => $answers,
             'flags' => $flags,
             'remaining_seconds' => $remainingSeconds,
