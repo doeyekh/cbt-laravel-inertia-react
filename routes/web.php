@@ -29,6 +29,7 @@ use App\Http\Controllers\Student\ExamAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
+use App\Models\QuestionBank;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -47,7 +48,7 @@ Route::middleware('student.auth')
             $participant = ExamParticipant::query()
                 ->findOrFail((int) $request->session()->get('student_participant_id'));
 
-            $examSchedule->loadMissing('examPackage');
+            $examSchedule->loadMissing(['examPackage', 'subject']);
             $examPackage = $examSchedule->examPackage;
 
             if ($examPackage === null) {
@@ -64,8 +65,21 @@ Route::middleware('student.auth')
                 return to_route('student.exam-access.create', $examSchedule);
             }
 
+            $questionBank = QuestionBank::query()
+                ->where('school_id', $examPackage->school_id)
+                ->where('academic_year_id', $examPackage->academic_year_id)
+                ->where('exam_type_id', $examPackage->exam_type_id)
+                ->where('subject_id', $examSchedule->subject_id)
+                ->with(['questions' => function ($query) {
+                    $query->where('is_active', true)->orderBy('number');
+                }, 'questions.options', 'questions.pairs', 'questions.blanks'])
+                ->first();
+
+            $questions = $questionBank?->questions ?? collect();
+
             return Inertia::render('Student/ExamPage', [
                 'exam' => $examSchedule,
+                'questions' => $questions,
             ]);
         })->name('exam');
         Route::post('exams/{examSchedule}/answers', [ExamAnswerController::class, 'store'])

@@ -3,7 +3,7 @@ import { usePage, Link } from '@inertiajs/react';
 import { useToast } from '@/Hooks/useToast';
 import QuestionSheet from '@/Features/Exam/Components/QuestionSheet';
 
-export default function ExamPage({ exam }) {
+export default function ExamPage({ exam, questions = [] }) {
     const { now } = usePage().props.now || { now: Date.now() };
     const { toast } = useToast();
 
@@ -12,7 +12,7 @@ export default function ExamPage({ exam }) {
     const packageCode = exam.examPackage?.code ?? exam.package_code ?? '-';
     const examType = exam.examPackage?.examType?.name ?? exam.exam_type ?? 'Ujian';
     const sessionName = exam.session?.name ?? exam.session ?? '-';
-    const totalQuestions = exam.total_questions ?? 40;
+    const totalQuestions = questions.length > 0 ? questions.length : (exam.total_questions ?? 40);
     const durationMinutes = exam.duration_minutes ?? 0;
 
     // State untuk timer
@@ -274,7 +274,7 @@ export default function ExamPage({ exam }) {
                     {/* Area Teks Soal & Stimulus Soal */}
                     <div className={`p-6 md:p-8 flex-1 overflow-y-auto space-y-6 ${fontSize === 'small' ? 'text-sm' : fontSize === 'large' ? 'text-lg' : 'text-base'}`}>
                         <QuestionSheet
-                            exam={exam}
+                            exam={{ ...exam, questions }}
                             onAnswerChange={handleAnswerChange}
                             answers={answers}
                             fontSize={fontSize}
