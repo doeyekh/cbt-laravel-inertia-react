@@ -10,12 +10,18 @@ export default function ExamPage({
     questions = [],
     answers = {},
     remaining_seconds: remainingSeconds,
+    duration_seconds: durationSeconds,
+    deadline_at: deadlineAt,
+    server_now: serverNow,
 }) {
     const examSession = useExamSession({
         exam,
         questions,
         initialAnswers: answers,
         initialTimeRemainingSeconds: remainingSeconds,
+        initialDurationSeconds: durationSeconds,
+        initialDeadlineAt: deadlineAt,
+        initialServerNow: serverNow,
     });
 
     return (

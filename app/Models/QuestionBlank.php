@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Database\Factories\QuestionBlankFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['question_id', 'answers', 'score', 'order'])]
+#[Hidden(['answers'])]
 class QuestionBlank extends Model
 {
     /** @use HasFactory<QuestionBlankFactory> */

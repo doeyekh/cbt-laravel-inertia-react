@@ -72,7 +72,6 @@ class ExamAnswerController extends Controller
                     $fail('The answer must be a string or a list of strings.');
                 },
             ],
-            'time_spent_seconds' => 'required|integer|min:0',
         ]);
 
         $questionBank = QuestionBank::query()
@@ -87,7 +86,11 @@ class ExamAnswerController extends Controller
             ->pluck('id')
             ->toArray() ?? [];
 
-        $attempt = ExamAttempt::updateOrCreate(
+        $answers = $request->array('answers');
+
+        $startedAt = now();
+
+        $attempt = ExamAttempt::query()->createOrFirst(
             [
                 'exam_participant_id' => $participant->id,
                 'exam_schedule_id' => $examSchedule->id,
@@ -95,13 +98,26 @@ class ExamAnswerController extends Controller
             [
                 'exam_package_id' => $examPackage->id,
                 'duration_minutes' => $examSchedule->duration_minutes,
-                'time_spent_seconds' => $request->integer('time_spent_seconds'),
-                'started_at' => now(),
-                'submitted_at' => now(),
+                'time_spent_seconds' => 0,
+                'started_at' => $startedAt,
+                'deadline_at' => $this->deadlineFor($examSchedule, $startedAt),
+                'submitted_at' => $startedAt,
             ]
         );
 
-        $answers = $request->array('answers');
+        if ($attempt->hasReachedDeadline()) {
+            $attempt->update(['time_spent_seconds' => $attempt->elapsedSeconds()]);
+
+            return response()->json([
+                'message' => 'Waktu ujian telah habis. Jawaban tidak dapat diubah lagi.',
+                'status' => 'expired',
+                'deadline_at' => $attempt->resolveDeadline()->toIso8601String(),
+                'remaining_seconds' => 0,
+                'server_now' => now()->toIso8601String(),
+            ], 409);
+        }
+
+        $attempt->update(['time_spent_seconds' => $attempt->elapsedSeconds()]);
 
         foreach ($answers as $questionId => $answer) {
             $questionId = (int) $questionId;
@@ -125,7 +141,25 @@ class ExamAnswerController extends Controller
         return response()->json([
             'message' => 'Jawaban berhasil disimpan.',
             'attempt_id' => $attempt->id,
+            'status' => 'in_progress',
+            'deadline_at' => $attempt->resolveDeadline()->toIso8601String(),
+            'remaining_seconds' => $attempt->remainingSeconds(),
+            'server_now' => now()->toIso8601String(),
         ]);
+    }
+
+    /**
+     * Determine the server-side deadline of a new attempt.
+     *
+     * Durasi pengerjaan tidak boleh melewati jam tutup jadwal ujian.
+     */
+    private function deadlineFor(ExamSchedule $examSchedule, Carbon $startedAt): Carbon
+    {
+        $examDate = $examSchedule->exam_date->toDateString();
+        $closesAt = Carbon::parse("{$examDate} {$examSchedule->close_time}");
+        $durationDeadline = $startedAt->copy()->addMinutes((int) $examSchedule->duration_minutes);
+
+        return $durationDeadline->lt($closesAt) ? $durationDeadline : $closesAt;
     }
 
     private function participantMayAccessSchedule(

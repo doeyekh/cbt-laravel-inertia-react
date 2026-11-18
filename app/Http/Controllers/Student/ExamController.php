@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Student\Concerns\PresentsExamQuestions;
 use App\Models\ExamAnswer;
 use App\Models\ExamAttempt;
 use App\Models\ExamParticipant;
@@ -16,6 +17,8 @@ use Inertia\Response;
 
 class ExamController extends Controller
 {
+    use PresentsExamQuestions;
+
     public function show(Request $request, ExamSchedule $examSchedule): Response|RedirectResponse
     {
         $participant = ExamParticipant::query()
@@ -52,7 +55,11 @@ class ExamController extends Controller
         $questions = Question::query()
             ->where('question_bank_id', $questionBank->id)
             ->where('is_active', true)
-            ->with(['options', 'pairs', 'blanks'])
+            ->with([
+                'options' => fn ($query) => $query->orderBy('order'),
+                'pairs' => fn ($query) => $query->orderBy('order'),
+                'blanks' => fn ($query) => $query->orderBy('order'),
+            ])
             ->orderBy('number')
             ->get();
 
@@ -67,22 +74,18 @@ class ExamController extends Controller
                 $answer->question_id => ExamAnswer::restoreAnswer($answer->answer),
             ])
             ->all() ?? [];
-        $lastSavedAt = $attempt?->updated_at;
-        $secondsSinceLastSave = $lastSavedAt === null
-            ? 0
-            : max(0, now()->getTimestamp() - $lastSavedAt->getTimestamp());
-        $remainingSeconds = max(
-            0,
-            ($examSchedule->duration_minutes * 60)
-                - ($attempt?->time_spent_seconds ?? 0)
-                - $secondsSinceLastSave,
-        );
+        $durationSeconds = $attempt?->durationSeconds()
+            ?? max(0, (int) $examSchedule->duration_minutes * 60);
+        $remainingSeconds = $attempt?->remainingSeconds() ?? $durationSeconds;
 
         return Inertia::render('Student/ExamPage', [
             'exam' => $examSchedule,
-            'questions' => $questions,
+            'questions' => $this->presentExamQuestions($questions),
             'answers' => $answers,
             'remaining_seconds' => $remainingSeconds,
+            'duration_seconds' => $durationSeconds,
+            'deadline_at' => $attempt?->resolveDeadline()->toIso8601String(),
+            'server_now' => now()->toIso8601String(),
         ]);
     }
 }

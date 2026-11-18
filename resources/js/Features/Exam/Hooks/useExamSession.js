@@ -2,11 +2,37 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useHttp } from '@inertiajs/react';
 import { useToast } from '@/Hooks/useToast';
 
+/**
+ * Hitung sisa waktu dari tenggat di server.
+ *
+ * Nilai selalu dihitung ulang dari `deadline` absolut, bukan dari sisa detik
+ * sebelumnya. Dengan begitu tampilan tetap benar setelah tab di-background,
+ * jam perangkat berubah, atau props halaman sudah usang.
+ */
+function remainingSecondsUntil(deadlineTimestamp, clockSkewMs, durationSeconds) {
+    const seconds = Math.ceil((deadlineTimestamp - (Date.now() + clockSkewMs)) / 1000);
+
+    return Math.max(0, Math.min(durationSeconds, seconds));
+}
+
+function resolveDeadlineTimestamp(deadlineAt, fallbackRemainingSeconds, clockSkewMs) {
+    const deadlineTimestamp = deadlineAt ? Date.parse(deadlineAt) : NaN;
+
+    if (Number.isFinite(deadlineTimestamp)) {
+        return deadlineTimestamp;
+    }
+
+    return Date.now() + clockSkewMs + fallbackRemainingSeconds * 1000;
+}
+
 export default function useExamSession({
     exam,
     questions = [],
     initialAnswers = {},
     initialTimeRemainingSeconds,
+    initialDeadlineAt = null,
+    initialServerNow = null,
+    initialDurationSeconds = null,
 }) {
     const { toast } = useToast();
     const {
@@ -15,7 +41,6 @@ export default function useExamSession({
         processing: isAutoSaving,
     } = useHttp({
         answers: {},
-        time_spent_seconds: 0,
     });
 
     const subjectName = exam.subject?.name ?? exam.subject ?? 'Mata Pelajaran Tidak Ditemukan';
@@ -25,12 +50,28 @@ export default function useExamSession({
     const sessionName = exam.session?.name ?? exam.session ?? '-';
     const totalQuestions = questions.length > 0 ? questions.length : (exam.total_questions ?? 40);
     const durationMinutes = exam.duration_minutes ?? 0;
-    const durationSeconds = durationMinutes * 60;
-    const countdownStartSeconds = Number.isFinite(initialTimeRemainingSeconds)
+    const scheduleDurationSeconds = durationMinutes * 60;
+    const durationSeconds = Number.isFinite(initialDurationSeconds) && initialDurationSeconds > 0
+        ? initialDurationSeconds
+        : scheduleDurationSeconds;
+
+    const initialServerTimestamp = initialServerNow ? Date.parse(initialServerNow) : NaN;
+    const clockSkewRef = useRef(
+        Number.isFinite(initialServerTimestamp) ? initialServerTimestamp - Date.now() : 0,
+    );
+
+    const initialRemainingSeconds = Number.isFinite(initialTimeRemainingSeconds)
         ? Math.max(0, Math.min(durationSeconds, initialTimeRemainingSeconds))
         : durationSeconds;
 
-    const [timeRemaining, setTimeRemaining] = useState(countdownStartSeconds);
+    const deadlineRef = useRef(
+        resolveDeadlineTimestamp(initialDeadlineAt, initialRemainingSeconds, clockSkewRef.current),
+    );
+
+    const [timeRemaining, setTimeRemaining] = useState(
+        () => remainingSecondsUntil(deadlineRef.current, clockSkewRef.current, durationSeconds),
+    );
+    const [deadlineVersion, setDeadlineVersion] = useState(0);
     const [isRunning, setIsRunning] = useState(true);
     const [answers, setAnswers] = useState(() => initialAnswers);
     const [currentQuestionNo, setCurrentQuestionNo] = useState(1);
@@ -40,30 +81,35 @@ export default function useExamSession({
     const timerRef = useRef(null);
 
     useEffect(() => {
-        const deadline = Date.now() + countdownStartSeconds * 1000;
         const updateTimeRemaining = () => {
-            const remainingSeconds = Math.max(
-                0,
-                Math.ceil((deadline - Date.now()) / 1000),
+            const remainingSeconds = remainingSecondsUntil(
+                deadlineRef.current,
+                clockSkewRef.current,
+                durationSeconds,
             );
             setTimeRemaining(remainingSeconds);
 
             if (remainingSeconds === 0) {
                 clearInterval(timerRef.current);
+                timerRef.current = null;
                 setIsRunning(false);
             }
         };
 
-        if (countdownStartSeconds === 0) {
-            setIsRunning(false);
-        } else {
-            timerRef.current = setInterval(updateTimeRemaining, 1000);
+        updateTimeRemaining();
+
+        if (remainingSecondsUntil(deadlineRef.current, clockSkewRef.current, durationSeconds) === 0) {
+            return;
         }
+
+        setIsRunning(true);
+        timerRef.current = setInterval(updateTimeRemaining, 1000);
 
         return () => {
             clearInterval(timerRef.current);
+            timerRef.current = null;
         };
-    }, [countdownStartSeconds]);
+    }, [durationSeconds, deadlineVersion]);
 
     const answerStats = useMemo(() => questions.reduce(
         (stats, question) => {
@@ -107,6 +153,36 @@ export default function useExamSession({
         window.location.href = route('student.dashboard');
     };
 
+    /**
+     * Sinkronkan timer dengan jawaban server.
+     *
+     * Server mengirim `deadline_at` dan `server_now`, sehingga selisih jam
+     * perangkat peserta bisa dikoreksi dan tenggat yang dipakai selalu versi
+     * server, bukan snapshot saat halaman pertama kali dibuka.
+     */
+    const syncTimerWithServer = (payload) => {
+        const serverTimestamp = payload?.server_now ? Date.parse(payload.server_now) : NaN;
+
+        if (Number.isFinite(serverTimestamp)) {
+            clockSkewRef.current = serverTimestamp - Date.now();
+        }
+
+        const serverDeadlineTimestamp = payload?.deadline_at ? Date.parse(payload.deadline_at) : NaN;
+
+        if (Number.isFinite(serverDeadlineTimestamp)) {
+            deadlineRef.current = serverDeadlineTimestamp;
+        } else if (Number.isFinite(payload?.remaining_seconds)) {
+            deadlineRef.current = Date.now() + clockSkewRef.current + payload.remaining_seconds * 1000;
+        } else {
+            return;
+        }
+
+        setTimeRemaining(
+            remainingSecondsUntil(deadlineRef.current, clockSkewRef.current, durationSeconds),
+        );
+        setDeadlineVersion((version) => version + 1);
+    };
+
     const saveAnswersToServer = async (nextAnswers, exitAfterSave = false) => {
         if (Object.keys(nextAnswers).length === 0) {
             return;
@@ -114,12 +190,13 @@ export default function useExamSession({
 
         setSaveData({
             answers: nextAnswers,
-            time_spent_seconds: durationSeconds - timeRemaining,
         });
 
         try {
             await postAnswers(route('student.exam-answers.store', exam.id), {
-                onSuccess: () => {
+                onSuccess: (response) => {
+                    syncTimerWithServer(response);
+
                     if (exitAfterSave) {
                         handleExitExam();
                     }
@@ -134,6 +211,21 @@ export default function useExamSession({
             });
         } catch (error) {
             const status = error?.response?.status;
+
+            if (status === 409) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+                setIsRunning(false);
+                setTimeRemaining(0);
+                toast({
+                    title: 'Waktu Ujian Habis',
+                    description: 'Waktu pengerjaan telah berakhir di server. Jawaban tidak dapat diubah lagi.',
+                    type: 'error',
+                });
+
+                return;
+            }
+
             toast({
                 title: 'Gagal Menyimpan',
                 description: status === 419

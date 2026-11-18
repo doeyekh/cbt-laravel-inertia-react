@@ -13,6 +13,8 @@ use App\Models\ExamSchedule;
 use App\Models\ExamType;
 use App\Models\Question;
 use App\Models\QuestionBank;
+use App\Models\QuestionBlank;
+use App\Models\QuestionOption;
 use App\Models\Room;
 use App\Models\School;
 use App\Models\SchoolClass;
@@ -54,17 +56,18 @@ class ExamAttemptTest extends TestCase
     public function test_student_exam_page_restores_remaining_time_from_saved_attempt(): void
     {
         $context = $this->createOpenExamContext();
-        $lastSavedAt = now()->subMinutes(5);
+        $startedAt = now()->subMinutes(10);
 
         ExamAttempt::factory()->create([
             'exam_participant_id' => $context['participant']->id,
             'exam_schedule_id' => $context['schedule']->id,
             'exam_package_id' => $context['package']->id,
             'duration_minutes' => 90,
-            'time_spent_seconds' => 120,
-            'started_at' => $lastSavedAt->copy()->subMinutes(5),
-            'created_at' => $lastSavedAt->copy()->subMinutes(5),
-            'updated_at' => $lastSavedAt,
+            'time_spent_seconds' => 600,
+            'started_at' => $startedAt,
+            'deadline_at' => $startedAt->copy()->addMinutes(90),
+            'created_at' => $startedAt,
+            'updated_at' => $startedAt,
         ]);
 
         $this->withSession($this->studentSession($context['participant']))
@@ -78,7 +81,7 @@ class ExamAttemptTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/ExamPage')
-                ->where('remaining_seconds', 4980)
+                ->where('remaining_seconds', 4800)
             );
     }
 
@@ -189,6 +192,250 @@ class ExamAttemptTest extends TestCase
                 'time_spent_seconds' => 0,
             ])
             ->assertStatus(403);
+    }
+
+    public function test_exam_page_does_not_expose_answer_keys_to_the_student(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+
+        QuestionOption::factory()->for($question)->create([
+            'label' => 'A',
+            'text' => 'Opsi benar',
+            'is_correct' => true,
+            'order' => 1,
+        ]);
+
+        QuestionOption::factory()->for($question)->create([
+            'label' => 'B',
+            'text' => 'Opsi salah',
+            'is_correct' => false,
+            'order' => 2,
+        ]);
+
+        QuestionBlank::factory()->for($question)->create([
+            'answers' => ['jawaban-rahasia'],
+            'order' => 1,
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(function (Assert $page) use ($question): void {
+                $page->component('Student/ExamPage');
+
+                $payload = collect($page->toArray()['props']['questions'])
+                    ->firstWhere('id', $question->id);
+
+                $this->assertIsArray($payload);
+                $this->assertSame(
+                    ['id', 'label', 'text', 'order', 'image_path', 'audio_path'],
+                    array_keys($payload['options'][0]),
+                );
+                $this->assertSame(['id', 'order'], array_keys($payload['blanks'][0]));
+                $this->assertStringNotContainsString('is_correct', json_encode($payload));
+                $this->assertStringNotContainsString('jawaban-rahasia', json_encode($payload));
+            });
+    }
+
+    public function test_student_cannot_save_answers_after_the_server_deadline(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'answers' => [$question->id => 'A'],
+            ])
+            ->assertOk();
+
+        $attempt = ExamAttempt::query()->firstOrFail();
+        $this->assertNotNull($attempt->deadline_at);
+        $this->assertSame(90, $attempt->duration_minutes);
+
+        $this->travelTo(now()->addMinutes(91));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'answers' => [$question->id => 'B'],
+            ])
+            ->assertStatus(409)
+            ->assertJson([
+                'status' => 'expired',
+                'remaining_seconds' => 0,
+            ]);
+
+        $this->assertDatabaseHas('exam_answers', [
+            'question_id' => $question->id,
+            'answer' => 'A',
+        ]);
+
+        $this->assertDatabaseMissing('exam_answers', [
+            'question_id' => $question->id,
+            'answer' => 'B',
+        ]);
+    }
+
+    public function test_elapsed_time_is_calculated_by_the_server(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'answers' => [$question->id => 'A'],
+            ])
+            ->assertOk();
+
+        $this->travelTo(now()->addMinutes(5));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'answers' => [$question->id => 'B'],
+            ])
+            ->assertOk()
+            ->assertJson([
+                'status' => 'in_progress',
+                'remaining_seconds' => 85 * 60,
+            ]);
+
+        $this->assertSame(300, ExamAttempt::query()->firstOrFail()->time_spent_seconds);
+    }
+
+    public function test_legacy_attempt_without_deadline_uses_creation_time_as_fallback(): void
+    {
+        $context = $this->createOpenExamContext();
+        $createdAt = now()->subMinutes(10);
+
+        ExamAttempt::factory()->create([
+            'exam_participant_id' => $context['participant']->id,
+            'exam_schedule_id' => $context['schedule']->id,
+            'exam_package_id' => $context['package']->id,
+            'duration_minutes' => 90,
+            'deadline_at' => null,
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/ExamPage')
+                ->where('remaining_seconds', 4800)
+            );
+    }
+
+    public function test_exam_page_exposes_the_server_deadline_for_the_countdown(): void
+    {
+        $context = $this->createOpenExamContext();
+        $startedAt = now();
+
+        ExamAttempt::factory()->create([
+            'exam_participant_id' => $context['participant']->id,
+            'exam_schedule_id' => $context['schedule']->id,
+            'exam_package_id' => $context['package']->id,
+            'duration_minutes' => 90,
+            'started_at' => $startedAt,
+            'deadline_at' => $startedAt->copy()->addMinutes(90),
+            'created_at' => $startedAt,
+            'updated_at' => $startedAt,
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/ExamPage')
+                ->where('duration_seconds', 5400)
+                ->where('remaining_seconds', 5400)
+                ->where('deadline_at', $startedAt->copy()->addMinutes(90)->toIso8601String())
+                ->where('server_now', $startedAt->toIso8601String())
+            );
+    }
+
+    public function test_remaining_time_is_capped_at_the_configured_duration(): void
+    {
+        $context = $this->createOpenExamContext();
+        $startedAt = now();
+
+        $attempt = ExamAttempt::factory()->create([
+            'exam_participant_id' => $context['participant']->id,
+            'exam_schedule_id' => $context['schedule']->id,
+            'exam_package_id' => $context['package']->id,
+            'duration_minutes' => 90,
+            'started_at' => $startedAt,
+            'deadline_at' => $startedAt->copy()->addHours(5),
+            'created_at' => $startedAt,
+            'updated_at' => $startedAt,
+        ]);
+
+        $this->assertSame(5400, $attempt->remainingSeconds());
+        $this->assertSame(0, $attempt->elapsedSeconds());
+    }
+
+    public function test_countdown_uses_the_attempt_duration_when_the_schedule_changes(): void
+    {
+        $context = $this->createOpenExamContext();
+        $startedAt = now()->subMinutes(10);
+
+        ExamAttempt::factory()->create([
+            'exam_participant_id' => $context['participant']->id,
+            'exam_schedule_id' => $context['schedule']->id,
+            'exam_package_id' => $context['package']->id,
+            'duration_minutes' => 90,
+            'started_at' => $startedAt,
+            'deadline_at' => $startedAt->copy()->addMinutes(90),
+            'created_at' => $startedAt,
+            'updated_at' => $startedAt,
+        ]);
+
+        $context['schedule']->update(['duration_minutes' => 120]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/ExamPage')
+                ->where('duration_seconds', 5400)
+                ->where('remaining_seconds', 4800)
+            );
     }
 
     /**
