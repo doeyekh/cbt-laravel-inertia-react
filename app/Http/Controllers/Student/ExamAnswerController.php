@@ -9,6 +9,7 @@ use App\Models\ExamAttempt;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
 use App\Services\ExamScheduleAccessService;
+use App\Services\GradeExamAttemptService;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,7 @@ class ExamAnswerController extends Controller
         Request $request,
         ExamSchedule $examSchedule,
         ExamScheduleAccessService $examAccess,
+        GradeExamAttemptService $grading,
     ): JsonResponse {
         $participant = ExamParticipant::query()
             ->findOrFail((int) $request->session()->get('student_participant_id'));
@@ -75,11 +77,13 @@ class ExamAnswerController extends Controller
         }
 
         if ($attempt->hasReachedDeadline()) {
-            $attempt->update(['time_spent_seconds' => $attempt->elapsedSeconds()]);
+            $attempt->submit();
+            $grading->grade($attempt);
 
             return response()->json([
                 'message' => 'Waktu ujian telah habis. Jawaban tidak dapat diubah lagi.',
                 'status' => 'expired',
+                'attempt_status' => $attempt->status->value,
                 'deadline_at' => $attempt->resolveDeadline()->toIso8601String(),
                 'remaining_seconds' => 0,
                 'server_now' => now()->toIso8601String(),

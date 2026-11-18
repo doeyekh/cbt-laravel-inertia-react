@@ -3,15 +3,15 @@
 **Tanggal analisis:** 18 November 2026
 **Cakupan:** seluruh modul `app/`, `routes/web.php`, `resources/js`, `database/migrations`, `tests/`
 **Metode:** pembacaan kode statis + verifikasi alur request → response + menjalankan test suite
-**Status test saat ini:** `478 passed`, `2717 assertions` (`php artisan test --compact`)
+**Status test saat ini:** `485 passed`, `2823 assertions` (`php artisan test --compact`)
 **Sifat dokumen:** analisis dan rekomendasi.
-**Status perbaikan:** **P0-1 sampai P0-6 sudah diperbaiki** pada 18 November 2026 — lihat §11 dan §12.
+**Status perbaikan:** **P0-1 sampai P0-6 dan P1-1 sampai P1-9 sudah diperbaiki** — lihat status pada setiap temuan.
 
 ---
 
 ## 0. Ringkasan Eksekutif
 
-Secara struktur, proyek ini sudah rapi: arsitektur feature-based, Form Request, factory, policy, dan **464 test backend yang lulus**. Fondasi CRUD admin (sekolah, kelas, peserta, bank soal, paket ujian, jadwal) sudah solid.
+Secara struktur, proyek ini sudah rapi: arsitektur feature-based, Form Request, factory, policy, dan **485 test backend yang lulus**. Fondasi CRUD admin (sekolah, kelas, peserta, bank soal, paket ujian, jadwal) sudah solid.
 
 Masalah utama justru ada di **mesin ujian (exam engine)** — bagian yang paling kritikal untuk CBT:
 
@@ -23,10 +23,10 @@ Masalah utama justru ada di **mesin ujian (exam engine)** — bagian yang paling
 | 4 | **Flag "ragu-ragu" menimpa jawaban** (`answer = 'flagged'`) | Jawaban siswa hilang saat ditandai ragu-ragu, dan siswa bisa terkunci tidak bisa submit | **Diperbaiki** |
 | 5 | **Login siswa tanpa throttle, fallback password plaintext, tanpa `session()->regenerate()`, username tidak unik global** | Brute force PIN, session fixation, salah ambil akun antar sekolah/tahun | **Diperbaiki** |
 | 6 | **`ExamController@show` tidak memvalidasi kepemilikan jadwal** | Siswa bisa membuka soal kelas/ruangan lain dalam paket yang sama | **Diperbaiki** |
-| 7 | **Belum ada submit final, penilaian, dan halaman hasil** | Tidak ada skor, tidak ada rekap, monitoring tidak punya data progres | **P1 — Tinggi** |
-| 8 | **Autosave tanpa debounce, kirim seluruh peta jawaban setiap ketikan** | Load server tinggi saat 30–40 siswa mengetik esai bersamaan | **P1 — Tinggi** |
+| 7 | **Belum ada submit final, penilaian, dan halaman hasil** | Tidak ada skor, tidak ada rekap, monitoring tidak punya data progres | **Diperbaiki** |
+| 8 | **Autosave tanpa debounce, kirim seluruh peta jawaban setiap ketikan** | Load server tinggi saat 30–40 siswa mengetik esai bersamaan | **Diperbaiki** |
 
-Rekomendasi utamanya: **jangan lanjut menambah fitur UI dulu**. Selesaikan dulu integritas ujian (P0) dan alur submit + penilaian (P1), karena semua fitur berikutnya (hasil, monitoring, laporan) bergantung pada data attempt yang benar.
+Temuan P0 dan P1 pada mesin ujian sudah diperbaiki. Uji beban dan modul laporan tetap menjadi pekerjaan lanjutan.
 
 ---
 
@@ -55,14 +55,13 @@ Rekomendasi utamanya: **jangan lanjut menambah fitur UI dulu**. Selesaikan dulu 
 - Bank soal + soal (5 tipe: pilihan ganda, PG kompleks, menjodohkan, isian, esai) + import + preview + print.
 - Paket ujian + jadwal ujian + bulk schedule + token akses paket (HMAC-SHA256).
 - Peserta ujian + generate kredensial + reset password + kartu peserta (PDF).
-- Portal siswa: login, dashboard agenda, verifikasi token, halaman pengerjaan, autosave jawaban.
+- Portal siswa: login, dashboard agenda, verifikasi token, halaman pengerjaan, autosave, submit final, penilaian, dan hasil.
+- Monitoring ujian: peserta terjadwal, progres attempt, koneksi, flag, penilaian esai, dan polling.
 
 ### 1.3 Yang masih mock / belum ada
 
-- **Monitoring ujian**: data peserta masih hardcoded (`resources/js/Features/Monitoring/Components/StudentTable.jsx:18` — konstanta `STUDENTS`).
 - **Dashboard admin** (`Pages/Home.jsx`) belum memakai data nyata.
-- **Submit final, penilaian, hasil ujian, laporan** — belum ada sama sekali.
-- **Route `/admin/exam/{examSchedule}/start`** merender komponen `Student/ExamStart` yang **tidak ada** → error saat diakses (`app/Http/Controllers/Admin/PageController.php:22-28`).
+- **Laporan ujian** belum tersedia.
 
 ### 1.4 Hal yang sudah baik (pertahankan)
 
@@ -70,7 +69,7 @@ Rekomendasi utamanya: **jangan lanjut menambah fitur UI dulu**. Selesaikan dulu 
 - Token ujian tidak disimpan plaintext (hanya hash HMAC), verifikasi `hash_equals`, dan ada rate limit percobaan token.
 - Form Request lengkap dengan custom validation concern.
 - Policy untuk `School` dan `Subject`.
-- Factory + seeder + 464 test → modal untuk refactor dengan aman.
+- Factory + seeder + 485 test → modal untuk refactor dengan aman.
 - Semua query admin sudah dibatasi `accessibleSchoolIds()` (multi-sekolah).
 
 ---
@@ -354,16 +353,18 @@ abort_unless($examSchedule->status === ExamScheduleStatus::Aktif, 403);
 
 ## 3. Temuan Penting (P1)
 
-### P1-1 — Belum ada submit final & penilaian (fitur inti CBT)
+Deskripsi di bawah ini mencatat temuan saat analisis awal. Status **Diperbaiki** menandakan implementasi sekarang sudah menutup temuan tersebut.
 
-Saat ini "mengumpulkan ujian" hanya = autosave terakhir lalu `window.location.href = dashboard` (`useExamSession.js:105-108, 158-169`). Tidak ada:
+### P1-1 — Belum ada submit final & penilaian (fitur inti CBT) — **Diperbaiki**
+
+Pada saat analisis awal, "mengumpulkan ujian" hanya = autosave terakhir lalu `window.location.href = dashboard` (`useExamSession.js:105-108, 158-169`). Saat ini submit final, auto-submit ketika waktu habis, penilaian otomatis untuk soal non-esai, penilaian esai manual, dan halaman hasil sudah tersedia.
 
 - status `submitted` yang final (jawaban masih bisa diubah sampai `close_time`);
 - endpoint `POST /siswa/exams/{examSchedule}/submit`;
 - penyimpanan `is_correct` / skor per jawaban;
 - skor attempt (`score`, `max_score`);
 - halaman hasil yang menghormati `show_score_to_student` (kolom ini sudah ada di `exam_schedules` tapi tidak pernah dipakai);
-- penilaian esai manual oleh guru.
+- penilaian esai manual oleh admin sekolah.
 
 **Rekomendasi arsitektur penilaian:**
 
@@ -377,7 +378,7 @@ Saat ini "mengumpulkan ujian" hanya = autosave terakhir lalu `window.location.hr
 
 Simpan hasil di `exam_answers.is_correct` + `exam_answers.score_awarded`, agregat di `exam_attempts.score`.
 
-### P1-2 — Jawaban disimpan sebagai **teks opsi**, bukan ID opsi
+### P1-2 — Jawaban disimpan sebagai **teks opsi**, bukan ID opsi — **Diperbaiki**
 
 **Lokasi:** `resources/js/Features/Exam/Components/QuestionSheet.jsx:168-182, 208-231`
 
@@ -395,11 +396,11 @@ value={option.text}
 
 **Rekomendasi:** kirim dan simpan `option.id` (atau `option.label` yang unik per soal). Ini juga menyederhanakan penilaian di P1-1. Untuk `menjodohkan` sebaiknya gunakan `pair.id` yang sudah dilakukan sekarang agar konsisten.
 
-### P1-3 — Autosave per ketikan, tanpa debounce, mengirim seluruh peta jawaban
+### P1-3 — Autosave per ketikan, tanpa debounce, mengirim seluruh peta jawaban — **Diperbaiki**
 
 **Lokasi:** `resources/js/Features/Exam/Hooks/useExamSession.js:110-156`
 
-Setiap `onChange` (termasuk **setiap huruf** pada esai/isian) langsung memicu `POST` yang membawa **semua** jawaban. Pada 30 siswa yang menulis esai 500 karakter, ini bisa menjadi ribuan request dan penulisan database per menit.
+Pada saat analisis awal, setiap `onChange` (termasuk **setiap huruf** pada esai/isian) langsung memicu `POST` yang membawa **semua** jawaban. Autosave sekarang di-debounce, mengirim diff per soal, dan antreannya diserialkan.
 
 Risiko tambahan: request paralel yang tidak berurutan dapat saling menimpa (tidak ada `AbortController`/antrean), dan indikator "Menyimpan..." berkedip terus (`processing` berubah tiap ketikan).
 
@@ -409,7 +410,7 @@ Risiko tambahan: request paralel yang tidak berurutan dapat saling menimpa (tida
 3. Batalkan request lama untuk soal yang sama (AbortController) atau gunakan antrean serial.
 4. Tambahkan endpoint per soal (`PUT /answers/{question}`) agar payload kecil dan idempoten.
 
-### P1-4 — Jawaban yang dihapus tidak terhapus di database
+### P1-4 — Jawaban yang dihapus tidak terhapus di database — **Diperbaiki**
 
 **Lokasi:** `app/Http/Controllers/Student/ExamAnswerController.php:106-123`
 
@@ -430,7 +431,7 @@ if ($answer === null || $answer === '' || $answer === []) {
 }
 ```
 
-### P1-5 — Logika akses jadwal & resolusi bank soal terduplikasi 3x
+### P1-5 — Logika akses jadwal & resolusi bank soal terduplikasi 3x — **Diperbaiki**
 
 `participantMayAccessSchedule()` dan query `QuestionBank::...->first()` disalin di:
 
@@ -453,7 +454,7 @@ final class ExamScheduleAccessService
 }
 ```
 
-### P1-6 — `QuestionBank` dipilih dengan `->first()` (ambigu)
+### P1-6 — `QuestionBank` dipilih dengan `->first()` (ambigu) — **Diperbaiki**
 
 Paket ujian **tidak menyimpan referensi bank soal**. Bank soal dicari berdasarkan kombinasi `(school_id, academic_year_id, exam_type_id, subject_id)` lalu diambil `first()` tanpa `orderBy`.
 
@@ -461,7 +462,7 @@ Paket ujian **tidak menyimpan referensi bank soal**. Bank soal dicari berdasarka
 
 **Rekomendasi:** tambahkan `question_bank_id` pada `exam_schedules` (atau `exam_packages`) dan pakai relasi eksplisit. Ini juga membuat preview paket ujian di admin akurat.
 
-### P1-7 — `shuffle_questions` / `shuffle_options` diabaikan
+### P1-7 — `shuffle_questions` / `shuffle_options` diabaikan — **Diperbaiki**
 
 Kolom `exam_schedules.shuffle_questions`, `shuffle_options`, `show_score_to_student` sudah ada (default `true`) dan sudah bisa diatur di UI (`ExamScheduleModal.jsx:18-20`), tetapi:
 
@@ -470,13 +471,13 @@ Kolom `exam_schedules.shuffle_questions`, `shuffle_options`, `show_score_to_stud
 
 **Rekomendasi:** terapkan pengacakan **di server** saat menyusun prop, dengan seed per attempt (mis. `seed = attempt.id`) dan kembalikan urutan final ke client. Untuk `shuffle_options`, kirim opsi dalam urutan teracak sehingga label A/B/C/D mengikuti urutan tampil.
 
-### P1-8 — Monitoring masih 100% statis
+### P1-8 — Monitoring masih 100% statis — **Diperbaiki**
 
-`app/Http/Controllers/Admin/PageController.php:31-36` hanya merender komponen tanpa data, dan `StudentTable.jsx:18` memakai array `STUDENTS` hardcoded.
+Pada saat analisis awal, `PageController.php` merender komponen tanpa data dan `StudentTable.jsx` memakai array `STUDENTS` hardcoded. Monitoring kini memakai peserta yang terjadwal, attempt, progres jawaban, status koneksi, flag integritas, dan polling berkala.
 
 **Rekomendasi:** kirim data nyata: peserta terdaftar untuk jadwal aktif, `exam_attempts.status`, `time_spent_seconds`, `updated_at` terakhir, jumlah jawaban terisi, dan `flagged`. Update via polling ringan (`router.reload({ only: ['participants'] })` tiap 10 detik) atau Inertia `usePoll`.
 
-### P1-9 — Route `/admin/exam/{examSchedule}/start` mengarah ke komponen yang tidak ada
+### P1-9 — Route `/admin/exam/{examSchedule}/start` mengarah ke komponen yang tidak ada — **Diperbaiki**
 
 `PageController::examStart()` merender `Student/ExamStart`, tetapi `resources/js/Pages/Student/ExamStart.jsx` tidak ada. Route diberi middleware `school-admin` (`routes/web.php:76-77`) dan akan error jika diklik/diakses.
 
@@ -519,33 +520,32 @@ Kolom `exam_schedules.shuffle_questions`, `shuffle_options`, `show_score_to_stud
 
 **Kriteria selesai:** test baru untuk tiap poin; tidak ada `is_correct` di response siswa; save setelah deadline → 409.
 
-### Sprint 1 — Submit, Penilaian, Hasil (3–4 hari)
+### Sprint 1 — Submit, Penilaian, Hasil (3–4 hari) — **Diperbaiki**
 
-1. Migrasi `status`, `score`, `max_score`, `graded_at` pada `exam_attempts`; `is_flagged`, `is_correct`, `score_awarded` pada `exam_answers`.
-2. Endpoint `POST /siswa/exams/{examSchedule}/submit` (idempoten, kunci jawaban, auto-submit saat deadline).
-3. `GradeExamAttempt` service per tipe soal (P1-1).
-4. Auto-submit di frontend saat timer 0 + konfirmasi bila ada soal kosong.
-5. Halaman hasil sederhana, hormati `show_score_to_student`.
-6. Panel guru untuk menilai esai (dapat ditunda ke sprint berikut, tetapi skema harus siap).
+1. ✅ Migrasi skema penilaian dan status attempt.
+2. ✅ Endpoint submit final serta auto-submit saat timer mencapai nol.
+3. ✅ `GradeExamAttempt` service untuk setiap tipe soal.
+4. ✅ Halaman hasil menghormati `show_score_to_student`.
+5. ✅ Panel admin sekolah untuk penilaian esai.
 
-### Sprint 2 — Hardening Exam Engine (2–3 hari)
+### Sprint 2 — Hardening Exam Engine (2–3 hari) — **Diperbaiki**
 
-1. Debounce autosave + diff per soal + flush saat pindah/unload (P1-3).
-2. Simpan jawaban berdasarkan ID opsi (P1-2) + migrasi data bila perlu.
-3. Hapus jawaban yang dikosongkan (P1-4).
-4. Terapkan `shuffle_questions`/`shuffle_options` di server (P1-7).
-5. Perbaiki double-submit/race dengan antrean request.
+1. ✅ Debounce autosave, kirim diff per soal, dan flush saat navigasi/perubahan visibilitas.
+2. ✅ Simpan jawaban berdasarkan ID opsi dan migrasikan data lama yang dapat dipetakan.
+3. ✅ Hapus jawaban yang dikosongkan.
+4. ✅ Terapkan shuffle soal dan opsi di server dengan urutan stabil per attempt.
+5. ✅ Cegah request race dengan antrean serial dan kunci double-submit.
 
 ### Sprint 3 — Monitoring & Operasional (2–3 hari)
 
-1. Data monitoring nyata + polling (P1-8).
+1. ✅ Data monitoring nyata untuk peserta terjadwal, attempt, dan polling (P1-8).
 2. Deteksi peserta offline (mis. tidak ada autosave > 2 menit).
 3. Aksi admin: reset attempt, perpanjang waktu, buka kunci.
 4. Dashboard admin dengan statistik nyata.
 
 ### Sprint 4 — Kebersihan & Dokumentasi (1 hari)
 
-1. Hapus dead code (P2-1, P2-2) dan route rusak (P1-9).
+1. ✅ Hapus route rusak (P1-9); dead code P2 tetap menjadi pekerjaan lanjutan.
 2. Rapikan index database (P2-9, P2-11).
 3. Perbarui `RESUME.md` & `FEATURE_STATUS.md`.
 
@@ -642,22 +642,7 @@ GET /siswa/exams/{examSchedule}/result
 
 ## 8. Rencana Pengujian
 
-Test suite saat ini kuat (464 test), tetapi **tidak ada satu pun** yang menguji integritas ujian di atas. Tambahkan `tests/Feature/Student/ExamIntegrityTest.php`:
-
-| Nama test | Memastikan |
-|---|---|
-| `test_exam_payload_does_not_expose_correct_answers` | tidak ada `is_correct`/`answers` pada prop `questions` |
-| `test_student_cannot_open_schedule_of_another_class` | 404 pada `ExamController@show` (P0-6) |
-| `test_answer_save_is_rejected_after_deadline` | 409 setelah `deadline_at` |
-| `test_answer_save_is_rejected_after_submission` | 409 setelah submit |
-| `test_client_cannot_rewind_time_spent` | `time_spent_seconds` tidak pernah menurun |
-| `test_flagged_question_keeps_its_answer` | `answer` tetap, `is_flagged = true` |
-| `test_clearing_answer_deletes_stored_row` | baris `exam_answers` terhapus |
-| `test_submit_grades_multiple_choice_and_complex_answers` | skor sesuai kunci |
-| `test_essay_answer_requires_manual_grading` | `score_awarded = null`, `status = submitted` |
-| `test_student_login_is_rate_limited_after_five_attempts` | 429/validasi |
-| `test_student_login_username_is_scoped_to_active_academic_year` | tidak salah akun |
-| `test_exam_questions_respect_shuffle_flag` | urutan berbeda per attempt, konsisten saat reload |
+Suite saat ini berisi **485 test lulus**. Regression tests untuk alur P0/P1 mencakup payload soal, otorisasi jadwal, tenggat dan submit, hapus jawaban, penilaian berbagai tipe soal, penilaian esai, visibilitas hasil, pilihan bank soal ambigu, shuffle stabil, dan monitoring.
 
 Untuk frontend, minimal tambahkan unit test pada fungsi murni (`answerStats`, perhitungan sisa waktu, debounce) bila tooling Vitest ditambahkan. Jangan menambah dependency tanpa persetujuan.
 
@@ -673,14 +658,16 @@ Untuk frontend, minimal tambahkan unit test pada fungsi murni (`answerStats`, pe
 - [x] Flag ragu-ragu tidak menghapus jawaban — **Diperbaiki**.
 - [x] Login siswa punya throttle + session regenerate + tanpa fallback plaintext — **Diperbaiki**.
 - [x] `ExamController@show` memvalidasi kepemilikan jadwal — **Diperbaiki**.
-- [ ] Submit final + skor tersimpan.
+- [x] Submit final, auto-submit saat tenggat, penilaian, dan hasil — **Diperbaiki**.
+- [x] Autosave di-debounce, mengirim diff, dan flush saat navigasi/perubahan visibilitas — **Diperbaiki**.
+- [x] Bank soal eksplisit, ID opsi, dan shuffle stabil per attempt — **Diperbaiki**.
+- [x] Monitoring data nyata, termasuk peserta yang belum mulai — **Diperbaiki**.
 - [ ] Uji beban: 40 siswa autosave bersamaan.
 
 **Setelah ujian stabil:**
 
-- [ ] Monitoring real-time.
-- [ ] Halaman hasil & rekap nilai.
-- [ ] Penilaian esai oleh guru.
+- [x] Monitoring dan polling berkala.
+- [x] Halaman hasil dan penilaian esai oleh admin sekolah.
 - [ ] Hapus dead code & perbarui dokumentasi.
 
 ---
@@ -743,7 +730,7 @@ Verifikasi: `php artisan test --compact` → **468 passed**. Migrasi sudah dijal
 ### Konsekuensi yang perlu diketahui
 
 - `submitted_at` kini hanya diisi oleh endpoint submit final dan tidak lagi di-reset setiap autosave. P0-3 sudah diperbaiki.
-- Saat tenggat tercapai, server menolak penyimpanan, tetapi belum ada auto-submit dan penilaian otomatis. Itu bagian **P1-1**.
+- Pada saat catatan ini dibuat, auto-submit dan penilaian otomatis belum tersedia; keduanya kemudian ditambahkan sebagai bagian **P1-1** (lihat status dan test terbaru pada §3, §8, dan §9).
 - Timer di browser masih berjalan sendiri untuk tampilan; nilai otoritatif tetap dari server saat halaman dimuat dan saat save ditolak.
 - Batas waktu tidak memperpanjang `close_time`: bila siswa baru mulai 10 menit sebelum jadwal tutup, sisa waktunya hanya 10 menit.
 

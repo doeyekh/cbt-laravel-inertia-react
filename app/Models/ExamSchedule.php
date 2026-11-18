@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['exam_package_id', 'class_id', 'subject_id', 'session_id', 'room_id', 'exam_date', 'duration_minutes', 'open_time', 'close_time', 'shuffle_questions', 'shuffle_options', 'show_score_to_student', 'status'])]
+#[Fillable(['exam_package_id', 'class_id', 'subject_id', 'question_bank_id', 'session_id', 'room_id', 'exam_date', 'duration_minutes', 'open_time', 'close_time', 'shuffle_questions', 'shuffle_options', 'show_score_to_student', 'status'])]
 class ExamSchedule extends Model
 {
     /** @use HasFactory<ExamScheduleFactory> */
@@ -26,6 +26,7 @@ class ExamSchedule extends Model
             'exam_package_id' => 'integer',
             'class_id' => 'integer',
             'subject_id' => 'integer',
+            'question_bank_id' => 'integer',
             'session_id' => 'integer',
             'room_id' => 'integer',
             'exam_date' => 'date',
@@ -65,6 +66,16 @@ class ExamSchedule extends Model
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
+    }
+
+    /**
+     * Get the question bank assigned to this schedule.
+     *
+     * @return BelongsTo<QuestionBank, $this>
+     */
+    public function questionBank(): BelongsTo
+    {
+        return $this->belongsTo(QuestionBank::class);
     }
 
     /**

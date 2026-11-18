@@ -9,9 +9,11 @@ use App\Models\ExamAttempt;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
 use App\Services\ExamScheduleAccessService;
+use App\Services\GradeExamAttemptService;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ExamSubmitController extends Controller
 {
@@ -22,6 +24,7 @@ class ExamSubmitController extends Controller
         Request $request,
         ExamSchedule $examSchedule,
         ExamScheduleAccessService $examAccess,
+        GradeExamAttemptService $grading,
     ): JsonResponse {
         $participant = ExamParticipant::query()
             ->findOrFail((int) $request->session()->get('student_participant_id'));
@@ -87,48 +90,54 @@ class ExamSubmitController extends Controller
         );
 
         if (! $attempt->isSubmitted()) {
-            $questionBank = $examAccess->resolveQuestionBank($examSchedule, $examPackage);
-            $questionNumbers = $questionBank?->questions->pluck('number', 'id') ?? collect();
-            $validQuestionIds = $questionBank?->questions
-                ->where('is_active', true)
-                ->pluck('id')
-                ->toArray() ?? [];
+            DB::transaction(function () use ($attempt, $examAccess, $examPackage, $examSchedule, $request, $grading): void {
+                $questionBank = $examAccess->resolveQuestionBank($examSchedule, $examPackage);
+                $questionNumbers = $questionBank?->questions->pluck('number', 'id') ?? collect();
+                $validQuestionIds = $questionBank?->questions
+                    ->where('is_active', true)
+                    ->pluck('id')
+                    ->toArray() ?? [];
 
-            foreach ($request->array('answers') as $questionId => $answer) {
-                $questionId = (int) $questionId;
+                foreach ($request->array('answers') as $questionId => $answer) {
+                    $questionId = (int) $questionId;
 
-                if (! in_array($questionId, $validQuestionIds, true)) {
-                    continue;
+                    if (! in_array($questionId, $validQuestionIds, true)) {
+                        continue;
+                    }
+
+                    if (! $this->hasAnswerContent($answer)) {
+                        ExamAnswer::query()
+                            ->where('exam_attempt_id', $attempt->id)
+                            ->where('question_id', $questionId)
+                            ->delete();
+
+                        continue;
+                    }
+
+                    ExamAnswer::updateOrCreate(
+                        [
+                            'exam_attempt_id' => $attempt->id,
+                            'question_id' => $questionId,
+                        ],
+                        [
+                            'question_no' => (int) ($questionNumbers[$questionId] ?? 0),
+                            'answer' => ExamAnswer::serializeAnswer($answer),
+                        ]
+                    );
                 }
 
-                if (! $this->hasAnswerContent($answer)) {
-                    ExamAnswer::query()
-                        ->where('exam_attempt_id', $attempt->id)
-                        ->where('question_id', $questionId)
-                        ->delete();
-
-                    continue;
-                }
-
-                ExamAnswer::updateOrCreate(
-                    [
-                        'exam_attempt_id' => $attempt->id,
-                        'question_id' => $questionId,
-                    ],
-                    [
-                        'question_no' => (int) ($questionNumbers[$questionId] ?? 0),
-                        'answer' => ExamAnswer::serializeAnswer($answer),
-                    ]
-                );
-            }
-
-            $attempt->submit();
+                $attempt->refresh();
+                $attempt->submit();
+                $grading->grade($attempt);
+            });
         }
+
+        $attempt->refresh();
 
         return response()->json([
             'message' => 'Ujian berhasil dikumpulkan.',
             'attempt_id' => $attempt->id,
-            'status' => 'submitted',
+            'status' => $attempt->status->value,
             'submitted_at' => $attempt->submitted_at?->toIso8601String(),
             'time_spent_seconds' => $attempt->time_spent_seconds,
             'server_now' => now()->toIso8601String(),

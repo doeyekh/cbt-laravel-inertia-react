@@ -401,6 +401,7 @@ class ExamPackageController extends Controller
             'class_name' => $examSchedule->schoolClass?->name,
             'class_code' => $examSchedule->schoolClass?->code,
             'subject_id' => $examSchedule->subject_id,
+            'question_bank_id' => $examSchedule->question_bank_id,
             'subject_name' => $examSchedule->subject?->name,
             'subject_code' => $examSchedule->subject?->code,
             'session_id' => $examSchedule->session_id,
@@ -426,7 +427,7 @@ class ExamPackageController extends Controller
      * Get the subjects that have a question bank for the given exam package, grouped by class.
      *
      * @param  array<int, int>  $classIds
-     * @return array<int, array<int, Subject>>
+     * @return array<int, array<int, array{id: int, code: string, name: string, question_banks: array<int, array{id: int, code: string, name: string}>}>>
      */
     private function subjectsByClass(ExamPackage $examPackage, array $classIds): array
     {
@@ -434,7 +435,7 @@ class ExamPackageController extends Controller
             return [];
         }
 
-        $subjectIdsByClass = [];
+        $questionBanksByClassSubject = [];
 
         QuestionBank::query()
             ->where('school_id', $examPackage->school_id)
@@ -442,33 +443,52 @@ class ExamPackageController extends Controller
             ->where('exam_type_id', $examPackage->exam_type_id)
             ->whereHas('classes', fn ($query) => $query->whereIn('classes.id', $classIds))
             ->with('classes:id')
-            ->get(['id', 'subject_id'])
-            ->each(function (QuestionBank $questionBank) use (&$subjectIdsByClass, $classIds): void {
+            ->get(['id', 'subject_id', 'code', 'name'])
+            ->each(function (QuestionBank $questionBank) use (&$questionBanksByClassSubject, $classIds): void {
                 foreach ($questionBank->classes as $schoolClass) {
                     if (in_array((int) $schoolClass->id, $classIds, true)) {
-                        $subjectIdsByClass[$schoolClass->id][] = (int) $questionBank->subject_id;
+                        $questionBanksByClassSubject[$schoolClass->id][$questionBank->subject_id][] = [
+                            'id' => (int) $questionBank->id,
+                            'code' => (string) $questionBank->code,
+                            'name' => (string) $questionBank->name,
+                        ];
                     }
                 }
             });
 
-        if ($subjectIdsByClass === []) {
+        if ($questionBanksByClassSubject === []) {
             return [];
         }
 
+        $subjectIds = array_unique(array_merge(...array_map(
+            'array_keys',
+            array_values($questionBanksByClassSubject),
+        )));
+
         $subjects = Subject::query()
-            ->whereIn('id', array_unique(array_merge(...array_values($subjectIdsByClass))))
+            ->whereIn('id', $subjectIds)
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
 
         $subjectsByClass = [];
 
-        foreach ($subjectIdsByClass as $classId => $subjectIds) {
-            $wantedSubjectIds = array_flip($subjectIds);
+        foreach ($questionBanksByClassSubject as $classId => $banksBySubject) {
+            $subjectsByClass[$classId] = [];
 
-            $subjectsByClass[$classId] = $subjects
-                ->filter(fn (Subject $subject): bool => isset($wantedSubjectIds[$subject->id]))
-                ->values()
-                ->all();
+            foreach ($banksBySubject as $subjectId => $questionBanks) {
+                $subject = $subjects->firstWhere('id', (int) $subjectId);
+
+                if ($subject === null) {
+                    continue;
+                }
+
+                $subjectsByClass[$classId][] = [
+                    'id' => (int) $subject->id,
+                    'code' => (string) $subject->code,
+                    'name' => (string) $subject->name,
+                    'question_banks' => $questionBanks,
+                ];
+            }
         }
 
         ksort($subjectsByClass);

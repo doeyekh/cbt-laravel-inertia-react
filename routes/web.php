@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AcademicYearController;
 use App\Http\Controllers\Admin\AssessmentTypeController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\ClassMemberController;
+use App\Http\Controllers\Admin\ExamEssayGradeController;
 use App\Http\Controllers\Admin\ExamPackageController;
 use App\Http\Controllers\Admin\ExamParticipantController;
 use App\Http\Controllers\Admin\ExamScheduleController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\Auth\StudentLoginController;
 use App\Http\Controllers\Student\ExamAccessController;
 use App\Http\Controllers\Student\ExamAnswerController;
 use App\Http\Controllers\Student\ExamController;
+use App\Http\Controllers\Student\ExamResultController;
 use App\Http\Controllers\Student\ExamSubmitController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -47,6 +49,8 @@ Route::middleware('student.auth')
             ->name('exam-answers.store');
         Route::post('exams/{examSchedule}/submit', [ExamSubmitController::class, 'store'])
             ->name('exam-submit.store');
+        Route::get('exams/{examSchedule}/result', [ExamResultController::class, 'show'])
+            ->name('exam-result.show');
         Route::get('exams/{examSchedule}/access-token', [ExamAccessController::class, 'create'])
             ->name('exam-access.create');
         Route::post('exams/{examSchedule}/access-token', [ExamAccessController::class, 'verify'])
@@ -76,11 +80,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/', [PageController::class, 'dashboard'])->name('dashboard');
 
-        Route::get('/exam/{examSchedule}/start', [PageController::class, 'examStart'])
-            ->name('student.exam.start')->middleware('school-admin');
-
         Route::get('/monitoring', [PageController::class, 'monitoring'])
             ->middleware('school-admin')->name('monitoring.index');
+        Route::middleware('school-admin')->group(function () {
+            Route::get('exam-attempts/{examAttempt}/essays', [ExamEssayGradeController::class, 'index'])
+                ->name('exam-attempts.essays.index');
+            Route::patch('exam-attempts/{examAttempt}/essays/{examAnswer}', [ExamEssayGradeController::class, 'update'])
+                ->name('exam-attempts.essays.update');
+        });
 
         Route::patch('schools/{school}/credential-template', [ExamParticipantController::class, 'updateCredentialTemplate'])
             ->name('schools.credential-template');

@@ -106,6 +106,15 @@ export default function useExamSession({
     const [showQuestionModal, setShowQuestionModal] = useState(false);
     const [fontSize, setFontSize] = useState('normal');
     const timerRef = useRef(null);
+    const pendingAnswersRef = useRef({});
+    const flaggedRef = useRef(flagged);
+    const saveQueueRef = useRef(Promise.resolve(true));
+    const debounceTimerRef = useRef(null);
+    const submissionInProgressRef = useRef(false);
+    const submitAttemptRef = useRef(null);
+    const [hasPendingSave, setHasPendingSave] = useState(false);
+
+    flaggedRef.current = flagged;
 
     useEffect(() => {
         const updateTimeRemaining = () => {
@@ -182,7 +191,7 @@ export default function useExamSession({
 
     const handleExitExam = () => {
         setShowSubmitModal(false);
-        window.location.href = route('student.dashboard');
+        window.location.href = route('student.exam-result.show', exam.id);
     };
 
     /**
@@ -215,11 +224,8 @@ export default function useExamSession({
         setDeadlineVersion((version) => version + 1);
     };
 
-    const saveAnswersToServer = async (nextAnswers, nextFlaggedIds) => {
-        setSaveData({
-            answers: nextAnswers,
-            flags: nextFlaggedIds,
-        });
+    const sendAnswerDiffToServer = async (answerDiff, nextFlaggedIds) => {
+        setSaveData({ answers: answerDiff, flags: nextFlaggedIds });
 
         try {
             await postAnswers(route('student.exam-answers.store', exam.id), {
@@ -284,20 +290,64 @@ export default function useExamSession({
         }
     };
 
-    const handleAnswerChange = async (questionNo, answer) => {
-        const nextAnswers = {
-            ...answers,
-            [questionNo]: answer,
+    const enqueueAnswerDiff = (answerDiff, nextFlaggedIds) => {
+        const request = () => sendAnswerDiffToServer(answerDiff, nextFlaggedIds);
+        const queuedRequest = saveQueueRef.current.then(request, request);
+        saveQueueRef.current = queuedRequest;
+
+        return queuedRequest;
+    };
+
+    const flushPendingAnswers = async (nextFlaggedIds = null) => {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+
+        const answerDiff = pendingAnswersRef.current;
+        pendingAnswersRef.current = {};
+
+        if (Object.keys(answerDiff).length === 0 && nextFlaggedIds === null) {
+            return saveQueueRef.current;
+        }
+
+        setHasPendingSave(false);
+
+        const result = await enqueueAnswerDiff(
+            answerDiff,
+            nextFlaggedIds ?? Array.from(flaggedRef.current),
+        );
+
+        if (Object.keys(pendingAnswersRef.current).length === 0) {
+            setHasPendingSave(false);
+        }
+
+        return result;
+    };
+
+    const scheduleAnswerSave = (questionId, answer) => {
+        pendingAnswersRef.current = {
+            ...pendingAnswersRef.current,
+            [questionId]: answer,
         };
-        setAnswers(nextAnswers);
-        await saveAnswersToServer(nextAnswers, flaggedQuestionIds);
+        setHasPendingSave(true);
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+            void flushPendingAnswers();
+        }, 1000);
+    };
+
+    const handleAnswerChange = (questionId, answer) => {
+        setAnswers((currentAnswers) => ({
+            ...currentAnswers,
+            [questionId]: answer,
+        }));
+        scheduleAnswerSave(questionId, answer);
     };
 
     /**
      * Tandai atau lepas tanda ragu-ragu tanpa menyentuh jawaban tersimpan.
      */
-    const handleFlagToggle = async (questionId) => {
-        const nextFlagged = new Set(flagged);
+    const handleFlagToggle = (questionId) => {
+        const nextFlagged = new Set(flaggedRef.current);
 
         if (nextFlagged.has(questionId)) {
             nextFlagged.delete(questionId);
@@ -305,8 +355,9 @@ export default function useExamSession({
             nextFlagged.add(questionId);
         }
 
+        flaggedRef.current = nextFlagged;
         setFlagged(nextFlagged);
-        await saveAnswersToServer(answers, Array.from(nextFlagged));
+        void flushPendingAnswers(Array.from(nextFlagged));
     };
 
     const handleSubmitAnswer = async (event) => {
@@ -314,21 +365,34 @@ export default function useExamSession({
             event.preventDefault();
         }
 
+        if (submissionInProgressRef.current) {
+            return;
+        }
+
+        submissionInProgressRef.current = true;
+
         const answersToSubmit = questions.reduce((submission, question) => {
             submission[question.id] = answers[question.id] ?? null;
             return submission;
         }, {});
 
         try {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+            pendingAnswersRef.current = {};
+            setHasPendingSave(false);
+            await saveQueueRef.current;
+
             setSubmitData({
                 answers: answersToSubmit,
             });
 
             await postSubmit(route('student.exam-submit.store', exam.id), {
                 onSuccess: () => {
-                    handleExitExam();
+                    window.location.href = route('student.exam-result.show', exam.id);
                 },
                 onError: () => {
+                    submissionInProgressRef.current = false;
                     toast({
                         title: 'Gagal Mengumpulkan',
                         description: 'Server menolak pengumpulan ujian. Periksa koneksi lalu coba kembali.',
@@ -337,6 +401,7 @@ export default function useExamSession({
                 },
             });
         } catch (error) {
+            submissionInProgressRef.current = false;
             toast({
                 title: 'Gagal Mengumpulkan',
                 description: error?.response?.status
@@ -347,18 +412,96 @@ export default function useExamSession({
         }
     };
 
+    submitAttemptRef.current = handleSubmitAnswer;
+
+    useEffect(() => {
+        if (timeRemaining === 0) {
+            void submitAttemptRef.current?.();
+        }
+    }, [timeRemaining]);
+
     const goToPreviousQuestion = () => {
+        void flushPendingAnswers();
         setCurrentQuestionNo((previous) => Math.max(1, previous - 1));
     };
 
     const goToNextQuestion = () => {
+        void flushPendingAnswers();
         setCurrentQuestionNo((previous) => Math.min(totalQuestions, previous + 1));
     };
 
     const selectQuestion = (questionNo) => {
+        void flushPendingAnswers();
         setCurrentQuestionNo(questionNo);
         setShowQuestionModal(false);
     };
+
+    useEffect(() => {
+        const flushOnVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                void flushPendingAnswers();
+            }
+        };
+
+        const flushBeforeUnload = () => {
+            const answerDiff = pendingAnswersRef.current;
+
+            if (Object.keys(answerDiff).length === 0) {
+                return;
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const body = JSON.stringify({
+                _token: csrfToken,
+                answers: answerDiff,
+                flags: Array.from(flaggedRef.current),
+            });
+            const answersUrl = route('student.exam-answers.store', exam.id);
+            const beaconQueued = typeof navigator.sendBeacon === 'function'
+                && navigator.sendBeacon(
+                    answersUrl,
+                    new Blob([body], { type: 'application/json' }),
+                );
+
+            if (!beaconQueued) {
+                void fetch(answersUrl, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body,
+                    credentials: 'same-origin',
+                    keepalive: true,
+                })
+                    .then((response) => {
+                        if (!response.ok) {
+                            toast({
+                                title: 'Gagal Menyimpan',
+                                description: `Penyimpanan sebelum keluar gagal (HTTP ${response.status}).`,
+                                type: 'error',
+                            });
+                        }
+                    })
+                    .catch(() => {
+                        toast({
+                            title: 'Gagal Menyimpan',
+                            description: 'Jawaban belum sempat disimpan sebelum halaman ditutup.',
+                            type: 'error',
+                        });
+                    });
+            }
+        };
+
+        document.addEventListener('visibilitychange', flushOnVisibilityChange);
+        window.addEventListener('beforeunload', flushBeforeUnload);
+
+        return () => {
+            document.removeEventListener('visibilitychange', flushOnVisibilityChange);
+            window.removeEventListener('beforeunload', flushBeforeUnload);
+            clearTimeout(debounceTimerRef.current);
+        };
+    }, [exam.id]);
 
     return {
         subjectName,
@@ -372,7 +515,7 @@ export default function useExamSession({
         isRunning,
         answers,
         flaggedQuestionIds,
-        isAutoSaving,
+        isAutoSaving: isAutoSaving || hasPendingSave,
         isSubmitting,
         currentQuestionNo,
         answeredCount: answerStats.answered,

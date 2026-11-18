@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { usePoll } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import FilterBar from '@/Features/Monitoring/Components/FilterBar.jsx';
 import StudentTable from '@/Features/Monitoring/Components/StudentTable.jsx';
 
-export default function MonitoringIndex() {
+export default function MonitoringIndex({ participants = [] }) {
     const [searchQuery, setSearchQuery] = useState('');
+    usePoll(10000, { only: ['participants'] });
 
    
 
@@ -78,7 +80,7 @@ export default function MonitoringIndex() {
                         </p>
                     </div>
                     <FilterBar onSearchChange={handleSearch} />
-                    <StudentTable searchQuery={searchQuery} />
+                    <StudentTable students={participants} searchQuery={searchQuery} />
                 </section>
             </div>
         </AppLayout>

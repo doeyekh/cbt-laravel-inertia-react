@@ -118,11 +118,18 @@ class ExamScheduleAccessService
             return null;
         }
 
-        return QuestionBank::query()
+        $questionBanks = QuestionBank::query()
             ->where('school_id', $examPackage->school_id)
             ->where('academic_year_id', $examPackage->academic_year_id)
             ->where('exam_type_id', $examPackage->exam_type_id)
             ->where('subject_id', $examSchedule->subject_id)
-            ->first();
+            ->when(
+                $examSchedule->question_bank_id !== null,
+                fn ($query) => $query->whereKey($examSchedule->question_bank_id),
+            )
+            ->limit(2)
+            ->get();
+
+        return $questionBanks->count() === 1 ? $questionBanks->first() : null;
     }
 }

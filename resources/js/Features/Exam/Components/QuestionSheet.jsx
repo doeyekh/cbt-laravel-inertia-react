@@ -17,10 +17,7 @@ const QuestionSheet = ({
     currentQuestionNo,
 }) => {
     const questions = exam?.questions || [];
-    // Urutkan soal berdasarkan nomor untuk navigasi yang konsisten
-    const sortedQuestions = [...questions].sort(
-        (a, b) => (a.number ?? 0) - (b.number ?? 0)
-    );
+    const sortedQuestions = [...questions];
     const totalQuestions = sortedQuestions.length;
     // currentQuestionNo adalah indeks sequential (1-based), gunakan untuk akses array
     const currentQuestion =
@@ -36,6 +33,10 @@ const QuestionSheet = ({
         [currentQuestion?.pairs],
     );
     const shuffledRightPairs = useMemo(() => {
+        if (Array.isArray(currentQuestion?.right_pairs)) {
+            return currentQuestion.right_pairs;
+        }
+
         const shuffled = [...sortedPairs];
         let seed = Number(currentQuestion?.id) >>> 0;
 
@@ -62,7 +63,7 @@ const QuestionSheet = ({
         }
 
         return shuffled;
-    }, [currentQuestion?.id, sortedPairs]);
+    }, [currentQuestion?.id, currentQuestion?.right_pairs, sortedPairs]);
 
     const currentQuestionNoIndex = currentQuestion
         ? sortedQuestions.findIndex((q) => q.id === currentQuestion.id) + 1
@@ -115,11 +116,8 @@ const QuestionSheet = ({
         );
     }
 
-    // Sort options by order column
     const sortedOptions = Array.isArray(currentQuestion.options)
-        ? [...currentQuestion.options].sort(
-            (a, b) => (a.order ?? 0) - (b.order ?? 0)
-        )
+        ? [...currentQuestion.options]
         : [];
 
     const currentAnswer = answers[currentQuestion.id] ?? null;
@@ -164,7 +162,7 @@ const QuestionSheet = ({
                     <div className="space-y-3">
                         <p className="font-semibold text-slate-800 mb-2">Pilih salah satu jawaban:</p>
                         {sortedOptions.map((option) => {
-                            const isSelected = currentAnswer === option.text;
+                            const isSelected = String(currentAnswer) === String(option.id);
                             return (
                                 <label
                                     key={option.id}
@@ -173,12 +171,12 @@ const QuestionSheet = ({
                                     <input
                                         type="radio"
                                         name={`question_${currentQuestion.id}`}
-                                        value={option.text}
-                                        checked={currentAnswer === option.text}
+                                        value={option.id}
+                                        checked={isSelected}
                                         onChange={() =>
                                             onAnswerChange(
                                                 currentQuestion.id,
-                                                option.text
+                                                String(option.id)
                                             )
                                         }
                                         className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
@@ -204,7 +202,7 @@ const QuestionSheet = ({
                             const isSelected =
                                 currentAnswer &&
                                 Array.isArray(currentAnswer) &&
-                                currentAnswer.includes(option.text);
+                                currentAnswer.some((answer) => String(answer) === String(option.id));
                             return (
                                 <label
                                     key={option.id}
@@ -213,7 +211,7 @@ const QuestionSheet = ({
                                     <input
                                         type="checkbox"
                                         name={`question_${currentQuestion.id}`}
-                                        value={option.text ?? ''}
+                                        value={option.id}
                                         checked={Boolean(isSelected)}
                                         onChange={(e) => {
                                             const selected = currentAnswer
@@ -222,11 +220,13 @@ const QuestionSheet = ({
                                                     : [currentAnswer]
                                                 : [];
                                             if (e.target.checked) {
-                                                if (!selected.includes(option.text)) {
-                                                    selected.push(option.text);
+                                                if (!selected.some((answer) => String(answer) === String(option.id))) {
+                                                    selected.push(String(option.id));
                                                 }
                                             } else {
-                                                const idx = selected.indexOf(option.text);
+                                                const idx = selected.findIndex(
+                                                    (answer) => String(answer) === String(option.id),
+                                                );
                                                 if (idx >= 0) {
                                                     selected.splice(idx, 1);
                                                 }

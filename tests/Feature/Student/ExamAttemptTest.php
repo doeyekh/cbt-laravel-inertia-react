@@ -17,12 +17,14 @@ use App\Models\Question;
 use App\Models\QuestionBank;
 use App\Models\QuestionBlank;
 use App\Models\QuestionOption;
+use App\Models\QuestionPair;
 use App\Models\Room;
 use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Session;
 use App\Models\Student;
 use App\Models\Subject;
+use App\Models\User;
 use App\Services\ExamAccessTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -309,7 +311,7 @@ class ExamAttemptTest extends TestCase
 
         $attempt = ExamAttempt::query()->firstOrFail();
 
-        $this->assertSame(ExamAttemptStatus::Submitted, $attempt->status);
+        $this->assertSame(ExamAttemptStatus::Graded, $attempt->status);
         $this->assertNotNull($attempt->submitted_at);
 
         $this->withSession($this->studentSession($context['participant']))
@@ -365,12 +367,12 @@ class ExamAttemptTest extends TestCase
             ])
             ->assertOk()
             ->assertJson([
-                'status' => 'submitted',
+                'status' => 'graded',
             ]);
 
         $attempt->refresh();
 
-        $this->assertSame(ExamAttemptStatus::Submitted, $attempt->status);
+        $this->assertSame(ExamAttemptStatus::Graded, $attempt->status);
         $this->assertNotNull($attempt->submitted_at);
         $this->assertDatabaseHas('exam_answers', [
             'exam_attempt_id' => $attempt->id,
@@ -601,6 +603,307 @@ class ExamAttemptTest extends TestCase
                 ->component('Student/ExamPage')
                 ->where('duration_seconds', 5400)
                 ->where('remaining_seconds', 4800)
+            );
+    }
+
+    public function test_submit_grades_option_ids_and_displays_allowed_results(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+        $question->update(['score' => 4]);
+        $correctOption = QuestionOption::factory()->for($question)->create([
+            'label' => 'A',
+            'is_correct' => true,
+        ]);
+        QuestionOption::factory()->for($question)->create([
+            'label' => 'B',
+            'is_correct' => false,
+            'order' => 2,
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-submit.store', $context['schedule']), [
+                'answers' => [$question->id => (string) $correctOption->id],
+            ])
+            ->assertOk()
+            ->assertJson(['status' => 'graded']);
+
+        $answer = ExamAnswer::query()->where('question_id', $question->id)->firstOrFail();
+        $this->assertTrue($answer->is_correct);
+        $this->assertSame(4.0, (float) $answer->score_awarded);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam-result.show', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/ExamResult')
+                ->where('score_visible', true)
+                ->where('score', 4)
+                ->where('max_score', 8)
+            );
+    }
+
+    public function test_essay_submission_waits_for_manual_grading_and_hides_unfinalized_score(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+        $question->update([
+            'type' => 'esai',
+            'score' => 5,
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-submit.store', $context['schedule']), [
+                'answers' => [$question->id => 'Jawaban esai siswa'],
+            ])
+            ->assertOk()
+            ->assertJson(['status' => 'submitted']);
+
+        $answer = ExamAnswer::query()->where('question_id', $question->id)->firstOrFail();
+        $this->assertNull($answer->score_awarded);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam-result.show', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Student/ExamResult')
+                ->where('score_visible', false)
+                ->where('pending_essay_count', 1)
+            );
+    }
+
+    public function test_submit_grades_complex_matching_and_short_answer_questions(): void
+    {
+        $context = $this->createOpenExamContext();
+        $questions = $context['questionBank']->questions()->orderBy('number')->take(3)->get();
+        [$complexQuestion, $matchingQuestion, $shortAnswerQuestion] = $questions;
+
+        $complexQuestion->update([
+            'type' => 'pilihan_ganda_kompleks',
+            'score' => 3,
+        ]);
+        $correctComplexOptions = collect(['A', 'B'])->map(
+            fn (string $label) => QuestionOption::factory()->for($complexQuestion)->create([
+                'label' => $label,
+                'is_correct' => true,
+                'order' => ord($label) - 64,
+            ]),
+        );
+        QuestionOption::factory()->for($complexQuestion)->create([
+            'label' => 'C',
+            'is_correct' => false,
+            'order' => 3,
+        ]);
+
+        $matchingQuestion->update([
+            'type' => 'menjodohkan',
+            'score' => 2,
+        ]);
+        $firstPair = QuestionPair::factory()->for($matchingQuestion)->create(['order' => 1]);
+        $secondPair = QuestionPair::factory()->for($matchingQuestion)->create(['order' => 2]);
+
+        $shortAnswerQuestion->update([
+            'type' => 'isian_singkat',
+            'score' => 2,
+        ]);
+        QuestionBlank::factory()->for($shortAnswerQuestion)->create([
+            'answers' => ['jawaban benar'],
+            'score' => 2,
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-submit.store', $context['schedule']), [
+                'answers' => [
+                    $complexQuestion->id => $correctComplexOptions->pluck('id')->map(fn ($id) => (string) $id)->all(),
+                    $matchingQuestion->id => [(string) $firstPair->id, (string) $firstPair->id],
+                    $shortAnswerQuestion->id => ['  JAWABAN   BENAR '],
+                ],
+            ])
+            ->assertOk()
+            ->assertJson(['status' => 'graded']);
+
+        $this->assertDatabaseHas('exam_answers', [
+            'question_id' => $complexQuestion->id,
+            'is_correct' => true,
+            'score_awarded' => 3,
+        ]);
+        $this->assertDatabaseHas('exam_answers', [
+            'question_id' => $matchingQuestion->id,
+            'is_correct' => false,
+            'score_awarded' => 1,
+        ]);
+        $this->assertDatabaseHas('exam_answers', [
+            'question_id' => $shortAnswerQuestion->id,
+            'is_correct' => true,
+            'score_awarded' => 2,
+        ]);
+    }
+
+    public function test_school_admin_can_grade_an_essay_and_finalize_attempt_score(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+        $question->update([
+            'type' => 'esai',
+            'score' => 5,
+        ]);
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-submit.store', $context['schedule']), [
+                'answers' => [$question->id => 'Jawaban yang perlu dinilai'],
+            ])
+            ->assertOk();
+
+        $attempt = ExamAttempt::query()->firstOrFail();
+        $answer = ExamAnswer::query()->where('question_id', $question->id)->firstOrFail();
+        $schoolAdmin = User::factory()->guru()->create();
+        $context['school']->update(['admin_id' => $schoolAdmin->id]);
+
+        $this->actingAs($schoolAdmin)
+            ->patch(route('admin.exam-attempts.essays.update', [$attempt, $answer]), [
+                'score_awarded' => 6,
+            ])
+            ->assertSessionHasErrors('score_awarded');
+
+        $this->actingAs($schoolAdmin)
+            ->patch(route('admin.exam-attempts.essays.update', [$attempt, $answer]), [
+                'score_awarded' => 4,
+            ])
+            ->assertRedirect();
+
+        $attempt->refresh();
+        $answer->refresh();
+
+        $this->assertSame(ExamAttemptStatus::Graded, $attempt->status);
+        $this->assertSame(4.0, (float) $answer->score_awarded);
+        $this->assertSame(4.0, (float) $attempt->score);
+    }
+
+    public function test_exam_page_reuses_the_saved_question_and_option_shuffle_order(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+        QuestionOption::factory()->count(3)->sequence(
+            fn ($sequence) => ['label' => chr(65 + $sequence->index), 'order' => $sequence->index + 1],
+        )->for($question)->create();
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $firstQuestions = [];
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(function (Assert $page) use (&$firstQuestions): void {
+                $firstQuestions = $page->toArray()['props']['questions'];
+            });
+
+        $secondQuestions = [];
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(function (Assert $page) use (&$secondQuestions): void {
+                $secondQuestions = $page->toArray()['props']['questions'];
+            });
+
+        $this->assertSame(
+            array_column($firstQuestions, 'id'),
+            array_column($secondQuestions, 'id'),
+        );
+        $firstQuestion = collect($firstQuestions)->firstWhere('id', $question->id);
+        $secondQuestion = collect($secondQuestions)->firstWhere('id', $question->id);
+        $this->assertSame(
+            array_column($firstQuestion['options'], 'id'),
+            array_column($secondQuestion['options'], 'id'),
+        );
+    }
+
+    public function test_exam_page_rejects_an_ambiguous_question_bank(): void
+    {
+        $context = $this->createOpenExamContext();
+        QuestionBank::factory()->create([
+            'school_id' => $context['school']->id,
+            'academic_year_id' => $context['academicYear']->id,
+            'exam_type_id' => $context['package']->exam_type_id,
+            'subject_id' => $context['schedule']->subject_id,
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertNotFound();
+    }
+
+    public function test_monitoring_lists_scheduled_students_and_live_attempt_progress(): void
+    {
+        $context = $this->createOpenExamContext();
+        $schoolAdmin = User::factory()->guru()->create();
+        $context['school']->update(['admin_id' => $schoolAdmin->id]);
+
+        $this->actingAs($schoolAdmin)
+            ->get(route('admin.monitoring.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Monitoring/Index')
+                ->where('participants.0.status', 'not_started')
+                ->where('participants.0.progress.current', 0)
+                ->where('participants.0.progress.total', 5)
+            );
+
+        $attempt = ExamAttempt::factory()->create([
+            'exam_participant_id' => $context['participant']->id,
+            'exam_schedule_id' => $context['schedule']->id,
+            'exam_package_id' => $context['package']->id,
+            'time_spent_seconds' => 120,
+        ]);
+        ExamAnswer::factory()->create([
+            'exam_attempt_id' => $attempt->id,
+            'question_id' => $context['questionBank']->questions()->firstOrFail()->id,
+            'answer' => 'A',
+            'is_flagged' => true,
+        ]);
+
+        $this->actingAs($schoolAdmin)
+            ->get(route('admin.monitoring.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Monitoring/Index')
+                ->where('participants.0.status', 'active')
+                ->where('participants.0.progress.current', 1)
+                ->where('participants.0.progress.percent', 20)
+                ->where('participants.0.time_spent_seconds', 120)
+                ->where('participants.0.flagged_count', 1)
             );
     }
 

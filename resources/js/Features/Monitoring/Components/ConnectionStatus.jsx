@@ -18,6 +18,11 @@ export default function ConnectionStatus({ status = 'stable' }) {
             textColor: 'text-on-error-container',
             bg: 'bg-error-container',
         },
+        not_started: {
+            label: 'Belum mulai',
+            dotColor: 'bg-outline',
+            textColor: 'text-on-surface-variant',
+        },
     };
 
     const s = statuses[status];

@@ -13,128 +13,36 @@ import IntegrityStatus from './IntegrityStatus';
 import ProgressBar from './ProgressBar';
 import RowActions from './RowActions';
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
-const STUDENTS = [
-    {
-        id: 1,
-        no: '01',
-        name: 'Muhammad Rizky Pratama',
-        nisn: '0064928172',
-        class: 'XII MIPA 1',
-        room: 'Lab Komputer 01',
-        subject: 'Matematika XII (A-04)',
-        progress: { current: 38, total: 40, percent: 95 },
-        connection: 'stable',
-        integrity: 'clean',
-        status: 'active',
-    },
-    {
-        id: 2,
-        no: '02',
-        name: 'Dimas Wahyu Wicaksono',
-        nisn: '0058392100',
-        class: 'XII MIPA 1',
-        room: 'Lab Komputer 01',
-        subject: 'Matematika XII (A-19)',
-        progress: { current: 19, total: 40, percent: 47 },
-        connection: 'fluctuating',
-        integrity: 'tabSwitch',
-        status: 'violation',
-    },
-    {
-        id: 3,
-        no: '03',
-        name: 'Siti Aisyah Nuraini',
-        nisn: '0061129944',
-        class: 'XII MIPA 2',
-        room: 'Lab Multimedia 02',
-        subject: 'Matematika XII (B-02)',
-        progress: { current: 31, total: 40, percent: 77 },
-        connection: 'disconnected',
-        integrity: 'clean',
-        status: 'disconnected',
-    },
-    {
-        id: 4,
-        no: '04',
-        name: 'Amanda Putri Kusuma',
-        nisn: '0067741289',
-        class: 'XII MIPA 2',
-        room: 'Lab Multimedia 02',
-        subject: 'Matematika XII (B-14)',
-        progress: { current: 26, total: 40, percent: 65 },
-        connection: 'stable',
-        integrity: 'clean',
-        status: 'active',
-    },
-    {
-        id: 5,
-        no: '05',
-        name: 'Bagas Aditya Wardana',
-        nisn: '0069921105',
-        class: 'XI IPS 3',
-        room: 'Ruang Kelas XII A',
-        subject: 'Bahasa Indonesia (C-09)',
-        progress: { current: 15, total: 50, percent: 30 },
-        connection: 'stable',
-        integrity: 'multipleFace',
-        status: 'warning',
-    },
-    {
-        id: 6,
-        no: '06',
-        name: 'Nabila Zahra Ramadhani',
-        nisn: '0065532148',
-        class: 'XII MIPA 1',
-        room: 'Lab Komputer 01',
-        subject: 'Matematika XII (A-27)',
-        progress: { current: 40, total: 40, percent: 100 },
-        connection: 'stable',
-        integrity: 'clean',
-        status: 'active',
-    },
-    {
-        id: 7,
-        no: '07',
-        name: 'Fajar Nugroho Saputra',
-        nisn: '0062219874',
-        class: 'XII IPS 1',
-        room: 'Lab Komputer 02',
-        subject: 'Bahasa Inggris (D-11)',
-        progress: { current: 22, total: 40, percent: 55 },
-        connection: 'fluctuating',
-        integrity: 'clean',
-        status: 'active',
-    },
-    {
-        id: 8,
-        no: '08',
-        name: 'Zahra Amelia Putri',
-        nisn: '0068874512',
-        class: 'XI MIPA 3',
-        room: 'Ruang Kelas XI B',
-        subject: 'IPA Terpadu (E-03)',
-        progress: { current: 9, total: 50, percent: 18 },
-        connection: 'stable',
-        integrity: 'tabSwitch',
-        status: 'warning',
-    },
-];
+const formatDuration = (seconds) => {
+    const totalSeconds = Math.max(0, Number(seconds) || 0);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const remainingSeconds = totalSeconds % 60;
+
+    return [hours, minutes, remainingSeconds]
+        .map((part) => String(part).padStart(2, '0'))
+        .join(':');
+};
 
 const getRowClassName = (status) => {
-    if (status === 'violation') {
+    if (status === 'disconnected') {
         return 'bg-error-container/20 hover:bg-error-container/30';
     }
 
-    if (status === 'warning') {
-        return 'bg-tertiary-container/15 hover:bg-tertiary-container/25';
+    if (status === 'submitted') {
+        return 'bg-emerald-50/50 hover:bg-emerald-50';
     }
 
     return '';
 };
 
-export default function StudentTable({ searchQuery = '', className = '' }) {
+export default function StudentTable({
+    students = [],
+    searchQuery = '',
+    className = '',
+}) {
     const [page, setPage] = useState(1);
 
     useEffect(() => {
@@ -142,9 +50,9 @@ export default function StudentTable({ searchQuery = '', className = '' }) {
     }, [searchQuery]);
 
     const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
-    const filteredStudents = STUDENTS.filter((student) =>
-        [student.name, student.nisn, student.class, student.room]
-            .some((value) => value.toLocaleLowerCase().includes(normalizedSearch))
+    const filteredStudents = students.filter((student) =>
+        [student.name, student.nisn, student.class, student.room, student.subject]
+            .some((value) => String(value ?? '').toLocaleLowerCase().includes(normalizedSearch))
     );
     const lastPage = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
     const currentPage = Math.min(page, lastPage);
@@ -154,38 +62,32 @@ export default function StudentTable({ searchQuery = '', className = '' }) {
     const showingTo = Math.min(startIndex + PAGE_SIZE, filteredStudents.length);
 
     return (
-        <div className={`bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden ${className}`}>
+        <div className={`overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm ${className}`}>
             <Table id="studentsTable">
                 <TableHead>
                     <TableHeadCell className="w-12 text-center">No</TableHeadCell>
                     <TableHeadCell>Siswa &amp; Identitas</TableHeadCell>
                     <TableHeadCell>Ruang &amp; Subjek</TableHeadCell>
                     <TableHeadCell className="w-44">Progres Soal</TableHeadCell>
-                    <TableHeadCell className="text-center">Koneksi</TableHeadCell>
+                    <TableHeadCell className="text-center">Aktivitas</TableHeadCell>
                     <TableHeadCell>Integritas CBT</TableHeadCell>
-                    <TableHeadCell className="text-right">Tindakan Pengawas</TableHeadCell>
+                    <TableHeadCell className="text-right">Tindakan</TableHeadCell>
                 </TableHead>
                 <TableBody>
                     {visibleStudents.length > 0 ? (
-                        visibleStudents.map((student) => (
+                        visibleStudents.map((student, index) => (
                             <TableRow key={student.id} className={getRowClassName(student.status)}>
-                                <TableCell className="text-center font-mono text-on-surface-variant font-medium">
-                                    {student.no}
+                                <TableCell className="text-center font-mono font-medium text-on-surface-variant">
+                                    {startIndex + index + 1}
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-3">
                                         <Avatar
                                             label={student.name}
-                                            variant={
-                                                student.status === 'violation'
-                                                    ? 'error'
-                                                    : student.status === 'warning'
-                                                    ? 'tertiary'
-                                                    : 'primary'
-                                            }
+                                            variant={student.status === 'disconnected' ? 'error' : 'primary'}
                                         />
                                         <div>
-                                            <div className="font-headline font-semibold text-on-surface text-sm">
+                                            <div className="font-headline text-sm font-semibold text-on-surface">
                                                 {student.name}
                                             </div>
                                             <div className="font-mono text-[11px] text-on-surface-variant">
@@ -195,38 +97,35 @@ export default function StudentTable({ searchQuery = '', className = '' }) {
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="text-on-surface font-medium text-xs">
-                                        {student.room}
-                                    </div>
-                                    <div className="text-[11px] text-on-surface-variant">
-                                        {student.subject}
-                                    </div>
+                                    <div className="text-xs font-medium text-on-surface">{student.room}</div>
+                                    <div className="text-[11px] text-on-surface-variant">{student.subject}</div>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex justify-between items-center text-[11px] font-label mb-1">
+                                    <div className="mb-1 flex items-center justify-between text-[11px]">
                                         <span className="font-semibold text-on-surface">
-                                            {student.progress.current} / {student.progress.total} Soal
+                                            {student.progress.current} / {student.progress.total} soal
                                         </span>
-                                        <span
-                                            className={
-                                                student.integrity === 'tabSwitch'
-                                                    ? 'text-error font-bold'
-                                                    : 'text-primary font-bold'
-                                            }
-                                        >
+                                        <span className="font-bold text-primary">
                                             {student.progress.percent}%
                                         </span>
                                     </div>
-                                    <ProgressBar
-                                        value={student.progress.percent}
-                                        color={student.integrity === 'tabSwitch' ? 'error' : 'primary'}
-                                    />
+                                    <ProgressBar value={student.progress.percent} color="primary" />
                                 </TableCell>
                                 <TableCell className="text-center">
                                     <ConnectionStatus status={student.connection} />
+                                    {student.last_activity && (
+                                        <p className="mt-1 text-[10px] text-on-surface-variant">
+                                            {new Date(student.last_activity).toLocaleTimeString()}
+                                        </p>
+                                    )}
+                                    {student.status !== 'not_started' && (
+                                        <p className="mt-1 text-[10px] text-on-surface-variant">
+                                            Waktu: {formatDuration(student.time_spent_seconds)}
+                                        </p>
+                                    )}
                                 </TableCell>
                                 <TableCell>
-                                    <IntegrityStatus status={student.integrity} />
+                                    <IntegrityStatus flaggedCount={student.flagged_count} />
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <RowActions student={student} />
@@ -236,7 +135,9 @@ export default function StudentTable({ searchQuery = '', className = '' }) {
                     ) : (
                         <TableRow>
                             <TableCell colSpan={7} className="py-12 text-center text-on-surface-variant">
-                                Tidak ada siswa yang cocok dengan pencarian.
+                                {students.length === 0
+                                    ? 'Belum ada peserta dengan attempt pada jadwal yang sedang berlangsung.'
+                                    : 'Tidak ada siswa yang cocok dengan pencarian.'}
                             </TableCell>
                         </TableRow>
                     )}
@@ -250,8 +151,8 @@ export default function StudentTable({ searchQuery = '', className = '' }) {
                 from={showingFrom}
                 to={showingTo}
                 total={filteredStudents.length}
-                itemLabel="Siswa Aktif"
-                className="p-4 bg-surface-container-low"
+                itemLabel="Peserta Terpantau"
+                className="bg-surface-container-low p-4"
             />
         </div>
     );

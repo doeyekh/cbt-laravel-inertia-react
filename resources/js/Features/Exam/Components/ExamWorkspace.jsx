@@ -21,7 +21,7 @@ const ExamWorkspace = ({
     setShowQuestionModal,
     setShowSubmitModal,
 }) => {
-    const sortedQuestions = [...questions].sort((first, second) => (first.number ?? 0) - (second.number ?? 0));
+    const sortedQuestions = [...questions];
     const currentQuestion = sortedQuestions[currentQuestionNo - 1] || sortedQuestions[0];
     const currentQuestionId = currentQuestion?.id ?? currentQuestionNo;
     const isLastQuestion = currentQuestionNo >= totalQuestions;

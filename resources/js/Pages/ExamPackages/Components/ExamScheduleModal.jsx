@@ -9,6 +9,7 @@ import Button from '@/Components/UI/Button';
 const emptyForm = {
     class_id: '',
     subject_id: '',
+    question_bank_id: '',
     session_id: '',
     room_id: '',
     exam_date: '',
@@ -73,6 +74,7 @@ export default function ExamScheduleModal({
             setData({
                 class_id: String(initialData.class_id ?? ''),
                 subject_id: String(initialData.subject_id ?? ''),
+                question_bank_id: String(initialData.question_bank_id ?? ''),
                 session_id: String(initialData.session_id ?? ''),
                 room_id: String(initialData.room_id ?? ''),
                 exam_date: initialData.exam_date ?? '',
@@ -96,6 +98,9 @@ export default function ExamScheduleModal({
             ...emptyForm,
             class_id: firstClassId,
             subject_id: firstSubjects[0]?.id ? String(firstSubjects[0].id) : '',
+            question_bank_id: firstSubjects[0]?.question_banks?.[0]?.id
+                ? String(firstSubjects[0].question_banks[0].id)
+                : '',
             exam_date: examPackage?.start_date ?? '',
             open_time: emptyForm.open_time,
             close_time: emptyForm.close_time,
@@ -103,6 +108,10 @@ export default function ExamScheduleModal({
     }, [isOpen, initialDataId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const availableSubjects = subjectsByClass[String(data.class_id)] ?? [];
+    const selectedSubject = availableSubjects.find(
+        (subject) => String(subject.id) === String(data.subject_id),
+    );
+    const availableQuestionBanks = selectedSubject?.question_banks ?? [];
 
     const setField = (field, value) => {
         setData(field, value);
@@ -116,15 +125,37 @@ export default function ExamScheduleModal({
         const classId = event.target.value;
         const options = subjectsByClass[classId] ?? [];
         const next = { class_id: classId };
+        let nextSubject = options.find(
+            (subject) => String(subject.id) === String(data.subject_id),
+        );
 
-        if (
-            !options.some((subject) => String(subject.id) === String(data.subject_id))
-        ) {
-            next.subject_id = options[0]?.id ? String(options[0].id) : '';
+        if (!nextSubject) {
+            nextSubject = options[0];
+            next.subject_id = nextSubject?.id ? String(nextSubject.id) : '';
+        }
+
+        const nextBanks = nextSubject?.question_banks ?? [];
+        if (!nextBanks.some((bank) => String(bank.id) === String(data.question_bank_id))) {
+            next.question_bank_id = nextBanks[0]?.id ? String(nextBanks[0].id) : '';
         }
 
         setData(next);
-        clearErrors(['class_id', 'subject_id']);
+        clearErrors(['class_id', 'subject_id', 'question_bank_id']);
+    };
+
+    const handleSubjectChange = (event) => {
+        const subjectId = event.target.value;
+        const subject = availableSubjects.find(
+            (item) => String(item.id) === String(subjectId),
+        );
+
+        setData({
+            subject_id: subjectId,
+            question_bank_id: subject?.question_banks?.[0]?.id
+                ? String(subject.question_banks[0].id)
+                : '',
+        });
+        clearErrors(['subject_id', 'question_bank_id']);
     };
 
     
@@ -140,6 +171,10 @@ export default function ExamScheduleModal({
 
         if (!data.subject_id) {
             nextErrors.subject_id = 'Mata pelajaran wajib dipilih.';
+        }
+
+        if (!data.question_bank_id) {
+            nextErrors.question_bank_id = 'Bank soal wajib dipilih.';
         }
 
         if (!data.exam_date) {
@@ -253,7 +288,7 @@ export default function ExamScheduleModal({
                             id="exam-schedule-subject"
                             label="Mata Pelajaran"
                             value={data.subject_id}
-                            onChange={(event) => setField('subject_id', event.target.value)}
+                            onChange={handleSubjectChange}
                             error={errors.subject_id}
                             placeholder="Pilih mata pelajaran..."
                         >
@@ -271,6 +306,21 @@ export default function ExamScheduleModal({
                         )}
                     </div>
                 </div>
+
+                <Select
+                    id="exam-schedule-question-bank"
+                    label="Bank Soal"
+                    value={data.question_bank_id}
+                    onChange={(event) => setField('question_bank_id', event.target.value)}
+                    error={errors.question_bank_id}
+                    placeholder="Pilih bank soal..."
+                >
+                    {availableQuestionBanks.map((questionBank) => (
+                        <option key={questionBank.id} value={String(questionBank.id)}>
+                            {questionBank.code} — {questionBank.name}
+                        </option>
+                    ))}
+                </Select>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Select

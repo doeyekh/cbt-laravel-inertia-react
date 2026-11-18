@@ -43,6 +43,7 @@ trait ValidatesExamSchedule
         return [
             'class_id' => ['required', 'integer', 'exists:classes,id'],
             'subject_id' => ['required', 'integer', 'exists:subjects,id'],
+            'question_bank_id' => ['nullable', 'integer', 'exists:question_banks,id'],
             'session_id' => ['nullable', 'integer', 'exists:exam_sessions,id'],
             'room_id' => ['nullable', 'integer', 'exists:rooms,id'],
             'exam_date' => ['required', 'date'],
@@ -128,10 +129,33 @@ trait ValidatesExamSchedule
             return;
         }
 
-        if (! (clone $questionBankQuery)
+        $classQuestionBanks = (clone $questionBankQuery)
             ->whereHas('classes', fn ($query) => $query->whereKey((int) $this->input('class_id')))
-            ->exists()) {
-            $validator->errors()->add('class_id', 'Bank soal mata pelajaran ini belum ditetapkan untuk kelas tersebut.');
+            ->get(['id']);
+
+        if ($classQuestionBanks->isEmpty()) {
+            $validator->errors()->add('class_id', 'Bank soal belum ditetapkan untuk kelas yang dipilih.');
+
+            return;
+        }
+
+        $questionBankId = $this->input('question_bank_id');
+
+        if ($questionBankId === null && $classQuestionBanks->count() === 1) {
+            $questionBankId = $classQuestionBanks->first()->id;
+            $this->merge(['question_bank_id' => $questionBankId]);
+        }
+
+        if ($questionBankId === null) {
+            $validator->errors()->add('question_bank_id', 'Pilih bank soal yang akan digunakan untuk jadwal ini.');
+
+            return;
+        }
+
+        if (! $classQuestionBanks->contains(
+            fn (QuestionBank $questionBank): bool => (int) $questionBank->id === (int) $questionBankId,
+        )) {
+            $validator->errors()->add('question_bank_id', 'Bank soal harus sesuai dengan paket, mata pelajaran, dan kelas yang dipilih.');
 
             return;
         }

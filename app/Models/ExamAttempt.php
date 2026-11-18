@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
-#[Fillable(['exam_participant_id', 'exam_schedule_id', 'exam_package_id', 'status', 'duration_minutes', 'time_spent_seconds', 'started_at', 'deadline_at', 'submitted_at'])]
+#[Fillable(['exam_participant_id', 'exam_schedule_id', 'exam_package_id', 'status', 'duration_minutes', 'time_spent_seconds', 'started_at', 'deadline_at', 'submitted_at', 'score', 'max_score', 'graded_at', 'graded_by', 'question_order', 'option_order'])]
 class ExamAttempt extends Model
 {
     /** @use HasFactory<ExamAttemptFactory> */
@@ -34,6 +34,12 @@ class ExamAttempt extends Model
             'started_at' => 'datetime',
             'deadline_at' => 'datetime',
             'submitted_at' => 'datetime',
+            'score' => 'decimal:2',
+            'max_score' => 'decimal:2',
+            'graded_at' => 'datetime',
+            'graded_by' => 'integer',
+            'question_order' => 'array',
+            'option_order' => 'array',
         ];
     }
 
