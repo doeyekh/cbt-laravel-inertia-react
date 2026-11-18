@@ -74,7 +74,7 @@ class ExamAccessControllerTest extends TestCase
             ->post(route('student.exam-access.verify', $context['schedule']), [
                 'token' => $context['token'],
             ])
-            ->assertRedirect(route('student.dashboard'))
+            ->assertRedirect(route('student.exam', $context['schedule']))
             ->assertSessionHas(
                 "student_exam_packages.{$context['package']->id}",
                 $context['token_hash'],
@@ -116,7 +116,7 @@ class ExamAccessControllerTest extends TestCase
             ->post(route('student.exam-access.verify', $otherSchedule), [
                 'token' => $context['token'],
             ])
-            ->assertRedirect(route('student.dashboard'))
+            ->assertRedirect(route('student.exam', $otherSchedule))
             ->assertSessionHas(
                 "student_exam_packages.{$context['package']->id}",
                 $context['token_hash'],
@@ -131,7 +131,7 @@ class ExamAccessControllerTest extends TestCase
             ->post(route('student.exam-access.verify', $context['schedule']), [
                 'token' => $context['token'],
             ])
-            ->assertRedirect(route('student.dashboard'));
+            ->assertRedirect(route('student.exam', $context['schedule']));
 
         $context['package']->forceFill([
             'exam_access_token_hash' => hash('sha256', 'rotated-token'),

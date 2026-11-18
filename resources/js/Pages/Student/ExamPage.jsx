@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useForm, usePage, Link } from '@inertiajs/react';
 import { useToast } from '@/Hooks/useToast';
 import ExamNavigation from '@/Components/Student/ExamNavigation';
-import QuestionSheet from '@/Components/Exam/QuestionSheet';
-import { v4 as uuidv4 } from 'uuid';
+import QuestionSheet from '@/Features/Exam/Components/QuestionSheet';
 
 export default function ExamPage({ exam }) {
     const { now } = usePage().props.now || { now: Date.now() };
@@ -17,6 +16,8 @@ export default function ExamPage({ exam }) {
     const [isRunning, setIsRunning] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
+    const [answers, setAnswers] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const examId = uuidv4();
 
     // Ref untuk timer
@@ -38,12 +39,6 @@ export default function ExamPage({ exam }) {
         return () => clearInterval(timerRef.current);
     }, []);
 
-    // Fungkon reset timer jika soal berubah
-    useEffect(() => {
-        setTimeRemaining(exam.duration_minutes * 60);
-        setIsRunning(true);
-    }, [exam]);
-
     // Format waktu menjadi menit:detik
     const formattedTime = () => {
         const mins = Math.floor(timeRemaining / 60);
@@ -51,21 +46,61 @@ export default function ExamPage({ exam }) {
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     };
 
-    // Kosongkan jawaban saat berpindah soal
-    const handleQuestionChange = (newQuestionNo) => {
-        // Reset answer state when changing questions
-        setTimeRemaining(exam.duration_minutes * 60);
+    // Simpan jawaban ke state lokal saat berpindah soal atau mengubah jawaban
+    const handleAnswerChange = (questionNo, answer) => {
+        setAnswers(prev => ({
+            ...prev,
+            [questionNo]: answer,
+        }));
     };
 
-    // Submit jawaban
+    // Pindah soal tanpa mereset timer
+    const handleQuestionChange = (newQuestionNo) => {
+        // Timer tidak di-reset saat berpindah soal
+    };
+
+    // Submit semua jawaban ke server
     const handleSubmitAnswer = async (e) => {
         e.preventDefault();
-        // Submit logic - akan diintegrasi dengan backend
-        toast({
-            title: 'Menyimpan Jawaban',
-            description: 'Jawaban sedang disimpan...',
-            type: 'info',
-        });
+        setIsSubmitting(true);
+
+        try {
+            const response = await fetch(route('student.exam-answers.store', exam.id), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+                body: JSON.stringify({
+                    answers,
+                    time_spent_seconds: exam.duration_minutes * 60 - timeRemaining,
+                }),
+            });
+
+            if (response.ok) {
+                toast({
+                    title: 'Jawaban Tersimpan',
+                    description: 'Semua jawaban Anda telah disimpan ke server.',
+                    type: 'success',
+                });
+            } else {
+                toast({
+                    title: 'Gagal Menyimpan',
+                    description: 'Terjadi kesalahan saat menyimpan jawaban.',
+                    type: 'error',
+                });
+            }
+        } catch (error) {
+            toast({
+                title: 'Gagal Menyimpan',
+                description: 'Terjadi kesalahan jaringan saat menyimpan jawaban.',
+                type: 'error',
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Keluar ujian
@@ -76,7 +111,6 @@ export default function ExamPage({ exam }) {
     // Konfirmasi keluar
     const confirmExit = async () => {
         setShowConfirmation(false);
-        // Logika konfirmasi keluar
         toast({
             title: 'Ujian Dihentikan',
             description: 'Sesi ujian dihentikan.',
@@ -144,7 +178,8 @@ export default function ExamPage({ exam }) {
                     <div className="flex-1 min-h-[700px]">
                         <QuestionSheet
                             exam={exam}
-                            onQuestionChange={handleQuestionChange}
+                            onAnswerChange={handleAnswerChange}
+                            answers={answers}
                         />
                     </div>
 
@@ -158,15 +193,16 @@ export default function ExamPage({ exam }) {
                                 Keluar Ujian
                             </button>
                             <button
-                                onClick={() => toast({title: 'Disimpan', description: 'Jawaban disimpan ke server', type: 'success'})}
-                                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-shadow shadow-md">
+                                onClick={handleSubmitAnswer}
+                                disabled={isSubmitting}
+                                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-shadow shadow-md disabled:cursor-not-allowed disabled:opacity-50">
                                 <span className="material-symbols-outlined">save</span>
-                                Simpan & Kumpulkan
+                                {isSubmitting ? 'Menyimpan...' : 'Simpan & Kumpulkan'}
                             </button>
                         </div>
                     </div>
                 </div>
-            </section>
+            </div>
 
             {/* Modal Konfirmasi Keluar */}
             <div
@@ -184,17 +220,25 @@ export default function ExamPage({ exam }) {
                         <button
                             className="flex-1 px-4 py-2 rounded-lg bg-gray-100 text-slate-600 hover:bg-gray-200 transition"
                             onClick={() => setShowConfirmation(false)}
-                            >Batal</button>
+                        >Batal</button>
                         <button
                             className="flex-1 px-4 py-2 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-shadow shadow-md"
                             onClick={() => {
                                 confirmExit();
                                 setShowConfirmation(false);
                             }}
-                            >Ya, Keluar</button>
+                        >Ya, Keluar</button>
                     </div>
                 </div>
             </div>
         </div>
     );
+}
+
+function uuidv4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
 }

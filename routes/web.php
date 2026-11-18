@@ -25,7 +25,11 @@ use App\Http\Controllers\Auth\PasswordUpdateController;
 use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\Auth\StudentLoginController;
 use App\Http\Controllers\Student\ExamAccessController;
+use App\Http\Controllers\Student\ExamAnswerController;
 use App\Http\Controllers\Student\StudentDashboardController;
+use App\Models\ExamParticipant;
+use App\Models\ExamSchedule;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -39,20 +43,37 @@ Route::middleware('student.auth')
     ->name('student.')
     ->group(function () {
         Route::get('/', [StudentDashboardController::class, 'index'])->name('dashboard');
-        Route::get('exams/{examSchedule}', function (ExamSchedule $examSchedule) {
+        Route::get('exams/{examSchedule}', function (ExamSchedule $examSchedule, Request $request) {
+            $participant = ExamParticipant::query()
+                ->findOrFail((int) $request->session()->get('student_participant_id'));
+
+            $examSchedule->loadMissing('examPackage');
+            $examPackage = $examSchedule->examPackage;
+
+            if ($examPackage === null) {
+                abort(404);
+            }
+
+            $verifiedExamPackages = $request->session()->get('student_exam_packages', []);
+            $storedHash = is_array($verifiedExamPackages)
+                ? ($verifiedExamPackages[$examPackage->id] ?? null)
+                : null;
+            $currentHash = $examPackage->exam_access_token_hash;
+
+            if (! is_string($storedHash) || ! is_string($currentHash) || ! hash_equals($currentHash, $storedHash)) {
+                return to_route('student.exam-access.create', $examSchedule);
+            }
+
             return Inertia::render('Student/ExamPage', [
                 'exam' => $examSchedule,
             ]);
         })->name('exam');
+        Route::post('exams/{examSchedule}/answers', [ExamAnswerController::class, 'store'])
+            ->name('exam-answers.store');
         Route::get('exams/{examSchedule}/access-token', [ExamAccessController::class, 'create'])
             ->name('exam-access.create');
         Route::post('exams/{examSchedule}/access-token', [ExamAccessController::class, 'verify'])
             ->name('exam-access.verify');
-        Route::get('exams/{examSchedule}/start', function (ExamSchedule $examSchedule) {
-            return Inertia::render('Student/ExamStart', [
-                'exam' => $examSchedule,
-            ]);
-        })->name('exam.start');
     });
 
 Route::prefix('admin')->name('admin.')->group(function () {

@@ -108,10 +108,13 @@ function ActionButton({ exam, status }) {
 
     if (status === 'ongoing' && exam.token_access_granted) {
         return (
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary-fixed/70 px-4 py-2 font-label text-[11px] font-semibold text-on-primary-fixed-variant">
-                <span className="material-symbols-outlined text-[17px]">verified</span>
-                Token Terverifikasi
-            </span>
+            <Link
+                href={route('student.exam', exam.id)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 font-label text-[11px] font-semibold text-on-primary transition-opacity hover:opacity-90"
+            >
+                <span className="material-symbols-outlined text-[17px]">play_arrow</span>
+                Lanjutkan Ujian
+            </Link>
         );
     }
 
