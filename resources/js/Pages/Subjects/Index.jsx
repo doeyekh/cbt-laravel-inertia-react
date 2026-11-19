@@ -24,17 +24,28 @@ export default function SubjectsIndex({ subjects, filters, stats, permissions })
     const [modalMode, setModalMode] = useState('create');
     const [importOpen, setImportOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [deletingId, setDeletingId] = useState(null);
     const [deleting, setDeleting] = useState(false);
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [bulkDeleting, setBulkDeleting] = useState(false);
     const [togglingId, setTogglingId] = useState(null);
 
     const skipInitialSearch = useRef(true);
     const handledToast = useRef(null);
 
     const rows = subjects?.data ?? [];
+    const selectableRows = rows.filter((item) => item.can_delete && !item.is_active);
+    const allSelected =
+        selectableRows.length > 0 &&
+        selectableRows.every((item) => selectedIds.includes(item.id));
     const selectedItem = rows.find((item) => item.id === editingId) ?? null;
     const deletingItem = rows.find((item) => item.id === deletingId) ?? null;
+
+    useEffect(() => {
+        setSelectedIds([]);
+    }, [subjects]);
 
     useEffect(() => {
         if (skipInitialSearch.current) {
@@ -106,6 +117,8 @@ export default function SubjectsIndex({ subjects, filters, stats, permissions })
     };
 
     const handlePageChange = (page) => {
+        setSelectedIds([]);
+
         router.get(
             route('admin.subjects.index'),
             {
@@ -134,6 +147,44 @@ export default function SubjectsIndex({ subjects, filters, stats, permissions })
                 setDeletingId(null);
             },
             onFinish: () => setDeleting(false),
+        });
+    };
+
+    const handleToggleSelect = (subjectId) => {
+        setSelectedIds((previous) =>
+            previous.includes(subjectId)
+                ? previous.filter((id) => id !== subjectId)
+                : [...previous, subjectId]
+        );
+    };
+
+    const handleToggleAll = () => {
+        const rowIds = selectableRows.map((item) => item.id);
+
+        setSelectedIds((previous) => {
+            if (rowIds.length > 0 && rowIds.every((id) => previous.includes(id))) {
+                return previous.filter((id) => !rowIds.includes(id));
+            }
+
+            return Array.from(new Set([...previous, ...rowIds]));
+        });
+    };
+
+    const handleConfirmBulkDelete = () => {
+        if (selectedIds.length === 0) {
+            return;
+        }
+
+        setBulkDeleting(true);
+
+        router.delete(route('admin.subjects.bulk-destroy'), {
+            data: { subject_ids: selectedIds },
+            preserveScroll: true,
+            onSuccess: () => {
+                setBulkDeleteOpen(false);
+                setSelectedIds([]);
+            },
+            onFinish: () => setBulkDeleting(false),
         });
     };
 
@@ -271,18 +322,39 @@ export default function SubjectsIndex({ subjects, filters, stats, permissions })
                                     : 'Informasi mata pelajaran.'}
                             </p>
                         </div>
-                        <Input
-                            type="search"
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Cari kode atau nama mata pelajaran..."
-                            className="w-full sm:w-72"
-                            aria-label="Cari mata pelajaran"
-                        />
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <Input
+                                type="search"
+                                value={search}
+                                onChange={(event) => {
+                                    setSelectedIds([]);
+                                    setSearch(event.target.value);
+                                }}
+                                placeholder="Cari kode atau nama mata pelajaran..."
+                                className="w-full sm:w-72"
+                                aria-label="Cari mata pelajaran"
+                            />
+                            {selectedIds.length > 0 && (
+                                <Button
+                                    variant="danger"
+                                    onClick={() => setBulkDeleteOpen(true)}
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        delete
+                                    </span>
+                                    Hapus {selectedIds.length} Dipilih
+                                </Button>
+                            )}
+                        </div>
                     </div>
 
                     <SubjectTable
                         subjects={rows}
+                        selectable={permissions?.can_delete}
+                        selectedIds={selectedIds}
+                        allSelected={allSelected}
+                        onToggleSelect={handleToggleSelect}
+                        onToggleAll={handleToggleAll}
                         onShow={handleOpenShow}
                         onEdit={handleOpenEdit}
                         onDelete={handleOpenDelete}
@@ -331,6 +403,18 @@ export default function SubjectsIndex({ subjects, filters, stats, permissions })
                 onConfirm={handleConfirmDelete}
                 onCancel={handleCloseDelete}
                 loading={deleting}
+            />
+
+            <DeleteConfirmation
+                isOpen={bulkDeleteOpen}
+                itemName={`${selectedIds.length} mata pelajaran beserta seluruh bank soal, pertanyaan, jadwal ujian, dan penugasan terkait`}
+                onConfirm={handleConfirmBulkDelete}
+                onCancel={() => {
+                    if (!bulkDeleting) {
+                        setBulkDeleteOpen(false);
+                    }
+                }}
+                loading={bulkDeleting}
             />
 
             {/* Toast Notifications */}

@@ -280,6 +280,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('subjects/import', [SubjectController::class, 'import'])
             ->name('subjects.import');
 
+        Route::delete('subjects/bulk', [SubjectController::class, 'bulkDestroy'])
+            ->name('subjects.bulk-destroy');
+
         Route::patch('subjects/{subject}/status', [SubjectController::class, 'toggleStatus'])
             ->name('subjects.toggle-status');
 

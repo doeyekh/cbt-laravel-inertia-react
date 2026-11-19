@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\BulkDeleteSubjectsRequest;
 use App\Http\Requests\Admin\StoreSubjectRequest;
 use App\Http\Requests\Admin\UpdateSubjectRequest;
 use App\Imports\SubjectsImport;
@@ -56,6 +57,7 @@ class SubjectController extends Controller
             ],
             'permissions' => [
                 'can_create' => $user->can('create', Subject::class),
+                'can_delete' => $user->can('deleteAny', Subject::class),
             ],
         ]);
     }
@@ -189,6 +191,49 @@ class SubjectController extends Controller
             'type' => 'success',
             'title' => 'Berhasil Dihapus',
             'description' => "Mata pelajaran \"{$name}\" telah dihapus.",
+        ]);
+    }
+
+    /**
+     * Remove the selected inactive subjects.
+     */
+    public function bulkDestroy(BulkDeleteSubjectsRequest $request): RedirectResponse
+    {
+        $subjectIds = $request->validated('subject_ids');
+
+        $deletedCount = DB::transaction(function () use ($subjectIds): ?int {
+            $subjects = Subject::query()
+                ->whereIn('id', $subjectIds)
+                ->lockForUpdate()
+                ->get();
+
+            if (
+                $subjects->count() !== count($subjectIds)
+                || $subjects->contains(fn (Subject $subject): bool => $subject->is_active)
+            ) {
+                return null;
+            }
+
+            $subjects->each(function (Subject $subject): void {
+                Gate::authorize('delete', $subject);
+                $subject->delete();
+            });
+
+            return $subjects->count();
+        });
+
+        if ($deletedCount === null) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'title' => 'Mata Pelajaran Tidak Dihapus',
+                'description' => 'Sebagian data sudah berubah atau masih aktif. Tidak ada mata pelajaran yang dihapus.',
+            ]);
+        }
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'title' => 'Berhasil Dihapus',
+            'description' => "{$deletedCount} mata pelajaran beserta data terkait telah dihapus.",
         ]);
     }
 

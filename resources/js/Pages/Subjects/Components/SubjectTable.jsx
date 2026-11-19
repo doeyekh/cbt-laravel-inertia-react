@@ -11,6 +11,11 @@ import Table, {
 
 export default function SubjectTable({
     subjects,
+    selectable = false,
+    selectedIds = [],
+    allSelected = false,
+    onToggleSelect,
+    onToggleAll,
     onShow,
     onEdit,
     onDelete,
@@ -42,6 +47,18 @@ export default function SubjectTable({
     return (
         <Table>
             <TableHead>
+                {selectable && (
+                    <TableHeadCell className="w-10 text-center">
+                        <input
+                            type="checkbox"
+                            checked={allSelected}
+                            onChange={onToggleAll}
+                            disabled={!subjects.some((item) => item.can_delete && !item.is_active)}
+                            className="h-4 w-4 rounded border-outline-variant accent-primary cursor-pointer disabled:cursor-not-allowed"
+                            aria-label="Pilih semua mata pelajaran yang dapat dihapus pada halaman ini"
+                        />
+                    </TableHeadCell>
+                )}
                 <TableHeadCell className="w-12 text-center">No</TableHeadCell>
                 <TableHeadCell className="w-28">Kode</TableHeadCell>
                 <TableHeadCell>Nama Mata Pelajaran</TableHeadCell>
@@ -54,6 +71,18 @@ export default function SubjectTable({
                         key={item.id}
                         className="even:bg-surface-container-low/40 hover:bg-primary/5"
                     >
+                        {selectable && (
+                            <TableCell className="text-center">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedIds.includes(item.id)}
+                                    onChange={() => onToggleSelect?.(item.id)}
+                                    disabled={!item.can_delete || item.is_active}
+                                    className="h-4 w-4 rounded border-outline-variant accent-primary cursor-pointer disabled:cursor-not-allowed"
+                                    aria-label={`Pilih ${item.name}`}
+                                />
+                            </TableCell>
+                        )}
                         <TableCell className="text-center font-mono text-on-surface-variant font-medium">
                             {startIndex + index + 1}
                         </TableCell>

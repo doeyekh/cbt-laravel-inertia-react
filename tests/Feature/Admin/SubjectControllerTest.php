@@ -32,6 +32,7 @@ class SubjectControllerTest extends TestCase
                 ->has('subjects.data', 5)
                 ->where('subjects.total', 7)
                 ->where('filters.search', '')
+                ->where('permissions.can_delete', true)
                 ->has('stats')
             );
     }
@@ -47,6 +48,7 @@ class SubjectControllerTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('permissions.can_create', false)
+                ->where('permissions.can_delete', false)
                 ->where('subjects.data.0.id', $subject->id)
                 ->where('subjects.data.0.can_edit', false)
                 ->where('subjects.data.0.can_delete', false)
@@ -83,6 +85,10 @@ class SubjectControllerTest extends TestCase
 
         $this->delete(route('admin.subjects.destroy', $subject))
             ->assertForbidden();
+
+        $this->delete(route('admin.subjects.bulk-destroy'), [
+            'subject_ids' => [$subject->id],
+        ])->assertForbidden();
 
         $this->assertDatabaseCount('subjects', 1);
         $this->assertDatabaseHas('subjects', [
@@ -224,6 +230,51 @@ class SubjectControllerTest extends TestCase
         $this->assertDatabaseMissing('subjects', [
             'id' => $subject->id,
         ]);
+    }
+
+    public function test_bulk_destroy_deletes_selected_inactive_subjects_only(): void
+    {
+        $firstSubject = Subject::factory()->create(['is_active' => false]);
+        $secondSubject = Subject::factory()->create(['is_active' => false]);
+        $untouchedSubject = Subject::factory()->create(['is_active' => false]);
+        $activeSubject = Subject::factory()->create(['is_active' => true]);
+
+        $this->delete(route('admin.subjects.bulk-destroy'), [
+            'subject_ids' => [$firstSubject->id, $secondSubject->id],
+        ])
+            ->assertRedirect()
+            ->assertSessionHas('toast.type', 'success');
+
+        $this->assertDatabaseMissing('subjects', ['id' => $firstSubject->id]);
+        $this->assertDatabaseMissing('subjects', ['id' => $secondSubject->id]);
+        $this->assertDatabaseHas('subjects', ['id' => $untouchedSubject->id]);
+        $this->assertDatabaseHas('subjects', ['id' => $activeSubject->id]);
+    }
+
+    public function test_bulk_destroy_rejects_active_subjects_without_deleting_any_selection(): void
+    {
+        $inactiveSubject = Subject::factory()->create(['is_active' => false]);
+        $activeSubject = Subject::factory()->create(['is_active' => true]);
+
+        $this->delete(route('admin.subjects.bulk-destroy'), [
+            'subject_ids' => [$inactiveSubject->id, $activeSubject->id],
+        ])
+            ->assertRedirect()
+            ->assertSessionHas('toast.type', 'error');
+
+        $this->assertDatabaseHas('subjects', ['id' => $inactiveSubject->id]);
+        $this->assertDatabaseHas('subjects', ['id' => $activeSubject->id]);
+    }
+
+    public function test_bulk_destroy_requires_at_least_one_subject(): void
+    {
+        Subject::factory()->create(['is_active' => false]);
+
+        $this->delete(route('admin.subjects.bulk-destroy'), [
+            'subject_ids' => [],
+        ])->assertSessionHasErrors('subject_ids');
+
+        $this->assertDatabaseCount('subjects', 1);
     }
 
     public function test_import_creates_subjects_from_spreadsheet(): void

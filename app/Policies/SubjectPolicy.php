@@ -54,6 +54,14 @@ class SubjectPolicy
     }
 
     /**
+     * Determine whether the user can delete multiple subjects.
+     */
+    public function deleteAny(User $user): bool
+    {
+        return $user->isAdministrator();
+    }
+
+    /**
      * Determine whether the user can toggle the active status of the subject.
      */
     public function toggleStatus(User $user, Subject $subject): bool
