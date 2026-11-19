@@ -48,6 +48,7 @@ const getRowClassName = (status) => {
 export default function StudentTable({
     students = [],
     searchQuery = '',
+    classFilter = '',
     className = '',
 }) {
     const [page, setPage] = useState(1);
@@ -66,11 +67,12 @@ export default function StudentTable({
 
     useEffect(() => {
         setPage(1);
-    }, [searchQuery]);
+    }, [searchQuery, classFilter]);
 
     const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
     const filteredStudents = students.filter((student) =>
-        [student.name, student.nisn, student.class, student.room, student.subject]
+        (classFilter === '' || String(student.class_id) === String(classFilter))
+        && [student.name, student.nisn, student.class, student.room, student.subject]
             .some((value) => String(value ?? '').toLocaleLowerCase().includes(normalizedSearch))
     );
     const lastPage = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
@@ -203,8 +205,8 @@ export default function StudentTable({
                         <TableRow>
                             <TableCell colSpan={7} className="py-12 text-center text-on-surface-variant">
                                 {students.length === 0
-                                    ? 'Belum ada peserta terjadwal pada sesi ujian yang sedang berlangsung.'
-                                    : 'Tidak ada siswa yang cocok dengan pencarian.'}
+                                    ? 'Tidak ada peserta terjadwal untuk ujian yang sedang berlangsung.'
+                                    : 'Tidak ada siswa yang cocok dengan filter.'}
                             </TableCell>
                         </TableRow>
                     )}

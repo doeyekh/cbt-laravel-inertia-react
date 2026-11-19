@@ -4,11 +4,10 @@ import AppLayout from '@/Layouts/AppLayout';
 import FilterBar from '@/Features/Monitoring/Components/FilterBar.jsx';
 import StudentTable from '@/Features/Monitoring/Components/StudentTable.jsx';
 
-export default function MonitoringIndex({ participants = [] }) {
+export default function MonitoringIndex({ classes = [], participants = [] }) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedClassId, setSelectedClassId] = useState('');
     usePoll(10000, { only: ['participants'] });
-
-   
 
     const handleSearch = (query) => {
         setSearchQuery(query);
@@ -63,8 +62,6 @@ export default function MonitoringIndex({ participants = [] }) {
                     </div>
                 </section>
 
-                
-
                 <section aria-labelledby="participants-heading" className="flex min-w-0 flex-col gap-4">
                     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
                         <div>
@@ -79,8 +76,17 @@ export default function MonitoringIndex({ participants = [] }) {
                             Cari peserta dan tinjau progres serta status koneksi dari daftar ujian.
                         </p>
                     </div>
-                    <FilterBar onSearchChange={handleSearch} />
-                    <StudentTable students={participants} searchQuery={searchQuery} />
+                    <FilterBar
+                        classes={classes}
+                        selectedClassId={selectedClassId}
+                        onClassChange={setSelectedClassId}
+                        onSearchChange={handleSearch}
+                    />
+                    <StudentTable
+                        students={participants}
+                        searchQuery={searchQuery}
+                        classFilter={selectedClassId}
+                    />
                 </section>
             </div>
         </AppLayout>

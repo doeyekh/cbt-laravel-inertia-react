@@ -1,4 +1,5 @@
 import React from 'react';
+import { hasAnswerContent } from '@/Utils/examAnswer';
 
 const QuestionListModal = ({
     isOpen,
@@ -26,10 +27,6 @@ const QuestionListModal = ({
         return answers[question?.id ?? questionNo];
     };
 
-    const hasAnswer = (answer) => (Array.isArray(answer)
-        ? answer.some((value) => value !== '')
-        : answer !== null && answer !== undefined && answer !== '');
-
     const isFlaggedQuestion = (questionNo) => flaggedQuestionIds.includes(
         getQuestion(questionNo)?.id ?? questionNo,
     );
@@ -43,25 +40,11 @@ const QuestionListModal = ({
             return 'flagged';
         }
 
-        if (hasAnswer(getQuestionAnswer(questionNo))) {
+        if (hasAnswerContent(getQuestionAnswer(questionNo))) {
             return 'answered';
         }
 
         return 'empty';
-    };
-
-    const getQuestionLabel = (questionNo) => {
-        if (isFlaggedQuestion(questionNo)) {
-            return '?';
-        }
-
-        const answer = getQuestionAnswer(questionNo);
-
-        if (hasAnswer(answer)) {
-            return answer;
-        }
-
-        return '--';
     };
 
     const progress = totalQuestions > 0
@@ -157,7 +140,8 @@ const QuestionListModal = ({
                             {Array.from({ length: totalQuestions }, (_, i) => i + 1).map((questionNo) => {
                                 const status = getQuestionStatus(questionNo);
                                 const isActive = questionNo === currentQuestionNo;
-                                const label = getQuestionLabel(questionNo);
+                                const isAnswered = hasAnswerContent(getQuestionAnswer(questionNo));
+                                const isFlagged = isFlaggedQuestion(questionNo);
 
                                 let buttonClass = '';
                                 if (isActive) {
@@ -178,7 +162,18 @@ const QuestionListModal = ({
                                         type="button"
                                     >
                                         <span className={isActive ? 'text-sm font-black' : 'font-bold'}>{String(questionNo).padStart(2, '0')}</span>
-                                        
+                                        {isActive && (
+                                            <span
+                                                aria-hidden="true"
+                                                className={`mt-0.5 h-1.5 w-1.5 rounded-full ${
+                                                    isFlagged
+                                                        ? 'bg-amber-500'
+                                                        : isAnswered
+                                                            ? 'bg-blue-600'
+                                                            : 'bg-slate-400'
+                                                }`}
+                                            />
+                                        )}
                                     </button>
                                 );
                             })}

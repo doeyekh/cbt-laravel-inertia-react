@@ -83,7 +83,7 @@ const ExamWorkspace = ({
                 </div>
                 <div className="flex items-center gap-3 text-slate-500 font-medium text-[11px]">
                     <span className="font-mono text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
-                        {Object.keys(answers).length} Jawaban
+                        {answeredCount} Jawaban
                     </span>
                     <span className="text-slate-400">•</span>
                     <span>Maksimal {totalQuestions} Soal</span>

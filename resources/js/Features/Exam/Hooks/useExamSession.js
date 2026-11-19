@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useHttp } from '@inertiajs/react';
 import { useToast } from '@/Hooks/useToast';
+import { hasAnswerContent } from '@/Utils/examAnswer';
 
 /**
  * Hitung sisa waktu dari tenggat di server.
@@ -154,25 +155,9 @@ export default function useExamSession({
 
     const answerStats = useMemo(() => questions.reduce(
         (stats, question) => {
-            const answer = answers[question.id];
-
-            if (question.type === 'menjodohkan') {
-                const pairCount = question.pairs?.length ?? 0;
-                const allPairsAnswered = Array.isArray(answer)
-                    && pairCount > 0
-                    && answer.length >= pairCount
-                    && answer.slice(0, pairCount).every(
-                        (pairAnswer) => typeof pairAnswer === 'string' && pairAnswer !== ''
-                    );
-
-                if (allPairsAnswered) {
-                    stats.answered += 1;
-                }
-            } else if (
-                Array.isArray(answer)
-                    ? answer.some((value) => value !== '')
-                    : answer !== null && answer !== undefined && answer !== ''
-            ) {
+            // Flags are tracked separately from answers, so a marked question
+            // still counts as answered once it has content.
+            if (hasAnswerContent(answers[question.id])) {
                 stats.answered += 1;
             }
 

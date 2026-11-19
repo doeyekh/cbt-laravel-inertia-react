@@ -1004,6 +1004,63 @@ class ExamAttemptTest extends TestCase
             );
     }
 
+    public function test_monitoring_filters_participants_by_class_without_requiring_matching_session_or_room(): void
+    {
+        $context = $this->createOpenExamContext();
+        $schoolAdmin = User::factory()->guru()->create();
+        $context['school']->update(['admin_id' => $schoolAdmin->id]);
+
+        $otherRoom = Room::factory()->forSchool($context['school'])->create();
+        $otherSession = Session::factory()->forSchool($context['school'])->create();
+        $sameClassStudent = Student::factory()->create();
+        ClassMember::factory()->forClass($context['schoolClass'], $sameClassStudent)->create();
+        $sameClassParticipant = ExamParticipant::factory()
+            ->forSchoolYear($context['school'], $context['academicYear'], $sameClassStudent)
+            ->placedIn($otherRoom->id, $otherSession->id)
+            ->create();
+
+        $otherClass = SchoolClass::factory()
+            ->forSchool($context['school'], $context['academicYear']->id)
+            ->active()
+            ->create();
+        $otherClassStudent = Student::factory()->create();
+        ClassMember::factory()->forClass($otherClass, $otherClassStudent)->create();
+        ExamParticipant::factory()
+            ->forSchoolYear($context['school'], $context['academicYear'], $otherClassStudent)
+            ->create();
+
+        $participantIds = [];
+        $participantClassIds = [];
+
+        $this->actingAs($schoolAdmin)
+            ->get(route('admin.monitoring.index'))
+            ->assertOk()
+            ->assertInertia(function (Assert $page) use (&$participantIds, &$participantClassIds, $context): void {
+                $page->component('Monitoring/Index')
+                    ->has('classes', 1)
+                    ->where('classes.0.id', $context['schoolClass']->id)
+                    ->has('participants', 2);
+
+                $participants = collect($page->toArray()['props']['participants']);
+                $participantIds = $participants
+                    ->pluck('id')
+                    ->sort()
+                    ->values()
+                    ->all();
+                $participantClassIds = $participants
+                    ->pluck('class_id')
+                    ->unique()
+                    ->values()
+                    ->all();
+            });
+
+        $this->assertSame([
+            "{$context['schedule']->id}-{$context['participant']->id}",
+            "{$context['schedule']->id}-{$sameClassParticipant->id}",
+        ], $participantIds);
+        $this->assertSame([$context['schoolClass']->id], $participantClassIds);
+    }
+
     public function test_school_admin_can_reset_attempt_and_stale_page_cannot_restore_answers(): void
     {
         $context = $this->createOpenExamContext();

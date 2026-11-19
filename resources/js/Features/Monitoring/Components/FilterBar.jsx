@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 
-export default function FilterBar({ onSearchChange, className = '' }) {
+export default function FilterBar({
+    classes = [],
+    selectedClassId = '',
+    onClassChange,
+    onSearchChange,
+    className = '',
+}) {
     const [search, setSearch] = useState('');
-
-    const rooms = [
-        { value: 'all', label: 'Semua Ruangan (3 Lab)' },
-        { value: 'lab1', label: 'Lab Komputer 01 (Utama)' },
-        { value: 'lab2', label: 'Lab Komputer 02 (Multimedia)' },
-        { value: 'kelasA', label: 'Ruang Kelas XII A' },
-    ];
 
     const statuses = [
         { value: 'all', label: 'Semua Status Pengerjaan' },
@@ -28,11 +27,16 @@ export default function FilterBar({ onSearchChange, className = '' }) {
             <div className="flex flex-wrap items-center gap-2.5">
                 <div className="relative min-w-[200px]">
                     <select
+                        id="monitoring-class-filter"
+                        aria-label="Filter berdasarkan kelas"
+                        value={selectedClassId}
+                        onChange={(event) => onClassChange?.(event.target.value)}
                         className="appearance-none w-full bg-surface-container-low text-on-surface font-label text-xs font-medium pl-3 pr-10 py-2 rounded-xl focus:outline-none focus:bg-surface-container-high transition-colors cursor-pointer"
                     >
-                        {rooms.map((r) => (
-                            <option key={r.value} value={r.value}>
-                                {r.label}
+                        <option value="">Semua kelas</option>
+                        {classes.map((schoolClass) => (
+                            <option key={schoolClass.id} value={schoolClass.id}>
+                                {schoolClass.name}
                             </option>
                         ))}
                     </select>
@@ -54,9 +58,6 @@ export default function FilterBar({ onSearchChange, className = '' }) {
                         expand_more
                     </span>
                 </div>
-                <span className="hidden sm:inline-block px-3 py-1.5 rounded-xl bg-surface-container text-xs font-label font-medium text-on-surface-variant">
-                    Matematika Terapan XII
-                </span>
             </div>
 
             <div className="relative min-w-[240px]">

@@ -24,7 +24,9 @@ const SubmitConfirmationModal = ({
         return null;
     }
 
-    const unansweredCount = totalQuestions - answeredCount - flaggedCount;
+    // Flags are independent from answers: a flagged question may already be
+    // answered, so only subtract the answered questions here.
+    const unansweredCount = Math.max(0, totalQuestions - answeredCount);
     const progress = totalQuestions > 0
         ? Math.round((answeredCount / totalQuestions) * 100)
         : 0;

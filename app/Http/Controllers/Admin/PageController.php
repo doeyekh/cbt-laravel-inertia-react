@@ -121,10 +121,6 @@ class PageController extends Controller
             $scheduledParticipants = ExamParticipant::query()
                 ->where('school_id', $examPackage->school_id)
                 ->where('academic_year_id', $examPackage->academic_year_id)
-                ->when($examSchedule->session_id !== null, fn ($query) => $query
-                    ->where('session_id', $examSchedule->session_id))
-                ->when($examSchedule->room_id !== null, fn ($query) => $query
-                    ->where('room_id', $examSchedule->room_id))
                 ->whereHas('student.classMembers', fn ($query) => $query
                     ->where('class_id', $examSchedule->class_id)
                     ->where('academic_year_id', $examPackage->academic_year_id))
@@ -150,6 +146,14 @@ class PageController extends Controller
 
         return Inertia::render('Monitoring/Index', [
             'title' => 'Monitoring Ujian',
+            'classes' => $schedules
+                ->map(fn (ExamSchedule $examSchedule): array => [
+                    'id' => $examSchedule->class_id,
+                    'name' => $examSchedule->schoolClass?->name ?? 'Kelas',
+                ])
+                ->unique('id')
+                ->sortBy('name')
+                ->values(),
             'participants' => $participants,
         ]);
     }
@@ -183,6 +187,7 @@ class PageController extends Controller
             'no' => (string) $participant->participant_number,
             'name' => $participant->student?->name ?? 'Peserta Ujian',
             'nisn' => $participant->student?->nisn ?? '-',
+            'class_id' => $examSchedule->class_id,
             'class' => $examSchedule->schoolClass?->name ?? '-',
             'room' => $participant->room?->name ?? '-',
             'subject' => $examSchedule->subject?->name ?? '-',
