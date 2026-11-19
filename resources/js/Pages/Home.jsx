@@ -63,7 +63,10 @@ function Home() {
                             <span className="material-symbols-outlined text-[18px]">monitoring</span>
                             Buka Monitoring
                         </Button>
-                        <Button variant="outline" onClick={() => {}}>
+                        <Button
+                            variant="outline"
+                            onClick={() => router.visit(route('admin.reports.index'))}
+                        >
                             <span className="material-symbols-outlined text-[18px]">assessment</span>
                             Lihat Laporan
                         </Button>

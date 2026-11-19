@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import { route, hasRoute } from '@/Utils/route';
 
-const navRoute = (name) => (hasRoute(name) ? route(name) : '#');
+const navRoute = (name, fallback = '#') =>
+    hasRoute(name) ? route(name) : fallback;
 
 const buildNavItems = () => [
     { name: 'Dashboard', href: navRoute('admin.dashboard'), icon: 'dashboard' },
@@ -43,7 +44,7 @@ const buildNavItems = () => [
         ],
     },
     { name: 'Users', href: navRoute('admin.users.index'), icon: 'person' },
-    { name: 'Laporan', href: navRoute('admin.reports.index'), icon: 'assessment' },
+    { name: 'Laporan', href: navRoute('admin.reports.index', '/admin/reports'), icon: 'assessment' },
     { name: 'Pengaturan', href: navRoute('admin.settings.index'), icon: 'settings' },
 ];
 
@@ -67,6 +68,10 @@ export default function Sidebar({ isOpen, onClose }) {
                     }
 
                     if (item.name === 'Monitoring Ujian') {
+                        return isSchoolAdmin;
+                    }
+
+                    if (item.name === 'Laporan') {
                         return isSchoolAdmin;
                     }
 

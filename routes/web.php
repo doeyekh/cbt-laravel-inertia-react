@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\QuestionBankController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\QuestionImportController;
+use App\Http\Controllers\Admin\ExamReportController;
 use App\Http\Controllers\Admin\RoomController;
 use App\Http\Controllers\Admin\SchoolController;
 use App\Http\Controllers\Admin\SessionController;
@@ -83,6 +84,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/monitoring', [PageController::class, 'monitoring'])
             ->middleware('school-admin')->name('monitoring.index');
+        Route::middleware('school-admin')->group(function () {
+            Route::get('/reports', [ExamReportController::class, 'index'])
+                ->name('reports.index');
+            Route::get('/reports/{examSchedule}', [ExamReportController::class, 'show'])
+                ->name('reports.show');
+            Route::get('/reports/{examSchedule}/export', [ExamReportController::class, 'export'])
+                ->name('reports.export');
+        });
         Route::middleware('school-admin')->group(function () {
             Route::delete('exam-attempts/{examAttempt}/reset', [ExamAttemptResetController::class, 'destroy'])
                 ->name('exam-attempts.reset');
