@@ -100,7 +100,7 @@ export default function ExamAccess({ exam = {}, participant = {}, systemInfo = {
                         </div>
                         <div className="rounded-lg bg-surface-container-low p-4 ring-1 ring-outline-variant/50">
                             <p className="font-label text-[9px] font-semibold uppercase tracking-[0.1em] text-secondary">
-                                Nilai Maksimum
+                                Total Poin
                             </p>
                             <p className="mt-1 font-headline text-2xl font-bold text-on-surface">
                                 {exam.total_score?.toFixed?.(0) ?? '-'}

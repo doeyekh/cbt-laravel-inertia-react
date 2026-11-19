@@ -55,6 +55,7 @@ class ExamResultController extends Controller
             'score_visible' => $canViewScore,
             'score' => $canViewScore ? (float) $attempt->score : null,
             'max_score' => $canViewScore ? (float) $attempt->max_score : null,
+            'percentage' => $canViewScore ? $attempt->scorePercentage() : null,
             'correct_count' => $canViewScore
                 ? $attempt->answers->where('is_correct', true)->count()
                 : null,

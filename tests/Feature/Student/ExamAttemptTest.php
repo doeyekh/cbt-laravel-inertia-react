@@ -721,6 +721,7 @@ class ExamAttemptTest extends TestCase
                 ->where('score_visible', true)
                 ->where('score', 4)
                 ->where('max_score', 8)
+                ->where('percentage', 50)
             );
     }
 
@@ -757,6 +758,7 @@ class ExamAttemptTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Student/ExamResult')
                 ->where('score_visible', false)
+                ->where('percentage', null)
                 ->where('pending_essay_count', 1)
             );
     }

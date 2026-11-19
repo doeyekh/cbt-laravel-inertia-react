@@ -60,7 +60,7 @@ export default function QuestionBankTable({
                 <TableHeadCell className="w-64">Kelas</TableHeadCell>
                 <TableHeadCell>Komposisi Soal</TableHeadCell>
                 <TableHeadCell className="w-24 text-center">Total</TableHeadCell>
-                <TableHeadCell className="w-24 text-center">Bobot</TableHeadCell>
+                <TableHeadCell className="w-24 text-center">Total Poin</TableHeadCell>
                 <TableHeadCell className="w-24 text-center">Status</TableHeadCell>
                 <TableHeadCell className="text-right">Aksi</TableHeadCell>
             </TableHead>

@@ -115,6 +115,24 @@ class ExamAttempt extends Model
     }
 
     /**
+     * Get the attempt score normalized to the 0-100 final grade scale.
+     *
+     * The score and max_score columns keep raw points so the question
+     * weight configuration stays untouched; every final grade display
+     * uses this normalized value instead.
+     */
+    public function scorePercentage(): ?float
+    {
+        $maxScore = (float) ($this->max_score ?? 0);
+
+        if ($this->score === null || $maxScore <= 0) {
+            return null;
+        }
+
+        return round((float) $this->score / $maxScore * 100, 2);
+    }
+
+    /**
      * Determine whether the attempt has already been submitted.
      */
     public function isSubmitted(): bool

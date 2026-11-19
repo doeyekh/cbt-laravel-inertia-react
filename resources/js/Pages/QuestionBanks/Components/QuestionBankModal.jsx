@@ -528,7 +528,7 @@ export default function QuestionBankModal({
                             Komposisi Soal
                         </p>
                         <span className="text-[11px] font-label font-semibold text-primary">
-                            {totalQuestionCount} soal · {totalScore} poin
+                            {totalQuestionCount} soal · {totalScore} poin · nilai akhir 0–100
                         </span>
                     </div>
 

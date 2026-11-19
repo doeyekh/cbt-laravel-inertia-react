@@ -77,7 +77,10 @@ export default function GradeEssays({ attempt, essays = [] }) {
                         {attempt.student_name} · {attempt.subject}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                        Nilai otomatis saat ini: {attempt.score ?? 0} / {attempt.max_score ?? 0}
+                        Nilai sementara: {attempt.percentage ?? 0} / 100
+                        <span className="ml-2 text-slate-400">
+                            ({attempt.score ?? 0} / {attempt.max_score ?? 0} poin)
+                        </span>
                     </p>
                 </header>
                 {essays.length > 0 ? essays.map((essay) => (

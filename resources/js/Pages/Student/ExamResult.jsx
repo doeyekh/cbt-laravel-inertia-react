@@ -9,6 +9,7 @@ export default function ExamResult({
     score_visible: scoreVisible,
     score,
     max_score: maxScore,
+    percentage,
     correct_count: correctCount,
     total_questions: totalQuestions,
     pending_essay_count: pendingEssayCount = 0,
@@ -39,12 +40,15 @@ export default function ExamResult({
                     {scoreVisible ? (
                         <div className="mt-8 grid gap-4 sm:grid-cols-3">
                             <div className="rounded-xl bg-blue-50 p-4">
-                                <p className="text-xs font-medium text-blue-700">Nilai</p>
+                                <p className="text-xs font-medium text-blue-700">Nilai Akhir</p>
                                 <p className="mt-1 text-3xl font-bold text-blue-950">
-                                    {score ?? 0}
+                                    {percentage ?? 0}
                                     <span className="ml-1 text-base font-semibold text-blue-700">
-                                        / {maxScore ?? 0}
+                                        / 100
                                     </span>
+                                </p>
+                                <p className="mt-1 text-xs font-medium text-blue-700">
+                                    {score ?? 0} / {maxScore ?? 0} poin
                                 </p>
                             </div>
                             <div className="rounded-xl bg-emerald-50 p-4">

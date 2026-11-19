@@ -68,9 +68,7 @@ class ExamReportController extends Controller
             fn (ExamAttempt $attempt): bool => $attempt->score !== null,
         );
         $averages = $scoredAttempts
-            ->map(fn (ExamAttempt $attempt): float => $attempt->max_score > 0
-                ? ((float) $attempt->score / (float) $attempt->max_score) * 100
-                : 0)
+            ->map(fn (ExamAttempt $attempt): float => $attempt->scorePercentage() ?? 0)
             ->values();
 
         $reportRows = $schedules->map(function (ExamSchedule $schedule) use ($attempts): array {
@@ -80,9 +78,7 @@ class ExamReportController extends Controller
             );
             $scored = $completed->filter(fn (ExamAttempt $attempt): bool => $attempt->score !== null);
             $percentages = $scored
-                ->map(fn (ExamAttempt $attempt): float => (float) $attempt->max_score > 0
-                    ? ((float) $attempt->score / (float) $attempt->max_score) * 100
-                    : 0);
+                ->map(fn (ExamAttempt $attempt): float => $attempt->scorePercentage() ?? 0);
             $passed = $percentages->filter(fn (float $percentage): bool => $percentage >= 70)->count();
 
             return [
@@ -216,23 +212,18 @@ class ExamReportController extends Controller
             ];
         })->values();
 
-        $participants = $attempts->map(function (ExamAttempt $attempt): array {
-            $maxScore = (float) ($attempt->max_score ?? 0);
-            $score = (float) ($attempt->score ?? 0);
-
-            return [
-                'attempt_id' => $attempt->id,
-                'participant_number' => $attempt->participant?->participant_number,
-                'name' => $attempt->participant?->student?->name,
-                'nisn' => $attempt->participant?->student?->nisn,
-                'status' => $attempt->status->label(),
-                'score' => $attempt->score,
-                'max_score' => $attempt->max_score,
-                'percentage' => $maxScore > 0 ? round($score / $maxScore * 100, 2) : null,
-                'time_spent_seconds' => $attempt->time_spent_seconds,
-                'submitted_at' => $attempt->submitted_at?->toIso8601String(),
-            ];
-        })->values();
+        $participants = $attempts->map(fn (ExamAttempt $attempt): array => [
+            'attempt_id' => $attempt->id,
+            'participant_number' => $attempt->participant?->participant_number,
+            'name' => $attempt->participant?->student?->name,
+            'nisn' => $attempt->participant?->student?->nisn,
+            'status' => $attempt->status->label(),
+            'score' => $attempt->score,
+            'max_score' => $attempt->max_score,
+            'percentage' => $attempt->scorePercentage(),
+            'time_spent_seconds' => $attempt->time_spent_seconds,
+            'submitted_at' => $attempt->submitted_at?->toIso8601String(),
+        ])->values();
 
         $scoredParticipants = $participants->whereNotNull('percentage');
         $scoreValues = $scoredParticipants->pluck('percentage');
@@ -298,9 +289,6 @@ class ExamReportController extends Controller
             fputcsv($output, ['Nomor Peserta', 'Nama', 'NISN', 'Status', 'Skor', 'Skor Maksimum', 'Persentase', 'Waktu (detik)', 'Dikumpulkan Pada']);
 
             foreach ($attempts as $attempt) {
-                $maxScore = (float) ($attempt->max_score ?? 0);
-                $score = (float) ($attempt->score ?? 0);
-
                 fputcsv($output, [
                     $attempt->participant?->participant_number,
                     $attempt->participant?->student?->name,
@@ -308,7 +296,7 @@ class ExamReportController extends Controller
                     $attempt->status->label(),
                     $attempt->score,
                     $attempt->max_score,
-                    $maxScore > 0 ? round($score / $maxScore * 100, 2) : null,
+                    $attempt->scorePercentage(),
                     $attempt->time_spent_seconds,
                     $attempt->submitted_at?->format('Y-m-d H:i:s'),
                 ]);

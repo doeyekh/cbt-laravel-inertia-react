@@ -36,6 +36,7 @@ class ExamEssayGradeController extends Controller
                 'status' => $examAttempt->status->value,
                 'score' => $examAttempt->score,
                 'max_score' => $examAttempt->max_score,
+                'percentage' => $examAttempt->scorePercentage(),
             ],
             'essays' => $examAttempt->answers
                 ->filter(fn (ExamAnswer $answer): bool => $answer->question?->type === QuestionType::Esai

@@ -160,6 +160,7 @@ class ExamReportControllerTest extends TestCase
                 ->has('participants', 1)
                 ->where('participants.0.attempt_id', $attempt->id)
                 ->where('participants.0.name', 'Siswa Contoh')
+                ->where('participants.0.percentage', 80)
             );
 
         $this->actingAs($schoolAdmin)
