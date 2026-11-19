@@ -28,6 +28,7 @@ use App\Models\User;
 use App\Services\ExamAccessTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -294,12 +295,54 @@ class ExamAttemptTest extends TestCase
 
                 $this->assertIsArray($payload);
                 $this->assertSame(
-                    ['id', 'label', 'text', 'order', 'image_path', 'audio_path'],
+                    ['id', 'label', 'text', 'order', 'image_path', 'audio_path', 'image_url'],
                     array_keys($payload['options'][0]),
                 );
                 $this->assertSame(['id', 'order'], array_keys($payload['blanks'][0]));
                 $this->assertStringNotContainsString('is_correct', json_encode($payload));
                 $this->assertStringNotContainsString('jawaban-rahasia', json_encode($payload));
+            });
+    }
+
+    public function test_exam_page_includes_urls_for_question_and_option_images(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->orderBy('number')->firstOrFail();
+        $questionImagePath = 'questions/images/soal.png';
+        $optionImagePath = 'questions/options/images/opsi.png';
+        $question->update(['image_path' => $questionImagePath]);
+
+        $option = QuestionOption::factory()->for($question)->create([
+            'image_path' => $optionImagePath,
+            'order' => 1,
+        ]);
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->post(route('student.exam-access.verify', $context['schedule']), [
+                'token' => $context['token'],
+            ])
+            ->assertRedirect(route('student.exam', $context['schedule']));
+
+        $this->withSession($this->studentSession($context['participant']))
+            ->get(route('student.exam', $context['schedule']))
+            ->assertOk()
+            ->assertInertia(function (Assert $page) use (
+                $question,
+                $option,
+                $questionImagePath,
+                $optionImagePath,
+            ): void {
+                $payload = collect($page->toArray()['props']['questions'])
+                    ->firstWhere('id', $question->id);
+
+                $this->assertSame(
+                    Storage::disk('public')->url($questionImagePath),
+                    $payload['image_url'],
+                );
+                $this->assertSame(
+                    Storage::disk('public')->url($optionImagePath),
+                    collect($payload['options'])->firstWhere('id', $option->id)['image_url'],
+                );
             });
     }
 

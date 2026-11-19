@@ -157,6 +157,14 @@ const QuestionSheet = ({
                     <p className={textStyle} dangerouslySetInnerHTML={{ __html: currentQuestion.body }} />
                 </div>
 
+                {currentQuestion.image_url && (
+                    <img
+                        src={currentQuestion.image_url}
+                        alt={`Gambar soal nomor ${currentQuestion.number}`}
+                        className="max-h-80 max-w-full rounded-xl border border-slate-200 bg-white object-contain"
+                    />
+                )}
+
                 {/* Area Jawaban Berdasarkan Tipe Soal */}
                 {currentQuestion.type === 'pilihan_ganda' && (
                     <div className="space-y-3">
@@ -166,7 +174,7 @@ const QuestionSheet = ({
                             return (
                                 <label
                                     key={option.id}
-                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${isSelected ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-blue-200'}`}
+                                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${isSelected ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-blue-200'}`}
                                 >
                                     <input
                                         type="radio"
@@ -184,8 +192,15 @@ const QuestionSheet = ({
                                     <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border border-slate-300">
                                         {option.label}
                                     </span>
-                                    <span className={textStyle}>
+                                    <span className={`${textStyle} flex min-w-0 flex-1 flex-col gap-2`}>
                                         {stripHtml(option.text)}
+                                        {option.image_url && (
+                                            <img
+                                                src={option.image_url}
+                                                alt={`Gambar opsi ${option.label}`}
+                                                className="max-h-48 max-w-full self-start rounded-lg object-contain"
+                                            />
+                                        )}
                                     </span>
                                 </label>
                             );
@@ -206,7 +221,7 @@ const QuestionSheet = ({
                             return (
                                 <label
                                     key={option.id}
-                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${isSelected ? 'bg-purple-50 border-purple-200 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-purple-200'}`}
+                                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${isSelected ? 'bg-purple-50 border-purple-200 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-purple-200'}`}
                                 >
                                     <input
                                         type="checkbox"
@@ -238,8 +253,15 @@ const QuestionSheet = ({
                                     <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border border-slate-300">
                                         {option.label}
                                     </span>
-                                    <span className={textStyle}>
+                                    <span className={`${textStyle} flex min-w-0 flex-1 flex-col gap-2`}>
                                         {stripHtml(option.text)}
+                                        {option.image_url && (
+                                            <img
+                                                src={option.image_url}
+                                                alt={`Gambar opsi ${option.label}`}
+                                                className="max-h-48 max-w-full self-start rounded-lg object-contain"
+                                            />
+                                        )}
                                     </span>
                                 </label>
                             );
