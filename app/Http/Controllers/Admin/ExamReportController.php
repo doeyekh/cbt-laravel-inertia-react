@@ -25,6 +25,7 @@ class ExamReportController extends Controller
 
         $request->validate([
             'academic_year_id' => ['nullable', 'integer'],
+            'package_id' => ['nullable', 'integer'],
             'subject_id' => ['nullable', 'integer'],
             'class_id' => ['nullable', 'integer'],
         ]);
@@ -42,6 +43,8 @@ class ExamReportController extends Controller
             ->when($request->integer('academic_year_id') > 0, fn ($query) => $query
                 ->whereHas('examPackage', fn ($packageQuery) => $packageQuery
                     ->where('academic_year_id', $request->integer('academic_year_id'))))
+            ->when($request->integer('package_id') > 0, fn ($query) => $query
+                ->where('exam_package_id', $request->integer('package_id')))
             ->when($request->integer('subject_id') > 0, fn ($query) => $query
                 ->where('subject_id', $request->integer('subject_id')))
             ->when($request->integer('class_id') > 0, fn ($query) => $query
@@ -110,11 +113,24 @@ class ExamReportController extends Controller
             ->whereHas('examPackage', fn ($query) => $query->whereIn('school_id', $schoolIds))
             ->distinct()
             ->pluck('subject_id');
+        $packages = ExamPackage::query()
+            ->whereIn('school_id', $schoolIds)
+            ->when($request->integer('academic_year_id') > 0, fn ($query) => $query
+                ->where('academic_year_id', $request->integer('academic_year_id')))
+            ->orderByDesc('start_date')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code'])
+            ->map(fn (ExamPackage $package): array => [
+                'id' => $package->id,
+                'name' => $package->name,
+                'code' => $package->code,
+            ]);
 
         return Inertia::render('Reports/Index', [
             'title' => 'Laporan Ujian',
             'filters' => [
                 'academic_year_id' => $request->input('academic_year_id'),
+                'package_id' => $request->input('package_id'),
                 'subject_id' => $request->input('subject_id'),
                 'class_id' => $request->input('class_id'),
             ],
@@ -128,6 +144,7 @@ class ExamReportController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn (Subject $subject): array => ['id' => $subject->id, 'name' => $subject->name]),
+            'packages' => $packages,
             'classes' => SchoolClass::query()
                 ->whereIn('school_id', $schoolIds)
                 ->when($request->integer('academic_year_id') > 0, fn ($query) => $query

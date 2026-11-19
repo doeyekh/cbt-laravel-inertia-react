@@ -63,6 +63,53 @@ class ExamReportControllerTest extends TestCase
             );
     }
 
+    public function test_exam_reports_can_be_filtered_by_exam_package(): void
+    {
+        $schoolAdmin = User::factory()->guru()->create();
+        $school = School::factory()->create(['admin_id' => $schoolAdmin->id]);
+        $academicYear = AcademicYear::factory()->active()->create();
+        $examType = ExamType::factory()->create(['school_id' => $school->id]);
+        $subject = Subject::factory()->active()->create();
+        $schoolClass = SchoolClass::factory()->create([
+            'school_id' => $school->id,
+            'academic_year_id' => $academicYear->id,
+        ]);
+        $selectedPackage = ExamPackage::factory()->create([
+            'school_id' => $school->id,
+            'academic_year_id' => $academicYear->id,
+            'exam_type_id' => $examType->id,
+            'name' => 'Paket Terpilih',
+        ]);
+        $otherPackage = ExamPackage::factory()->create([
+            'school_id' => $school->id,
+            'academic_year_id' => $academicYear->id,
+            'exam_type_id' => $examType->id,
+            'name' => 'Paket Lain',
+        ]);
+        $selectedSchedule = ExamSchedule::factory()->create([
+            'exam_package_id' => $selectedPackage->id,
+            'class_id' => $schoolClass->id,
+            'subject_id' => $subject->id,
+        ]);
+        ExamSchedule::factory()->create([
+            'exam_package_id' => $otherPackage->id,
+            'class_id' => $schoolClass->id,
+            'subject_id' => $subject->id,
+        ]);
+
+        $this->actingAs($schoolAdmin)
+            ->get(route('admin.reports.index', ['package_id' => $selectedPackage->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Reports/Index')
+                ->where('filters.package_id', (string) $selectedPackage->id)
+                ->has('reports', 1)
+                ->where('reports.0.id', $selectedSchedule->id)
+                ->where('reports.0.name', 'Paket Terpilih')
+                ->has('packages', 2)
+            );
+    }
+
     public function test_school_admin_can_view_schedule_detail_and_export_csv(): void
     {
         $schoolAdmin = User::factory()->guru()->create();

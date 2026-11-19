@@ -12,6 +12,7 @@ function formatPercentage(value) {
 export default function ReportsIndex({
     filters = {},
     academicYears = [],
+    packages = [],
     subjects = [],
     classes = [],
     reports = [],
@@ -74,7 +75,7 @@ export default function ReportsIndex({
                 </section>
 
                 <Card padding="p-5">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <label className="space-y-1.5 text-xs font-label font-semibold text-on-surface-variant">
                             Tahun Pelajaran
                             <select
@@ -85,6 +86,21 @@ export default function ReportsIndex({
                                 <option value="">Semua tahun</option>
                                 {academicYears.map((year) => (
                                     <option key={year.id} value={year.id}>{year.name}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="space-y-1.5 text-xs font-label font-semibold text-on-surface-variant">
+                            Paket Ujian
+                            <select
+                                value={filters.package_id ?? ''}
+                                onChange={(event) => updateFilter('package_id', event.target.value)}
+                                className="w-full rounded-xl bg-surface-container-low px-3.5 py-3 text-sm text-on-surface outline-none"
+                            >
+                                <option value="">Semua paket</option>
+                                {packages.map((examPackage) => (
+                                    <option key={examPackage.id} value={examPackage.id}>
+                                        {examPackage.code} - {examPackage.name}
+                                    </option>
                                 ))}
                             </select>
                         </label>
