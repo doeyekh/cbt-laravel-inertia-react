@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\ExamAttemptStatus;
+use App\Enums\ExamPackageStatus;
+use App\Enums\ExamScheduleStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ExamAnswer;
 use App\Models\ExamAttempt;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
 use App\Models\Question;
+use App\Models\Room;
 use App\Services\ExamScheduleAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,10 +20,75 @@ use Inertia\Response;
 
 class PageController extends Controller
 {
-    public function dashboard(): Response
+    public function dashboard(Request $request): Response
     {
+        $now = now();
+        $schoolIds = $request->user()->accessibleSchoolIds();
+        $activeScheduleQuery = ExamSchedule::query()
+            ->where('status', ExamScheduleStatus::Aktif)
+            ->whereHas('examPackage', fn ($query) => $query
+                ->where('status', ExamPackageStatus::Aktif)
+                ->whereIn('school_id', $schoolIds));
+        $todayScheduleCount = (clone $activeScheduleQuery)
+            ->whereDate('exam_date', $now->toDateString())
+            ->count();
+        $activeScheduleIds = (clone $activeScheduleQuery)
+            ->whereDate('exam_date', $now->toDateString())
+            ->whereTime('open_time', '<=', $now->format('H:i:s'))
+            ->whereTime('close_time', '>=', $now->format('H:i:s'))
+            ->pluck('id');
+        $upcomingSchedules = (clone $activeScheduleQuery)
+            ->where(function ($query) use ($now): void {
+                $query
+                    ->whereDate('exam_date', '>', $now->toDateString())
+                    ->orWhere(function ($todayQuery) use ($now): void {
+                        $todayQuery
+                            ->whereDate('exam_date', $now->toDateString())
+                            ->whereTime('close_time', '>=', $now->format('H:i:s'));
+                    });
+            })
+            ->with([
+                'examPackage:id,name,code',
+                'subject:id,name',
+                'schoolClass:id,name',
+            ])
+            ->orderBy('exam_date')
+            ->orderBy('open_time')
+            ->limit(5)
+            ->get();
+
         return Inertia::render('Home', [
             'title' => 'Beranda - CBT Panel',
+            'dashboardStats' => [
+                'participant_count' => ExamParticipant::query()
+                    ->whereIn('school_id', $schoolIds)
+                    ->distinct()
+                    ->count('student_id'),
+                'active_room_count' => Room::query()
+                    ->whereIn('school_id', $schoolIds)
+                    ->where('is_active', true)
+                    ->count(),
+                'today_schedule_count' => $todayScheduleCount,
+                'active_attempt_count' => ExamAttempt::query()
+                    ->whereIn('exam_schedule_id', $activeScheduleIds)
+                    ->where('status', ExamAttemptStatus::InProgress)
+                    ->count(),
+            ],
+            'upcomingSchedules' => $upcomingSchedules
+                ->map(fn (ExamSchedule $schedule): array => [
+                    'id' => $schedule->id,
+                    'package' => $schedule->examPackage?->name,
+                    'package_code' => $schedule->examPackage?->code,
+                    'subject' => $schedule->subject?->name,
+                    'class' => $schedule->schoolClass?->name,
+                    'exam_date' => $schedule->exam_date?->format('Y-m-d'),
+                    'open_time' => substr((string) $schedule->open_time, 0, 5),
+                    'close_time' => substr((string) $schedule->close_time, 0, 5),
+                    'is_ongoing' => $schedule->exam_date?->isSameDay($now) === true
+                        && $schedule->open_time <= $now->format('H:i:s')
+                        && $schedule->close_time >= $now->format('H:i:s'),
+                ])
+                ->values(),
         ]);
     }
 

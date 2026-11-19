@@ -6,7 +6,7 @@ import Button from '@/Components/UI/Button';
 import Badge from '@/Components/UI/Badge';
 import Card from '@/Components/UI/Card';
 
-function Home() {
+function Home({ dashboardStats = {}, upcomingSchedules = [] }) {
     const quickActions = [
         {
             title: 'Monitoring Ujian',
@@ -32,6 +32,32 @@ function Home() {
             iconVariant: 'neutral',
             variant: 'outline',
             href: route('admin.reports.index'),
+        },
+    ];
+    const stats = [
+        {
+            label: 'Peserta Terdaftar',
+            value: dashboardStats.participant_count ?? 0,
+            icon: 'groups',
+            iconClass: 'bg-primary/10 text-primary',
+        },
+        {
+            label: 'Ruang Ujian Aktif',
+            value: dashboardStats.active_room_count ?? 0,
+            icon: 'meeting_room',
+            iconClass: 'bg-tertiary-container/30 text-tertiary',
+        },
+        {
+            label: 'Jadwal Hari Ini',
+            value: dashboardStats.today_schedule_count ?? 0,
+            icon: 'calendar_month',
+            iconClass: 'bg-surface-container text-on-surface',
+        },
+        {
+            label: 'Peserta Sedang Ujian',
+            value: dashboardStats.active_attempt_count ?? 0,
+            icon: 'edit_document',
+            iconClass: 'bg-primary/10 text-primary',
         },
     ];
 
@@ -73,10 +99,28 @@ function Home() {
                     </div>
                 </div>
 
+                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Statistik dashboard">
+                    {stats.map((stat) => (
+                        <Card key={stat.label} padding="p-5">
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <p className="text-sm font-label text-on-surface-variant">{stat.label}</p>
+                                    <p className="mt-2 text-3xl font-bold tracking-tight text-on-surface">
+                                        {stat.value.toLocaleString('id-ID')}
+                                    </p>
+                                </div>
+                                <span className={`material-symbols-outlined rounded-xl p-3 text-[22px] ${stat.iconClass}`} aria-hidden="true">
+                                    {stat.icon}
+                                </span>
+                            </div>
+                        </Card>
+                    ))}
+                </section>
+
                 {/* Quick Action Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {quickActions.map((action, idx) => (
-                        <Card key={idx} padding="p-6">
+                    {quickActions.map((action) => (
+                        <Card key={action.title} padding="p-6">
                             <div className="flex items-center gap-3 mb-4">
                                 <div
                                     className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -115,23 +159,51 @@ function Home() {
                     ))}
                 </div>
 
-                {/* System Status */}
+                {/* Jadwal terdekat */}
                 <Card padding="p-6">
-                    <div className="flex items-center justify-between">
+                    <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
                         <div>
-                            <h3 className="font-headline font-semibold text-on-surface text-lg mb-2">
-                                Status Sistem
+                            <h3 className="font-headline font-semibold text-on-surface text-lg">
+                                Jadwal Ujian Terdekat
                             </h3>
-                            <p className="text-sm text-on-surface-variant font-body">
-                                Sistem siap digunakan untuk pengawasan ujian.
+                            <p className="mt-1 text-sm text-on-surface-variant">
+                                Jadwal aktif hari ini dan yang akan datang.
                             </p>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <Badge variant="success">Sistem Online</Badge>
-                            <Badge variant="secondary">3 Lab Aktif</Badge>
-                            <Badge variant="neutral">430 Siswa Terdaftar</Badge>
-                        </div>
+                        <Button variant="outline" onClick={() => router.visit(route('admin.exam-packages.index'))}>
+                            Kelola Jadwal
+                        </Button>
                     </div>
+                    {upcomingSchedules.length > 0 ? (
+                        <div className="divide-y divide-surface-container-high">
+                            {upcomingSchedules.map((schedule) => (
+                                <div key={schedule.id} className="flex flex-col justify-between gap-3 py-4 sm:flex-row sm:items-center">
+                                    <div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p className="font-semibold text-on-surface">{schedule.package}</p>
+                                            {schedule.is_ongoing && <Badge variant="success">Berlangsung</Badge>}
+                                        </div>
+                                        <p className="mt-1 text-sm text-on-surface-variant">
+                                            {schedule.subject} · {schedule.class}
+                                        </p>
+                                    </div>
+                                    <div className="text-sm text-on-surface-variant sm:text-right">
+                                        <p>{schedule.exam_date}</p>
+                                        <p className="mt-1">{schedule.open_time}–{schedule.close_time}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl bg-surface-container-low px-5 py-8 text-center">
+                            <span className="material-symbols-outlined text-3xl text-on-surface-variant" aria-hidden="true">
+                                event_busy
+                            </span>
+                            <p className="mt-2 text-sm text-on-surface-variant">
+                                Belum ada jadwal ujian aktif hari ini atau mendatang.
+                            </p>
+                        </div>
+                    )}
                 </Card>
             </div>
         </AppLayout>
