@@ -275,6 +275,12 @@ export default function useExamSession({
                 return false;
             }
 
+            if (status === 409 && serverStatus === 'expired') {
+                window.location.href = route('student.exam-result.show', exam.id);
+
+                return false;
+            }
+
             if (status === 409) {
                 clearInterval(timerRef.current);
                 timerRef.current = null;
@@ -436,9 +442,9 @@ export default function useExamSession({
 
     useEffect(() => {
         if (timeRemaining === 0) {
-            void submitAttemptRef.current?.();
+            void flushPendingAnswers(flaggedQuestionIds);
         }
-    }, [timeRemaining]);
+    }, [timeRemaining, flaggedQuestionIds]);
 
     const goToPreviousQuestion = () => {
         void flushPendingAnswers();

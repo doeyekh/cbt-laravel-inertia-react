@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, useForm } from '@inertiajs/react';
 import Avatar from '@/Components/UI/Avatar';
 import ConfirmDialog from '@/Components/UI/ConfirmDialog';
+import Modal from '@/Components/UI/Modal';
+import Input from '@/Components/UI/Input';
+import Button from '@/Components/UI/Button';
 import Table, {
     TableHead,
     TableHeadCell,
@@ -51,6 +54,15 @@ export default function StudentTable({
     const [gradeTarget, setGradeTarget] = useState(null);
     const [resetTarget, setResetTarget] = useState(null);
     const [isResetting, setIsResetting] = useState(false);
+    const [timeAction, setTimeAction] = useState(null);
+    const {
+        data,
+        setData,
+        patch,
+        processing: isTimeActionProcessing,
+        errors,
+        clearErrors,
+    } = useForm({ minutes: 15 });
 
     useEffect(() => {
         setPage(1);
@@ -78,6 +90,35 @@ export default function StudentTable({
             preserveScroll: true,
             onSuccess: () => setResetTarget(null),
             onFinish: () => setIsResetting(false),
+        });
+    };
+
+    const openTimeAction = (student, mode) => {
+        clearErrors();
+        setData('minutes', 15);
+        setTimeAction({ student, mode });
+    };
+
+    const closeTimeAction = () => {
+        if (!isTimeActionProcessing) {
+            setTimeAction(null);
+        }
+    };
+
+    const handleTimeAction = (event) => {
+        event.preventDefault();
+
+        if (!timeAction || isTimeActionProcessing) {
+            return;
+        }
+
+        const routeName = timeAction.mode === 'unlock'
+            ? 'admin.exam-attempts.unlock'
+            : 'admin.exam-attempts.extend-time';
+
+        patch(route(routeName, timeAction.student.attempt_id), {
+            preserveScroll: true,
+            onSuccess: () => setTimeAction(null),
         });
     };
 
@@ -152,6 +193,8 @@ export default function StudentTable({
                                         student={student}
                                         onGrade={setGradeTarget}
                                         onReset={setResetTarget}
+                                        onExtendTime={(target) => openTimeAction(target, 'extend')}
+                                        onUnlock={(target) => openTimeAction(target, 'unlock')}
                                     />
                                 </TableCell>
                             </TableRow>
@@ -200,6 +243,50 @@ export default function StudentTable({
                     : ''}
                 confirmLabel="Reset Jawaban & Nilai"
             />
+
+            <Modal isOpen={Boolean(timeAction)} onClose={closeTimeAction}>
+                <form onSubmit={handleTimeAction}>
+                    <div className="mb-4 flex items-center gap-3">
+                        <span className="material-symbols-outlined rounded-xl bg-primary/10 p-2 text-primary" aria-hidden="true">
+                            {timeAction?.mode === 'unlock' ? 'lock_open' : 'more_time'}
+                        </span>
+                        <h3 className="font-headline text-lg font-semibold text-on-surface">
+                            {timeAction?.mode === 'unlock' ? 'Buka Kunci Attempt' : 'Perpanjang Waktu Ujian'}
+                        </h3>
+                    </div>
+                    <p className="mb-5 text-sm leading-relaxed text-on-surface-variant">
+                        {timeAction?.mode === 'unlock'
+                            ? `Jawaban ${timeAction?.student.name} akan dipertahankan. Nilai lama dihapus dan penilaian dilakukan ulang setelah peserta mengumpulkan kembali.`
+                            : `Waktu ${timeAction?.student.name} ditambahkan. Jika batas waktu sudah lewat, tambahan dihitung mulai sekarang.`}
+                    </p>
+                    <Input
+                        id="exam-time-extension-minutes"
+                        label="Tambahan waktu (menit)"
+                        type="number"
+                        min="1"
+                        max="240"
+                        value={data.minutes}
+                        onChange={(event) => setData('minutes', event.target.value)}
+                        error={errors.minutes}
+                        required
+                    />
+                    <p className="mt-1 text-[11px] text-on-surface-variant">
+                        Masukkan 1–240 menit.
+                    </p>
+                    <div className="mt-6 flex justify-end gap-3">
+                        <Button
+                            variant="secondary"
+                            onClick={closeTimeAction}
+                            disabled={isTimeActionProcessing}
+                        >
+                            Batal
+                        </Button>
+                        <Button type="submit" loading={isTimeActionProcessing}>
+                            {timeAction?.mode === 'unlock' ? 'Buka & Tambahkan Waktu' : 'Perpanjang Waktu'}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }

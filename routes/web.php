@@ -5,16 +5,17 @@ use App\Http\Controllers\Admin\AssessmentTypeController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\ClassMemberController;
 use App\Http\Controllers\Admin\ExamAttemptResetController;
+use App\Http\Controllers\Admin\ExamAttemptTimeController;
 use App\Http\Controllers\Admin\ExamEssayGradeController;
 use App\Http\Controllers\Admin\ExamPackageController;
 use App\Http\Controllers\Admin\ExamParticipantController;
+use App\Http\Controllers\Admin\ExamReportController;
 use App\Http\Controllers\Admin\ExamScheduleController;
 use App\Http\Controllers\Admin\ExamTypeController;
 use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\QuestionBankController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\QuestionImportController;
-use App\Http\Controllers\Admin\ExamReportController;
 use App\Http\Controllers\Admin\RoomController;
 use App\Http\Controllers\Admin\SchoolController;
 use App\Http\Controllers\Admin\SessionController;
@@ -93,6 +94,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 ->name('reports.export');
         });
         Route::middleware('school-admin')->group(function () {
+            Route::patch('exam-attempts/{examAttempt}/extend-time', [ExamAttemptTimeController::class, 'extend'])
+                ->name('exam-attempts.extend-time');
+            Route::patch('exam-attempts/{examAttempt}/unlock', [ExamAttemptTimeController::class, 'unlock'])
+                ->name('exam-attempts.unlock');
             Route::delete('exam-attempts/{examAttempt}/reset', [ExamAttemptResetController::class, 'destroy'])
                 ->name('exam-attempts.reset');
             Route::get('exam-attempts/{examAttempt}/essays', [ExamEssayGradeController::class, 'index'])

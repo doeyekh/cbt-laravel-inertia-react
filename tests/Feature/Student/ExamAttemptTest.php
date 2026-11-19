@@ -163,6 +163,59 @@ class ExamAttemptTest extends TestCase
             );
     }
 
+    public function test_student_can_save_and_submit_answers_after_schedule_close_with_extended_attempt(): void
+    {
+        $context = $this->createOpenExamContext();
+        $question = $context['questionBank']->questions()->firstOrFail();
+        $context['schedule']->update(['close_time' => now()->subMinute()->format('H:i:s')]);
+        $startedAt = now()->subHour();
+        $attempt = ExamAttempt::factory()->create([
+            'exam_participant_id' => $context['participant']->id,
+            'exam_schedule_id' => $context['schedule']->id,
+            'exam_package_id' => $context['package']->id,
+            'duration_minutes' => 75,
+            'started_at' => $startedAt,
+            'deadline_at' => now()->addMinutes(15),
+            'status' => ExamAttemptStatus::InProgress,
+        ]);
+
+        $this->withSession([
+            ...$this->studentSession($context['participant']),
+            'student_exam_packages' => [$context['package']->id => $context['token_hash']],
+        ])
+            ->post(route('student.exam-answers.store', $context['schedule']), [
+                'attempt_id' => $attempt->id,
+                'answers' => [$question->id => 'Jawaban setelah perpanjangan'],
+            ])
+            ->assertOk()
+            ->assertJson([
+                'status' => 'in_progress',
+                'remaining_seconds' => 900,
+            ]);
+
+        $this->assertDatabaseHas('exam_answers', [
+            'exam_attempt_id' => $attempt->id,
+            'question_id' => $question->id,
+            'answer' => 'Jawaban setelah perpanjangan',
+        ]);
+
+        $this->withSession([
+            ...$this->studentSession($context['participant']),
+            'student_exam_packages' => [$context['package']->id => $context['token_hash']],
+        ])
+            ->post(route('student.exam-submit.store', $context['schedule']), [
+                'attempt_id' => $attempt->id,
+                'answers' => [$question->id => 'Jawaban setelah perpanjangan'],
+            ])
+            ->assertOk()
+            ->assertJson(['status' => ExamAttemptStatus::Graded->value]);
+
+        $this->assertDatabaseHas('exam_attempts', [
+            'id' => $attempt->id,
+            'status' => ExamAttemptStatus::Graded->value,
+        ]);
+    }
+
     public function test_student_cannot_save_answers_without_token_verification(): void
     {
         $context = $this->createOpenExamContext();

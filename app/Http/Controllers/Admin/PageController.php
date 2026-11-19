@@ -204,6 +204,8 @@ class PageController extends Controller
                 : ($attempt->status === ExamAttemptStatus::InProgress
                     ? ($isOnline ? 'active' : 'disconnected')
                     : 'submitted'),
+            'can_extend_time' => $attempt?->status === ExamAttemptStatus::InProgress,
+            'can_unlock' => $attempt?->isSubmitted() ?? false,
             'pending_essay_count' => $pendingEssayCount,
             'grade_url' => $pendingEssayCount > 0
                 ? route('admin.exam-attempts.essays.index', $attempt)

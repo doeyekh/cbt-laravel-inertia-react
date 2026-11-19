@@ -35,8 +35,8 @@ class ExamAnswerController extends Controller
             return response()->json(['message' => 'Akses tidak diizinkan untuk jadwal ujian ini.'], 403);
         }
 
-        if (! $examAccess->isActive($examPackage, $examSchedule) || ! $examAccess->scheduleIsOpen($examPackage, $examSchedule)) {
-            return response()->json(['message' => 'Jadwal ujian belum dibuka atau sudah ditutup.'], 403);
+        if (! $examAccess->isActive($examPackage, $examSchedule)) {
+            return response()->json(['message' => 'Paket atau jadwal ujian sudah tidak aktif.'], 403);
         }
 
         $verifiedExamPackages = $request->session()->get('student_exam_packages', []);
@@ -53,6 +53,10 @@ class ExamAnswerController extends Controller
             ->where('exam_participant_id', $participant->id)
             ->where('exam_schedule_id', $examSchedule->id)
             ->first();
+
+        if ($attempt === null && ! $examAccess->scheduleIsOpen($examPackage, $examSchedule)) {
+            return response()->json(['message' => 'Jadwal ujian belum dibuka atau sudah ditutup.'], 403);
+        }
 
         if ($attempt === null || ! $request->has('attempt_id')) {
             return response()->json([
