@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\ExamAttemptStatus;
+use App\Exports\ExamReportExport;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\ExamAnswer;
@@ -13,9 +14,11 @@ use App\Models\Question;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ExamReportController extends Controller
 {
@@ -273,39 +276,25 @@ class ExamReportController extends Controller
         ]);
     }
 
-    public function export(Request $request, ExamSchedule $examSchedule): StreamedResponse
+    public function export(Request $request, ExamSchedule $examSchedule): BinaryFileResponse
     {
         $this->authorizeSchedule($request, $examSchedule);
+        $examSchedule->loadMissing(['subject:id,name', 'schoolClass:id,name']);
+
         $attempts = ExamAttempt::query()
             ->where('exam_schedule_id', $examSchedule->id)
-            ->with(['participant.student'])
+            ->with(['participant.student', 'answers:id,exam_attempt_id,is_correct'])
             ->orderBy('exam_participant_id')
             ->get();
 
-        $filename = 'laporan-ujian-'.$examSchedule->id.'.csv';
+        $filename = implode('-', array_filter([
+            'laporan-ujian',
+            Str::slug((string) $examSchedule->subject?->name),
+            Str::slug((string) $examSchedule->schoolClass?->name),
+            $examSchedule->id,
+        ])).'.xlsx';
 
-        return response()->streamDownload(function () use ($attempts): void {
-            $output = fopen('php://output', 'wb');
-            fputcsv($output, ['Nomor Peserta', 'Nama', 'NISN', 'Status', 'Skor', 'Skor Maksimum', 'Persentase', 'Waktu (detik)', 'Dikumpulkan Pada']);
-
-            foreach ($attempts as $attempt) {
-                fputcsv($output, [
-                    $attempt->participant?->participant_number,
-                    $attempt->participant?->student?->name,
-                    $attempt->participant?->student?->nisn,
-                    $attempt->status->label(),
-                    $attempt->score,
-                    $attempt->max_score,
-                    $attempt->scorePercentage(),
-                    $attempt->time_spent_seconds,
-                    $attempt->submitted_at?->format('Y-m-d H:i:s'),
-                ]);
-            }
-
-            fclose($output);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return Excel::download(new ExamReportExport($attempts), $filename);
     }
 
     private function authorizeSchedule(Request $request, ExamSchedule $examSchedule): void

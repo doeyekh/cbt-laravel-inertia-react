@@ -110,16 +110,17 @@ class ExamReportControllerTest extends TestCase
             );
     }
 
-    public function test_school_admin_can_view_schedule_detail_and_export_csv(): void
+    public function test_school_admin_can_view_schedule_detail_and_export_excel(): void
     {
         $schoolAdmin = User::factory()->guru()->create();
         $school = School::factory()->create(['admin_id' => $schoolAdmin->id]);
         $academicYear = AcademicYear::factory()->active()->create();
         $examType = ExamType::factory()->create(['school_id' => $school->id]);
-        $subject = Subject::factory()->active()->create();
+        $subject = Subject::factory()->active()->create(['name' => 'Matematika']);
         $schoolClass = SchoolClass::factory()->create([
             'school_id' => $school->id,
             'academic_year_id' => $academicYear->id,
+            'name' => 'X IPA 1',
         ]);
         $package = ExamPackage::factory()->create([
             'school_id' => $school->id,
@@ -166,7 +167,8 @@ class ExamReportControllerTest extends TestCase
         $this->actingAs($schoolAdmin)
             ->get(route('admin.reports.export', $schedule))
             ->assertOk()
-            ->assertDownload('laporan-ujian-'.$schedule->id.'.csv');
+            ->assertDownload('laporan-ujian-matematika-x-ipa-1-'.$schedule->id.'.xlsx')
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 
     public function test_school_admin_cannot_view_report_from_another_school(): void
