@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import Card from '@/Components/UI/Card';
 import Button from '@/Components/UI/Button';
+import EssayGradeModal from '@/Features/Monitoring/Components/EssayGradeModal';
 import { route } from '@/Utils/route';
 
 function formatPercentage(value) {
@@ -16,7 +17,13 @@ export default function ReportsShow({
     questionAnalysis = [],
     participants = [],
 }) {
+    const [gradeTarget, setGradeTarget] = useState(null);
     const maxDistribution = Math.max(...distribution.map((item) => item.count), 1);
+
+    const closeGradeModal = () => {
+        setGradeTarget(null);
+        router.reload({ only: ['participants', 'summary', 'distribution', 'questionAnalysis'] });
+    };
 
     return (
         <AppLayout>
@@ -31,9 +38,16 @@ export default function ReportsShow({
                             {schedule.code} · {schedule.subject} · {schedule.class} · {schedule.exam_date}
                         </p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3">
                         <Button variant="outline" onClick={() => router.visit(route('admin.reports.index'))}>
                             Kembali
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            onClick={() => window.open(route('admin.reports.pdf', schedule.id), '_blank', 'noopener')}
+                        >
+                            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">picture_as_pdf</span>
+                            Cetak PDF
                         </Button>
                         <Button
                             variant="primary"
@@ -63,7 +77,7 @@ export default function ReportsShow({
 
                 <Card padding="p-0">
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[820px] text-left text-sm">
+                        <table className="w-full min-w-[1040px] text-left text-sm">
                             <thead className="bg-surface-container-low text-xs font-label uppercase tracking-wider text-on-surface-variant">
                                 <tr>
                                     <th className="px-5 py-4">Peserta</th>
@@ -71,6 +85,7 @@ export default function ReportsShow({
                                     <th className="px-5 py-4 text-right">Skor</th>
                                     <th className="px-5 py-4 text-right">Nilai</th>
                                     <th className="px-5 py-4 text-right">Waktu</th>
+                                    <th className="px-5 py-4 text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-surface-container-high">
@@ -92,11 +107,38 @@ export default function ReportsShow({
                                         <td className="px-5 py-4 text-right">
                                             {Math.floor((participant.time_spent_seconds ?? 0) / 60)} menit
                                         </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => router.visit(participant.answers_url)}
+                                                >
+                                                    <span className="material-symbols-outlined text-[16px]" aria-hidden="true">visibility</span>
+                                                    Lihat Jawaban
+                                                </Button>
+                                                {participant.grade_url && (
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        onClick={() => setGradeTarget(participant)}
+                                                    >
+                                                        <span className="material-symbols-outlined text-[16px]" aria-hidden="true">grading</span>
+                                                        Koreksi Esai
+                                                        {participant.pending_essay_count > 0 && (
+                                                            <span className="rounded-full bg-error px-1.5 py-0.5 text-[10px] font-bold text-on-error">
+                                                                {participant.pending_essay_count}
+                                                            </span>
+                                                        )}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                                 {participants.length === 0 && (
                                     <tr>
-                                        <td colSpan="5" className="px-5 py-10 text-center text-on-surface-variant">
+                                        <td colSpan="6" className="px-5 py-10 text-center text-on-surface-variant">
                                             Belum ada peserta yang memulai ujian.
                                         </td>
                                     </tr>
@@ -166,8 +208,14 @@ export default function ReportsShow({
                         </div>
                     </Card>
                 </section>
-                
 
+                {gradeTarget && (
+                    <EssayGradeModal
+                        isOpen
+                        onClose={closeGradeModal}
+                        student={{ ...gradeTarget, subject: schedule.subject }}
+                    />
+                )}
             </div>
         </AppLayout>
     );

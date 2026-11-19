@@ -92,6 +92,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 ->name('reports.show');
             Route::get('/reports/{examSchedule}/export', [ExamReportController::class, 'export'])
                 ->name('reports.export');
+            Route::get('/reports/{examSchedule}/pdf', [ExamReportController::class, 'pdf'])
+                ->name('reports.pdf');
+            Route::get('/reports/{examSchedule}/attempts/{examAttempt}', [ExamReportController::class, 'attempt'])
+                ->name('reports.attempt');
         });
         Route::middleware('school-admin')->group(function () {
             Route::patch('exam-attempts/{examAttempt}/extend-time', [ExamAttemptTimeController::class, 'extend'])

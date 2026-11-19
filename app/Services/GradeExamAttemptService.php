@@ -70,7 +70,7 @@ class GradeExamAttemptService
         $attempt->loadMissing(['answers.question']);
         $hasUngradedEssay = $attempt->answers->contains(
             fn (ExamAnswer $answer): bool => $answer->question?->type === QuestionType::Esai
-                && $this->hasAnswerContent(ExamAnswer::restoreAnswer($answer->answer))
+                && self::hasAnswerContent(ExamAnswer::restoreAnswer($answer->answer))
                 && $answer->score_awarded === null,
         );
         $score = (float) $attempt->answers->sum(
@@ -99,12 +99,12 @@ class GradeExamAttemptService
         $maximumScore = (float) $question->score;
 
         if ($question->type === QuestionType::Esai) {
-            return $this->hasAnswerContent($answer)
+            return self::hasAnswerContent($answer)
                 ? [null, null]
                 : [false, 0.0];
         }
 
-        if (! $this->hasAnswerContent($answer)) {
+        if (! self::hasAnswerContent($answer)) {
             return [false, 0.0];
         }
 
@@ -161,9 +161,9 @@ class GradeExamAttemptService
             $correctBlankCount = 0;
 
             foreach ($blanks as $index => $blank) {
-                $studentAnswer = $this->normalizeText((string) ($answers[$index] ?? ''));
+                $studentAnswer = self::normalizeText((string) ($answers[$index] ?? ''));
                 $acceptedAnswers = collect($blank->answers ?? [])
-                    ->map(fn (mixed $accepted): string => $this->normalizeText((string) $accepted));
+                    ->map(fn (mixed $accepted): string => self::normalizeText((string) $accepted));
                 $isBlankCorrect = $studentAnswer !== '' && $acceptedAnswers->contains($studentAnswer);
 
                 if ($isBlankCorrect) {
@@ -202,14 +202,14 @@ class GradeExamAttemptService
         );
     }
 
-    private function normalizeText(string $value): string
+    public static function normalizeText(string $value): string
     {
         $normalized = mb_strtolower(trim($value));
 
         return preg_replace('/\s+/u', ' ', $normalized) ?? $normalized;
     }
 
-    private function hasAnswerContent(string|array|null $answer): bool
+    public static function hasAnswerContent(string|array|null $answer): bool
     {
         if ($answer === null || $answer === '') {
             return false;
