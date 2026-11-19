@@ -7,9 +7,11 @@ use App\Enums\QuestionType;
 use App\Exports\ExamReportExport;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
+use App\Models\ClassMember;
 use App\Models\ExamAnswer;
 use App\Models\ExamAttempt;
 use App\Models\ExamPackage;
+use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
 use App\Models\Question;
 use App\Models\QuestionBlank;
@@ -17,10 +19,12 @@ use App\Models\QuestionOption;
 use App\Models\QuestionPair;
 use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Models\SubjectTeacher;
 use App\Services\GradeExamAttemptService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -185,6 +189,16 @@ class ExamReportController extends Controller
     public function pdf(Request $request, ExamSchedule $examSchedule): StreamedResponse
     {
         $data = $this->buildReportData($request, $examSchedule);
+        $data['participants'] = $this->buildPdfParticipants($examSchedule);
+        $data['schedule']['teacher'] = SubjectTeacher::query()
+            ->with('teacher:id,name')
+            ->where('school_class_id', $examSchedule->class_id)
+            ->where('academic_year_id', $examSchedule->examPackage->academic_year_id)
+            ->where('subject_id', $examSchedule->subject_id)
+            ->where('is_active', true)
+            ->first()
+            ?->teacher
+            ?->name;
 
         $options = new Options;
         $options->set([
@@ -242,6 +256,50 @@ class ExamReportController extends Controller
                 'Content-Disposition' => 'inline; filename="' . $filename . '"',
             ],
         );
+    }
+
+    private function buildPdfParticipants(ExamSchedule $examSchedule): Collection
+    {
+        $examPackage = $examSchedule->examPackage;
+        $classMembers = ClassMember::query()
+            ->where('class_id', $examSchedule->class_id)
+            ->where('academic_year_id', $examPackage->academic_year_id)
+            ->with('student:id,name,nisn')
+            ->get();
+        $examParticipants = ExamParticipant::query()
+            ->where('school_id', $examPackage->school_id)
+            ->where('academic_year_id', $examPackage->academic_year_id)
+            ->whereIn('student_id', $classMembers->pluck('student_id'))
+            ->get()
+            ->keyBy('student_id');
+        $attemptsByStudentId = ExamAttempt::query()
+            ->where('exam_schedule_id', $examSchedule->id)
+            ->whereIn('exam_participant_id', $examParticipants->pluck('id'))
+            ->with([
+                'participant:id,student_id',
+                'answers:id,exam_attempt_id,is_correct',
+            ])
+            ->get()
+            ->keyBy(fn (ExamAttempt $attempt): ?int => $attempt->participant?->student_id);
+
+        return $classMembers
+            ->map(function (ClassMember $classMember) use ($examParticipants, $attemptsByStudentId): array {
+                $student = $classMember->student;
+                $examParticipant = $examParticipants->get($classMember->student_id);
+                $attempt = $attemptsByStudentId->get($classMember->student_id);
+
+                return [
+                    'participant_number' => $examParticipant?->participant_number,
+                    'name' => $student?->name,
+                    'nisn' => $student?->nisn,
+                    'correct_count' => $attempt?->answers->whereStrict('is_correct', true)->count(),
+                    'wrong_count' => $attempt?->answers->whereStrict('is_correct', false)->count(),
+                    'percentage' => $attempt?->scorePercentage(),
+                    'time_spent_seconds' => $attempt?->time_spent_seconds,
+                ];
+            })
+            ->sortBy(fn (array $participant): string => mb_strtolower((string) $participant['name']))
+            ->values();
     }
 
     public function attempt(Request $request, ExamSchedule $examSchedule, ExamAttempt $examAttempt): InertiaResponse

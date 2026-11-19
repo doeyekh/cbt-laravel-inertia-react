@@ -216,18 +216,38 @@
         .footer-space {
             height: 3mm;
         }
+
+        .signature {
+            margin-top: 8mm;
+            page-break-inside: avoid;
+        }
+
+        .signature-block {
+            width: 42%;
+            text-align: center;
+        }
+
+        .signature-space {
+            height: 18mm;
+        }
+
+        .signature-name {
+            font-weight: bold;
+            text-decoration: underline;
+        }
     </style>
 </head>
 
 <body>
 
     @php
-        $percentage = fn ($value) => $value === null
+        $score = fn ($value) => $value === null
             ? '-'
-            : number_format((float) $value, 1, ',', '.') . '%';
+            : number_format((float) $value, 1, ',', '.');
 
-        $minutes = fn ($seconds) =>
-            floor(((int) ($seconds ?? 0)) / 60) . ' menit';
+        $minutes = fn ($seconds) => $seconds === null
+            ? '-'
+            : floor((int) $seconds / 60) . ' menit';
 
         $examDate = !empty($schedule['exam_date'])
             ? \Illuminate\Support\Carbon::parse($schedule['exam_date'])->format('d/m/Y')
@@ -318,7 +338,7 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 7mm;">No.</th>
+                <th style="width: 5mm;">No.</th>
                 <th style="width: 23mm;">No. Peserta</th>
                 <th>Nama Peserta</th>
                 <th style="width: 19mm;">NISN</th>
@@ -347,15 +367,15 @@
                     </td>
 
                     <td class="text-center">
-                        {{ $participant['correct_count'] ?? 0 }}
+                        {{ $participant['correct_count'] ?? '-' }}
                     </td>
 
                     <td class="text-center">
-                        {{ $participant['wrong_count'] ?? 0 }}
+                        {{ $participant['wrong_count'] ?? '-' }}
                     </td>
 
                     <td class="text-center score">
-                        {{ $percentage($participant['percentage'] ?? null) }}
+                        {{ $score($participant['percentage'] ?? null) }}
                     </td>
 
                     <td class="text-center">
@@ -365,7 +385,7 @@
             @empty
                 <tr>
                     <td colspan="8" class="empty-row">
-                        Belum ada peserta yang memulai ujian.
+                        Belum ada siswa yang terdaftar pada kelas ini.
                     </td>
                 </tr>
             @endforelse
@@ -379,6 +399,19 @@
         kemudian dikonversi ke skala 0–100.
         Peserta dengan nilai di bawah 70 dinyatakan belum tuntas.
     </div>
+
+    <table class="signature">
+        <tr>
+            <td width="58%"></td>
+            <td class="signature-block">
+                <p>Pengajar Mata Pelajaran</p>
+                <div class="signature-space"></div>
+                <p class="signature-name">
+                    {{ $schedule['teacher'] ?? '........................................' }}
+                </p>
+            </td>
+        </tr>
+    </table>
 
 </body>
 </html>

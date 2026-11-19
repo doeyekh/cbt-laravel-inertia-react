@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Enums\ExamAttemptStatus;
 use App\Enums\QuestionType;
 use App\Models\AcademicYear;
+use App\Models\ClassMember;
 use App\Models\ExamAnswer;
 use App\Models\ExamAttempt;
 use App\Models\ExamPackage;
@@ -19,6 +20,7 @@ use App\Models\School;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\Subject;
+use App\Models\SubjectTeacher;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -366,6 +368,12 @@ class ExamReportControllerTest extends TestCase
             'subject_id' => $subject->id,
         ]);
         $student = Student::factory()->create(['name' => 'Siswa Contoh']);
+        ClassMember::factory()->forClass($schoolClass, $student)->create();
+        $unstartedStudent = Student::factory()->create(['name' => 'Siswa Belum Memulai']);
+        ClassMember::factory()->forClass($schoolClass, $unstartedStudent)->create();
+        SubjectTeacher::factory()
+            ->forClass($schoolClass, $academicYear, $subject, $schoolAdmin)
+            ->create(['is_active' => true]);
         $participant = ExamParticipant::factory()->create([
             'student_id' => $student->id,
             'school_id' => $school->id,
@@ -392,6 +400,36 @@ class ExamReportControllerTest extends TestCase
             );
 
         $this->assertStringStartsWith('%PDF', $response->streamedContent());
+    }
+
+    public function test_report_pdf_view_formats_scores_without_percent_and_shows_teacher_signature(): void
+    {
+        $html = view('reports.pdf', [
+            'schedule' => [
+                'name' => 'Ujian Bahasa Indonesia',
+                'subject' => 'Bahasa Indonesia',
+                'teacher' => 'Guru Contoh',
+            ],
+            'summary' => [],
+            'participants' => [
+                [
+                    'name' => 'Siswa Belum Memulai',
+                    'percentage' => null,
+                    'time_spent_seconds' => null,
+                ],
+                [
+                    'name' => 'Siswa Contoh',
+                    'percentage' => 87.5,
+                    'time_spent_seconds' => 120,
+                ],
+            ],
+            'print_date' => '19/11/2026 16:00',
+        ])->render();
+
+        $this->assertStringContainsString('Siswa Belum Memulai', $html);
+        $this->assertStringContainsString('Guru Contoh', $html);
+        $this->assertStringContainsString('87,5', $html);
+        $this->assertStringNotContainsString('87,5%', $html);
     }
 
     public function test_school_admin_cannot_review_answers_from_another_schedule(): void
