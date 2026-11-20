@@ -194,6 +194,23 @@ export default function ExamParticipantsIndex({
         );
     };
 
+    const handlePrintNominalList = () => {
+        router.get(
+            route('admin.nominal-list.index'),
+            {
+                ...(schoolFilter ? { school_id: schoolFilter } : {}),
+                ...(classFilter ? { class_id: classFilter } : {}),
+                ...(filters?.academic_year_id
+                    ? { academic_year_id: filters.academic_year_id }
+                    : {}),
+                ...(search ? { search } : {}),
+            },
+            {
+                preserveScroll: true,
+            }
+        );
+    };
+
     const handleOpenEditParticipant = (participant) => {
         setEditingParticipant(participant);
         setParticipantModalOpen(true);
@@ -289,6 +306,22 @@ export default function ExamParticipantsIndex({
                                     print
                                 </span>
                                 Cetak Kartu
+                            </Button>
+
+                            <Button
+                                variant="outline"
+                                onClick={handlePrintNominalList}
+                                disabled={!hasActiveYear}
+                                title={
+                                    hasActiveYear
+                                        ? undefined
+                                        : 'Belum ada tahun pelajaran aktif'
+                                }
+                            >
+                                <span className="material-symbols-outlined text-[18px]">
+                                    list_alt
+                                </span>
+                                Cetak Daftar Nominatif
                             </Button>
 
                             <Button
