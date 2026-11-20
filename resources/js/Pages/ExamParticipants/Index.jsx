@@ -18,6 +18,7 @@ import SchoolCredentialTemplateModal from './Components/SchoolCredentialTemplate
 import PrintCardsModal from './Components/PrintCardsModal';
 import BulkPlacementModal from './Components/BulkPlacementModal';
 import { route } from '@/Utils/route';
+import PrintParticipantsModal from './Components/PrintParticipantsModal';
 
 const buildQuery = (filters, extra = {}) => ({
     ...(filters?.search ? { search: filters.search } : {}),
@@ -67,6 +68,7 @@ export default function ExamParticipantsIndex({
     const [generateOpen, setGenerateOpen] = useState(false);
     const [templateOpen, setTemplateOpen] = useState(false);
     const [printOpen, setPrintOpen] = useState(false);
+    const [participantsPrintModalOpen, setParticipantsPrintModalOpen] = useState(false);
     const [bulkPlacementOpen, setBulkPlacementOpen] = useState(false);
     const [participantModalOpen, setParticipantModalOpen] = useState(false);
     const [editingParticipant, setEditingParticipant] = useState(null);
@@ -194,22 +196,7 @@ export default function ExamParticipantsIndex({
         );
     };
 
-    const handlePrintNominalList = () => {
-        const params = {
-            ...(schoolFilter ? { school_id: schoolFilter } : {}),
-            ...(classFilter ? { class_id: classFilter } : {}),
-            ...(filters?.academic_year_id
-                ? { academic_year_id: filters.academic_year_id }
-                : {}),
-            ...(search ? { search } : {}),
-        };
-
-        window.open(
-            route('admin.nominal-list.pdf', params),
-            '_blank',
-            'noopener'
-        );
-    };
+    
 
     const handleOpenEditParticipant = (participant) => {
         setEditingParticipant(participant);
@@ -310,7 +297,7 @@ export default function ExamParticipantsIndex({
 
                             <Button
                                 variant="outline"
-                                onClick={handlePrintNominalList}
+                                onClick={() => setParticipantsPrintModalOpen(true)}
                                 disabled={!hasActiveYear}
                                 title={
                                     hasActiveYear
@@ -319,7 +306,7 @@ export default function ExamParticipantsIndex({
                                 }
                             >
                                 <span className="material-symbols-outlined text-[18px]">
-                                    list_alt
+                                    download
                                 </span>
                                 Cetak Daftar Nominatif
                             </Button>
@@ -709,6 +696,17 @@ export default function ExamParticipantsIndex({
             <PrintCardsModal
                 isOpen={printOpen}
                 onClose={() => setPrintOpen(false)}
+                schools={schools}
+                sessions={sessions}
+                rooms={rooms}
+                classes={classes}
+                academicYear={activeAcademicYear}
+                defaultSchoolId={defaultSchoolId}
+            />
+
+            <PrintParticipantsModal
+                isOpen={participantsPrintModalOpen}
+                onClose={() => setParticipantModalOpen(false)}
                 schools={schools}
                 sessions={sessions}
                 rooms={rooms}
