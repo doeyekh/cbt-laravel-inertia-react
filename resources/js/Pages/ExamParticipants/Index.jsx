@@ -195,19 +195,19 @@ export default function ExamParticipantsIndex({
     };
 
     const handlePrintNominalList = () => {
-        router.get(
-            route('admin.nominal-list.index'),
-            {
-                ...(schoolFilter ? { school_id: schoolFilter } : {}),
-                ...(classFilter ? { class_id: classFilter } : {}),
-                ...(filters?.academic_year_id
-                    ? { academic_year_id: filters.academic_year_id }
-                    : {}),
-                ...(search ? { search } : {}),
-            },
-            {
-                preserveScroll: true,
-            }
+        const params = {
+            ...(schoolFilter ? { school_id: schoolFilter } : {}),
+            ...(classFilter ? { class_id: classFilter } : {}),
+            ...(filters?.academic_year_id
+                ? { academic_year_id: filters.academic_year_id }
+                : {}),
+            ...(search ? { search } : {}),
+        };
+
+        window.open(
+            route('admin.nominal-list.pdf', params),
+            '_blank',
+            'noopener'
         );
     };
 
