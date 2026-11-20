@@ -18,6 +18,8 @@
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
+/database/.docker-bootstrapped
+/database/.docker-bootstrapped-mysql
 /storage/*.key
 /storage/pail
 /vendor

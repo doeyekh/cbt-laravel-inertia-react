@@ -1,12 +1,18 @@
 import React from 'react';
 import AppLayout from '@/Layouts/AppLayout';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { route } from '@/Utils/route';
 import Button from '@/Components/UI/Button';
 import Badge from '@/Components/UI/Badge';
 import Card from '@/Components/UI/Card';
 
 function Home({ dashboardStats = {}, upcomingSchedules = [] }) {
+    const { props } = usePage();
+    const user = props.auth?.user;
+    const isRestrictedGuru = (user?.is_guru ?? (user?.role === 'guru'))
+        && ! user?.is_school_admin
+        && ! user?.is_headmaster;
+
     const quickActions = [
         {
             title: 'Monitoring Ujian',
@@ -34,6 +40,11 @@ function Home({ dashboardStats = {}, upcomingSchedules = [] }) {
             href: route('admin.reports.index'),
         },
     ];
+
+    const visibleQuickActions = isRestrictedGuru
+        ? quickActions.filter((action) => action.title === 'Laporan & Analitik')
+        : quickActions;
+
     const stats = [
         {
             label: 'Peserta Terdaftar',
@@ -82,13 +93,15 @@ function Home({ dashboardStats = {}, upcomingSchedules = [] }) {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Button
-                            variant="primary"
-                            onClick={() => router.visit(route('admin.monitoring.index'))}
-                        >
-                            <span className="material-symbols-outlined text-[18px]">monitoring</span>
-                            Buka Monitoring
-                        </Button>
+                        {!isRestrictedGuru && (
+                            <Button
+                                variant="primary"
+                                onClick={() => router.visit(route('admin.monitoring.index'))}
+                            >
+                                <span className="material-symbols-outlined text-[18px]">monitoring</span>
+                                Buka Monitoring
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             onClick={() => router.visit(route('admin.reports.index'))}
@@ -119,7 +132,7 @@ function Home({ dashboardStats = {}, upcomingSchedules = [] }) {
 
                 {/* Quick Action Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {quickActions.map((action) => (
+                    {visibleQuickActions.map((action) => (
                         <Card key={action.title} padding="p-6">
                             <div className="flex items-center gap-3 mb-4">
                                 <div
@@ -170,9 +183,11 @@ function Home({ dashboardStats = {}, upcomingSchedules = [] }) {
                                 Jadwal aktif hari ini dan yang akan datang.
                             </p>
                         </div>
-                        <Button variant="outline" onClick={() => router.visit(route('admin.exam-packages.index'))}>
-                            Kelola Jadwal
-                        </Button>
+                        {!isRestrictedGuru && (
+                            <Button variant="outline" onClick={() => router.visit(route('admin.exam-packages.index'))}>
+                                Kelola Jadwal
+                            </Button>
+                        )}
                     </div>
                     {upcomingSchedules.length > 0 ? (
                         <div className="divide-y divide-surface-container-high">

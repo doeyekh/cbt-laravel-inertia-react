@@ -1,0 +1,72 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: cbt-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootsecret}
+      MYSQL_DATABASE: ${DB_DATABASE:-cbt}
+      MYSQL_USER: ${DB_USERNAME:-cbt}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - db-data:/var/lib/mysql
+    ports:
+      # Hanya untuk tooling database dari komputer host, tidak diekspos ke LAN.
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cbt-laravel-inertia-react:dev
+    container_name: cbt-app
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "80:8000" # Laravel + Inertia: cukup http://localhost atau http://192.168.8.116
+      - "8000:8000" # Kompatibilitas dengan tautan lama
+      - "5173:5173" # Vite dev server (HMR, bisa diakses dari LAN)
+    volumes:
+      - .:/app
+      - cbt-vendor:/app/vendor
+      - cbt-node-modules:/app/node_modules
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: ${APP_URL:-http://localhost}
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-cbt}
+      DB_USERNAME: ${DB_USERNAME:-cbt}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      SESSION_DRIVER: database
+      CACHE_STORE: database
+      QUEUE_CONNECTION: database
+      # Host Vite tetap 0.0.0.0 lewat plugin, origin dipakai untuk URL hot file.
+      LARAVEL_SAIL: "1"
+      VITE_SERVER_ORIGIN: ${VITE_SERVER_ORIGIN:-http://localhost:5173}
+    stdin_open: true
+    tty: true
+    command:
+      - sh
+      - -c
+      - |
+        ./node_modules/.bin/concurrently -k -n server,queue,vite -c '#93c5fd,#c4b5fd,#fdba74' \
+          "php artisan serve --host=0.0.0.0 --port=8000" \
+          "php artisan queue:listen --tries=1" \
+          "npm run dev"
+
+volumes:
+  db-data:
+  cbt-vendor:
+  cbt-node-modules:

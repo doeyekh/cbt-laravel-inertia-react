@@ -67,10 +67,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::post('/login', [LoginController::class, 'store'])->name('login.store');
 
-    Route::post('/logout', [LogoutController::class, 'destroy'])
-        ->name('logout');
-
     Route::middleware('auth')->group(function () {
+        Route::post('/logout', [LogoutController::class, 'destroy'])
+            ->name('logout');
+    });
+
+    Route::middleware(['auth', 'guru.access'])->group(function () {
         Route::get('/profile', [ProfileController::class, 'show'])
             ->name('profile.show');
 
@@ -87,7 +89,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/monitoring', [PageController::class, 'monitoring'])
             ->middleware('school-admin')->name('monitoring.index');
-        Route::middleware('school-admin')->group(function () {
+        Route::middleware('reports')->group(function () {
             Route::get('/reports', [ExamReportController::class, 'index'])
                 ->name('reports.index');
             Route::get('/reports/{examSchedule}', [ExamReportController::class, 'show'])

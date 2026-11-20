@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Middleware\Authenticate;
+use App\Http\Middleware\EnsureGuruAccessIsLimited;
 use App\Http\Middleware\EnsureStudentIsAuthenticated;
+use App\Http\Middleware\EnsureUserCanAccessReports;
 use App\Http\Middleware\EnsureUserIsAdministrator;
 use App\Http\Middleware\EnsureUserIsSchoolAdmin;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -27,6 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'administrator' => EnsureUserIsAdministrator::class,
             'school-admin' => EnsureUserIsSchoolAdmin::class,
             'student.auth' => EnsureStudentIsAuthenticated::class,
+            'guru.access' => EnsureGuruAccessIsLimited::class,
+            'reports' => EnsureUserCanAccessReports::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

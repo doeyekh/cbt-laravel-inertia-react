@@ -108,11 +108,14 @@ class QuestionBankControllerTest extends TestCase
             );
     }
 
-    public function test_index_forbids_regular_guru(): void
+    public function test_index_allows_guru_of_the_accessible_school(): void
     {
-        $this->actingAs(User::factory()->guru()->create())
+        $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
+
+        $this->actingAs($guru)
             ->get(route('admin.question-banks.index'))
-            ->assertForbidden();
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('QuestionBanks/Index'));
     }
 
     public function test_store_creates_a_question_bank_with_classes(): void

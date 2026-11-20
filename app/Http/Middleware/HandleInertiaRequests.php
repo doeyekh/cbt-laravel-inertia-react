@@ -46,6 +46,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user ? [
                     ...$user->toArray(),
                     'is_administrator' => $user->isAdministrator(),
+                    'is_guru' => $user->isGuru(),
                     'is_headmaster' => $user->isHeadmaster(),
                     'is_school_admin' => $user->isSchoolAdmin(),
                     'can_access_school' => $user->isAdministrator() || $user->isHeadmaster() || $user->isSchoolAdmin(),

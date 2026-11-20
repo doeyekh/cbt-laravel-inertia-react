@@ -258,7 +258,7 @@ class QuestionBankController extends Controller
             abort(403);
         }
 
-        if (! $user->isAdministrator() && ! $user->isHeadmaster() && ! $user->isSchoolAdmin()) {
+        if (! $user->isAdministrator() && ! $user->isGuru() && ! $user->isHeadmaster() && ! $user->isSchoolAdmin()) {
             abort(403);
         }
     }

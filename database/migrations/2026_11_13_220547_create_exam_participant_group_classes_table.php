@@ -21,7 +21,10 @@ return new class extends Migration
             $table->foreignId('class_id')->constrained('classes')->cascadeOnDelete();
             $table->timestamps();
 
-            $table->unique(['exam_participant_group_id', 'class_id']);
+            $table->unique(
+                ['exam_participant_group_id', 'class_id'],
+                'exam_participant_group_class_unique'
+            );
         });
     }
 

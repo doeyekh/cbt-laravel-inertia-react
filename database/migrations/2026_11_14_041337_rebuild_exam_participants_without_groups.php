@@ -39,7 +39,10 @@ return new class extends Migration
 
             $table->unique(['student_id', 'school_id', 'academic_year_id']);
             $table->unique(['school_id', 'academic_year_id', 'username']);
-            $table->unique(['school_id', 'academic_year_id', 'participant_number']);
+            $table->unique(
+                ['school_id', 'academic_year_id', 'participant_number'],
+                'exam_participants_school_year_number_unique'
+            );
             $table->index(['session_id', 'room_id']);
             $table->index(['student_id', 'school_id']);
         });
@@ -100,7 +103,10 @@ return new class extends Migration
             $table->foreignId('class_id')->constrained('classes')->cascadeOnDelete();
             $table->timestamps();
 
-            $table->unique(['exam_participant_group_id', 'class_id']);
+            $table->unique(
+                ['exam_participant_group_id', 'class_id'],
+                'exam_participant_group_class_unique'
+            );
         });
     }
 };
