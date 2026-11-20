@@ -30,7 +30,6 @@ const buildNavItems = () => [
                 name: 'Peserta Ujian',
                 href: navRoute('admin.exam-participants.index'),
             },
-            { name: 'Daftar Nominatif', href: navRoute('admin.nominal-list.index') },
             { name: 'Jenis Penilaian', href: navRoute('admin.assessment-types.index') },
         ],
     },

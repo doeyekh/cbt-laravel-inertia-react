@@ -147,6 +147,7 @@ class NominalListController extends Controller
         $transform = function (ClassMember $classMember) use ($academicYearId): array {
             $student = $classMember->student;
             $participant = ExamParticipant::query()
+                ->with(['session:id,name', 'room:id,name'])
                 ->where('academic_year_id', $academicYearId)
                 ->where('student_id', $student->id)
                 ->first();
@@ -158,6 +159,8 @@ class NominalListController extends Controller
                 'class_name' => $classMember->schoolClass?->name,
                 'participant_number' => $participant?->participant_number ?? '-',
                 'username' => $participant?->username ?? '-',
+                'session_name' => $participant?->session?->name ?? '-',
+                'room_name' => $participant?->room?->name ?? '-',
                 'has_credential' => $participant?->hasCredential() ?? false,
                 'has_placement' => $participant?->hasPlacement() ?? false,
             ];

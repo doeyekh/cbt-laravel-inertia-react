@@ -117,15 +117,6 @@ export default function NominalListIndex({
         search,
     ]);
 
-    const handleExportPdf = () => {
-        const params = buildQuery();
-        window.open(
-            route('admin.nominal-list.pdf', params),
-            '_blank',
-            'noopener',
-        );
-    };
-
     const defaultSchoolId = schoolFilter || schools[0]?.id || '';
     const hasActiveYear = Boolean(activeAcademicYear?.id);
 
@@ -153,13 +144,10 @@ export default function NominalListIndex({
                     </div>
 
                     {canManage && hasActiveYear && (
-                        <Button
-                            onClick={handleExportPdf}
-                        >
-                            <span className="material-symbols-outlined text-[18px]">
-                                picture_as_pdf
-                            </span>
-                            Export PDF
+                        <Button variant="outline" asChild>
+                            <a href={route('admin.nominal-list.pdf', buildQuery())} target="_blank" rel="noopener">
+                                Cetak PDF
+                            </a>
                         </Button>
                     )}
                 </div>
@@ -301,14 +289,11 @@ export default function NominalListIndex({
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-surface-container-low text-on-surface-variant font-label text-[11px] font-semibold uppercase tracking-wider">
-                                        <th className="px-4 py-3.5 text-center" style={{ width: '5mm' }}>No.</th>
-                                        <th className="px-4 py-3.5">Nama Peserta</th>
-                                        <th className="px-4 py-3.5 text-center" style={{ width: '19mm' }}>NISN</th>
-                                        <th className="px-4 py-3.5 text-center" style={{ width: '20mm' }}>No. Peserta</th>
-                                        <th className="px-4 py-3.5 text-center" style={{ width: '26mm' }}>Kelas</th>
-                                        <th className="px-4 py-3.5 text-center" style={{ width: '22mm' }}>Username</th>
-                                        <th className="px-4 py-3.5 text-center" style={{ width: '22mm' }}>Kredensial</th>
-                                        <th className="px-4 py-3.5 text-center" style={{ width: '22mm' }}>Penempatan</th>
+                                        <th className="px-4 py-3.5 text-center" style={{ width: '8mm' }}>NO.</th>
+                                        <th className="px-4 py-3.5">NAMA PESERTA</th>
+                                        <th className="px-4 py-3.5 text-center" style={{ width: '30mm' }}>USERNAME</th>
+                                        <th className="px-4 py-3.5 text-center" style={{ width: '30mm' }}>SESI</th>
+                                        <th className="px-4 py-3.5 text-center" style={{ width: '30mm' }}>RUANG</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-xs font-body divide-y divide-surface-container-low">
@@ -324,42 +309,13 @@ export default function NominalListIndex({
                                                 {row.name}
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                {row.nisn ?? '-'}
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                {row.participant_number}
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                {row.class_name ?? '-'}
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
                                                 {row.username}
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                <Badge
-                                                    variant={
-                                                        row.has_credential
-                                                            ? 'success'
-                                                            : 'neutral'
-                                                    }
-                                                >
-                                                    {row.has_credential
-                                                        ? 'Lengkap'
-                                                        : 'Belum'}
-                                                </Badge>
+                                                {row.session_name ?? '-'}
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                <Badge
-                                                    variant={
-                                                        row.has_placement
-                                                            ? 'primary'
-                                                            : 'tertiary'
-                                                    }
-                                                >
-                                                    {row.has_placement
-                                                        ? 'Terpenuhi'
-                                                        : 'Belum'}
-                                                </Badge>
+                                                {row.room_name ?? '-'}
                                             </td>
                                         </tr>
                                     ))}

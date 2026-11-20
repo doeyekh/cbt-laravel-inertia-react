@@ -140,7 +140,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             ->name('attendances.store');
         Route::patch('attendances/{attendance}', [AttendanceController::class, 'update'])
             ->name('attendances.update');
-
         Route::get('nominal-list', [NominalListController::class, 'index'])
             ->name('nominal-list.index');
         Route::get('nominal-list/pdf', [NominalListController::class, 'pdf'])

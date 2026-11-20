@@ -3,12 +3,13 @@
 <html lang="id">
 
 <head>
-    <meta charset="utf-8">
-    <title>Daftar Nominatif Peserta</title>
+    <meta charset="UTF-8">
+    <title>Daftar Nominatif Peserta Ujian</title>
+
     <style>
         @page {
             size: A4 portrait;
-            margin: 12mm 12mm 16mm 12mm;
+            margin: 12mm 12mm 14mm;
         }
 
         * {
@@ -17,11 +18,10 @@
 
         body {
             margin: 0;
-            padding: 0;
             font-family: 'DejaVu Sans', sans-serif;
             font-size: 8pt;
-            line-height: 1.45;
-            color: #1e293b;
+            line-height: 1.4;
+            color: #111;
         }
 
         table {
@@ -29,64 +29,85 @@
             border-collapse: collapse;
         }
 
-        p, h1, h2, h3 {
+        p {
             margin: 0;
         }
 
+        /* HEADER */
+
         .header {
-            margin-bottom: 3mm;
+            margin-bottom: 2mm;
         }
 
-        .school-name {
-            font-size: 14pt;
+        .logo-cell {
+            width: 16%;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .logo {
+            width: 20mm;
+            height: 20mm;
+            object-fit: contain;
+        }
+
+        .header-title {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .header-title h1 {
+            font-size: 12pt;
             font-weight: bold;
             text-transform: uppercase;
-            color: #064e3b;
-            letter-spacing: 0.3pt;
+            line-height: 1.5;
         }
 
-        .report-title {
-            margin-top: 1mm;
-            font-size: 11pt;
+        .header-title p {
+            font-size: 9pt;
             font-weight: bold;
-            text-transform: uppercase;
-            color: #1e293b;
         }
 
-        .header-subtitle {
-            margin-top: 1mm;
-            font-size: 7.5pt;
-            color: #64748b;
+        .header-info {
+            margin-top: 2mm;
+            margin-bottom: 2mm;
+            font-size: 8pt;
         }
 
-        .header-meta {
-            text-align: right;
-            font-size: 7.5pt;
-            line-height: 1.7;
-            color: #64748b;
+        .header-info td {
+            padding: 1.2mm 0;
         }
 
-        .header-meta strong {
-            color: #334155;
+        .info-label {
+            width: 30%;
+        }
+
+        .info-value {
+            width: 70%;
+            border-bottom: 0.5pt solid #111;
+            padding-left: 2mm !important;
         }
 
         .divider {
-            border-top: 2pt solid #047857;
-            margin: 2mm 0 4mm;
+            border-top: 1.5pt solid #111;
+            margin: 3mm 0;
         }
 
+        /* SECTION */
+
         .section-title {
-            margin-bottom: 2mm;
             font-size: 9pt;
             font-weight: bold;
-            color: #064e3b;
+            margin-bottom: 2mm;
             text-transform: uppercase;
-            letter-spacing: 0.3pt;
         }
+
+        /* DATA TABLE */
 
         .data-table {
             table-layout: fixed;
-            margin-bottom: 4mm;
+            border-collapse: collapse;
+            margin-bottom: 3mm;
         }
 
         .data-table thead {
@@ -94,31 +115,30 @@
         }
 
         .data-table th {
-            padding: 2mm 1mm;
-            background: #047857;
-            border: 0.5pt solid #047857;
-            color: #ffffff;
-            font-size: 7pt;
-            font-weight: bold;
+            border: 1pt solid #111;
+            padding: 2.2mm 1mm;
+            background: #e5e7eb;
+            color: #111;
+            font-size: 7.5pt;
             text-align: center;
-            text-transform: uppercase;
+            font-weight: bold;
             vertical-align: middle;
         }
 
         .data-table td {
-            padding: 1.8mm 1.2mm;
-            border: 0.5pt solid #dbe3e9;
-            font-size: 7.2pt;
+            border: 0.8pt solid #111;
+            padding: 2mm 1.5mm;
+            font-size: 7.5pt;
             vertical-align: middle;
             overflow-wrap: break-word;
         }
 
-        .data-table tbody tr:nth-child(even) td {
-            background: #f8fafc;
-        }
-
         .data-table tbody tr {
             page-break-inside: avoid;
+        }
+
+        .data-table tbody tr:nth-child(even) td {
+            background: #f9fafb;
         }
 
         .text-center {
@@ -126,140 +146,263 @@
         }
 
         .empty-row {
-            padding: 8mm 2mm !important;
             text-align: center;
-            color: #94a3b8;
+            padding: 8mm !important;
         }
 
+        .signature-number {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* NOTE */
+
         .note {
-            margin-top: 2mm;
-            padding: 2.5mm 3mm;
-            background: #f8fafc;
-            border-left: 2pt solid #047857;
-            color: #64748b;
+            margin-top: 3mm;
+            font-size: 7.5pt;
+            line-height: 1.6;
+        }
+
+        .note-title {
+            font-weight: bold;
+            font-style: italic;
+        }
+
+        /* RECAP */
+
+        .recap {
+            width: 43%;
+            margin-top: 5mm;
+            border-collapse: collapse;
+        }
+
+        .recap td {
+            border: 0.8pt solid #111;
+            padding: 1.5mm 2mm;
             font-size: 7pt;
         }
+
+        /* SIGNATURE */
 
         .signature {
             margin-top: 8mm;
             page-break-inside: avoid;
         }
 
-        .signature-block {
-            width: 42%;
+        .signature td {
             text-align: center;
+            vertical-align: top;
+            font-size: 8pt;
         }
 
         .signature-space {
-            height: 18mm;
+            height: 19mm;
         }
 
         .signature-name {
             font-weight: bold;
             text-decoration: underline;
         }
+
+        .footer {
+            margin-top: 8mm;
+            border: 1pt solid #111;
+            text-align: center;
+            padding: 2mm;
+            font-size: 8pt;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
     </style>
 </head>
 
 <body>
-    @php
-        $schoolName = isset($filters['school_id']) && $filters['school_id']
-            ? \App\Models\School::find($filters['school_id'])?->name ?? 'Semua Sekolah'
-            : 'Semua Sekolah';
 
-        $yearName = isset($filters['academic_year_id']) && $filters['academic_year_id']
-            ? \App\Models\AcademicYear::find($filters['academic_year_id'])?->name ?? 'Semua Tahun'
-            : 'Semua Tahun';
+@php
 
-        $className = isset($filters['class_id']) && $filters['class_id']
-            ? \App\Models\SchoolClass::find($filters['class_id'])?->name ?? 'Semua Kelas'
-            : 'Semua Kelas';
-    @endphp
+    $school = !empty($filters['school_id'])
+        ? \App\Models\School::with('headmaster')
+            ->find($filters['school_id'])
+        : null;
 
-    <table class="header">
+    $schoolName = $school?->name ?? 'Semua Sekolah';
+
+    $headmasterName = $school?->headmaster?->name ?? '-';
+
+    $yearName = !empty($filters['academic_year_id'])
+        ? (\App\Models\AcademicYear::find(
+            $filters['academic_year_id']
+        )?->name ?? 'Semua Tahun')
+        : 'Semua Tahun';
+
+    $className = !empty($filters['class_id'])
+        ? (\App\Models\SchoolClass::find(
+            $filters['class_id']
+        )?->name ?? 'Semua Kelas')
+        : 'Semua Kelas';
+
+@endphp
+
+{{-- HEADER --}}
+
+<table class="header">
+    <tr>
+        <td class="logo-cell">
+            @if(file_exists(public_path('img/logo.png')))
+                <img
+                    src="{{ public_path('img/logo.png') }}"
+                    class="logo"
+                >
+            @endif
+        </td>
+
+        <td class="header-title">
+            <h1>
+                {{ strtoupper($schoolName) }}
+                </h1>
+                
+                <p>
+                    DAFTAR NOMINATIF PESERTA UJIAN
+            </p>
+
+            <p>
+                TAHUN PELAJARAN {{ $yearName }}
+            </p>
+        </td>
+
+        <td width="10%"></td>
+    </tr>
+</table>
+
+<div class="divider"></div>
+
+{{-- IDENTITAS UJIAN --}}
+
+<table class="header-info">
+    <tr>
+        <td class="info-label">
+            SEKOLAH/MADRASAH
+        </td>
+
+        <td width="3%">:</td>
+
+        <td class="info-value">
+            {{ $schoolName }}
+        </td>
+    </tr>
+
+    <tr>
+        <td class="info-label">
+            TAHUN PELAJARAN
+        </td>
+
+        <td>:</td>
+
+        <td class="info-value">
+            {{ $yearName }}
+        </td>
+    </tr>
+
+    <tr>
+        <td class="info-label">
+            KELAS
+        </td>
+
+        <td>:</td>
+
+        <td class="info-value">
+            {{ $className }}
+        </td>
+    </tr>
+</table>
+
+
+<table class="data-table">
+
+    <thead>
         <tr>
-            <td width="65%">
-                <p class="school-name">
-                    {{ $schoolName }}
-                </p>
-                <p class="report-title">
-                    Daftar Nominatif Peserta Ujian
-                </p>
-                <p class="header-subtitle">
-                    Tahun Pelajaran {{ $yearName }}
-                    @if (!empty($className))
-                        · Kelas {{ $className }}
-                    @endif
-                </p>
-            </td>
-            <td width="35%" class="header-meta">
-                <p>Dicetak pada</p>
-                <strong>{{ $print_date }}</strong>
-            </td>
+            <th width="6%">No.</th>
+            <th width="20%">Username</th>
+            <th width="38%">Nama Peserta</th>
+            <th width="17%">Sesi</th>
+            <th width="19%">Ruang</th>
         </tr>
-    </table>
+    </thead>
 
-    <div class="divider"></div>
+    <tbody>
 
-    <h2 class="section-title">Daftar Peserta</h2>
+        @forelse ($participants as $index => $participant)
 
-    <table class="data-table">
-        <thead>
             <tr>
-                <th style="width: 5mm;">No.</th>
-                <th style="width: 26mm;">Nama Peserta</th>
-                <th style="width: 17mm;">NISN</th>
-                <th style="width: 17mm;">No. Peserta</th>
-                <th>Kelas</th>
-                <th style="width: 22mm;">Username</th>
-                <th style="width: 18mm;">Kredensial</th>
-                <th style="width: 18mm;">Penempatan</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($participants as $index => $participant)
-                <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td class="participant-name">
-                        {{ $participant['name'] ?? '-' }}
-                    </td>
-                    <td class="text-center">
-                        {{ $participant['nisn'] ?? '-' }}
-                    </td>
-                    <td class="text-center">
-                        {{ $participant['participant_number'] ?? '-' }}
-                    </td>
-                    <td>
-                        {{ $participant['class_name'] ?? '-' }}
-                    </td>
-                    <td class="text-center">
-                        {{ $participant['username'] ?? '-' }}
-                    </td>
-                    <td class="text-center">
-                        {{ $participant['has_credential'] ? 'Lengkap' : 'Belum' }}
-                    </td>
-                    <td class="text-center">
-                        {{ $participant['has_placement'] ? 'Terpenuhi' : 'Belum' }}
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="8" class="empty-row">
-                        Belum ada peserta yang sesuai dengan filter.
-                    </td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+                <td class="text-center">
+                    {{ $index + 1 }}
+                </td>
 
-    <div class="note">
-        <strong>Catatan:</strong>
-        Daftar ini menyeluruh peserta yang terdaftar pada kelas dan tahun
-        pelajaran yang dipilih. Status kredensial menandakan apakah peserta
-        telah memiliki username dan nomor peserta. Status penempatan
-        menandakan apakah peserta telah diberi ruangan dan sesi ujian.
-    </div>
+                <td class="text-center">
+                    {{ $participant['username'] ?? '-' }}
+                </td>
+
+                <td>
+                    {{ $participant['name'] ?? '-' }}
+                </td>
+
+                <td class="text-center">
+                    {{ $participant['session_name'] ?? '-' }}
+                </td>
+
+                <td class="text-center">
+                    {{ $participant['room_name'] ?? '-' }}
+                </td>
+            </tr>
+
+        @empty
+
+            <tr>
+                <td colspan="5" class="empty-row">
+                    Belum ada peserta yang sesuai dengan filter.
+                </td>
+            </tr>
+
+        @endforelse
+
+    </tbody>
+
+</table>
+
+
+
+{{-- TANDA TANGAN KEPALA SEKOLAH --}}
+
+@if($school)
+
+<table class="signature">
+
+    <tr>
+        <td width="58%"></td>
+
+        <td width="42%">
+
+            <p>
+                Mengetahui,
+            </p>
+
+            <p>
+                Kepala Sekolah
+            </p>
+
+            <div class="signature-space"></div>
+
+            <p class="signature-name">
+                {{ $headmasterName }}
+            </p>
+
+        </td>
+    </tr>
+
+</table>
+
+@endif
 
 </body>
-
 </html>

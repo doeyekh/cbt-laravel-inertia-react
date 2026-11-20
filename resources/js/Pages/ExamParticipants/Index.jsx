@@ -706,10 +706,8 @@ export default function ExamParticipantsIndex({
 
             <PrintParticipantsModal
                 isOpen={participantsPrintModalOpen}
-                onClose={() => setParticipantModalOpen(false)}
+                onClose={() => setParticipantsPrintModalOpen(false)}
                 schools={schools}
-                sessions={sessions}
-                rooms={rooms}
                 classes={classes}
                 academicYear={activeAcademicYear}
                 defaultSchoolId={defaultSchoolId}
