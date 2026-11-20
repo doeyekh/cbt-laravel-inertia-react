@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AcademicYearController;
 use App\Http\Controllers\Admin\AssessmentTypeController;
+use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\ClassMemberController;
 use App\Http\Controllers\Admin\ExamAttemptResetController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Admin\ExamParticipantController;
 use App\Http\Controllers\Admin\ExamReportController;
 use App\Http\Controllers\Admin\ExamScheduleController;
 use App\Http\Controllers\Admin\ExamTypeController;
+use App\Http\Controllers\Admin\NominalListController;
 use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\QuestionBankController;
 use App\Http\Controllers\Admin\QuestionController;
@@ -131,6 +133,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('exam-participants', ExamParticipantController::class)
             ->only(['index', 'update', 'destroy'])
             ->parameters(['exam-participants' => 'examParticipant']);
+
+        Route::get('attendances', [AttendanceController::class, 'index'])
+            ->name('attendances.index');
+        Route::post('attendances', [AttendanceController::class, 'store'])
+            ->name('attendances.store');
+        Route::patch('attendances/{attendance}', [AttendanceController::class, 'update'])
+            ->name('attendances.update');
+
+        Route::get('nominal-list', [NominalListController::class, 'index'])
+            ->name('nominal-list.index');
+        Route::get('nominal-list/pdf', [NominalListController::class, 'pdf'])
+            ->name('nominal-list.pdf');
 
         Route::patch('exam-types/{examTypeId}/status', [ExamTypeController::class, 'toggleStatus'])
             ->name('exam-types.toggle-status');
