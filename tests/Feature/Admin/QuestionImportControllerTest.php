@@ -7,7 +7,9 @@ use App\Models\Question;
 use App\Models\QuestionBank;
 use App\Models\QuestionOption;
 use App\Models\School;
+use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Models\SubjectTeacher;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -186,6 +188,38 @@ class QuestionImportControllerTest extends TestCase
         )->assertSessionHasErrors('file');
 
         $this->assertSame(0, Question::query()->count());
+    }
+
+    public function test_guru_can_import_questions_of_a_taught_subject(): void
+    {
+        $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
+        $schoolClass = SchoolClass::factory()->create([
+            'school_id' => $this->school->id,
+            'academic_year_id' => $this->questionBank->academic_year_id,
+        ]);
+
+        SubjectTeacher::factory()
+            ->forClass($schoolClass, null, $this->subject, $guru)
+            ->create([
+                'academic_year_id' => $this->questionBank->academic_year_id,
+                'is_active' => true,
+            ]);
+
+        $this->actingAs($guru)
+            ->get(route('admin.question-banks.questions.import', $this->questionBank))
+            ->assertOk();
+
+        $this->actingAs($guru)
+            ->post(
+                route('admin.question-banks.questions.import.store', $this->questionBank),
+                [
+                    'file' => $this->spreadsheet([
+                        ['pilihan_ganda', 1, 'Soal PG', 'A', 'B', 'C', 'D', '', 'A', '', ''],
+                    ]),
+                ]
+            )->assertRedirect()->assertSessionHas('toast.type', 'success');
+
+        $this->assertSame(1, Question::query()->count());
     }
 
     public function test_store_forbids_regular_guru(): void

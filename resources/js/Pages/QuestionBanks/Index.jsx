@@ -26,7 +26,7 @@ export default function QuestionBanksIndex({
 }) {
     const { flash, auth } = usePage().props;
     const { toasts, toast, dismiss } = useToast();
-    const canManage = Boolean(auth?.user?.is_administrator || auth?.user?.is_school_admin);
+    const canManage = Boolean(auth?.user?.can_manage_question_banks);
     const hasActiveYear = Boolean(activeAcademicYear?.id);
 
     const [search, setSearch] = useState(filters?.search ?? '');

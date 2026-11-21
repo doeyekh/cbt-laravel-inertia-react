@@ -118,6 +118,146 @@ class QuestionBankControllerTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->component('QuestionBanks/Index'));
     }
 
+    public function test_guru_only_sees_question_banks_of_the_subjects_they_teach(): void
+    {
+        $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
+        $otherSubject = Subject::factory()->create();
+        $otherClass = SchoolClass::factory()->create([
+            'school_id' => $this->school->id,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        SubjectTeacher::factory()
+            ->forClass($this->schoolClass, $this->academicYear, $this->subject, $guru)
+            ->create(['is_active' => true]);
+
+        SubjectTeacher::factory()
+            ->forClass($otherClass, $this->academicYear, $otherSubject)
+            ->create(['is_active' => true]);
+
+        $ownBank = QuestionBank::factory()->create([
+            'school_id' => $this->school->id,
+            'subject_id' => $this->subject->id,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+        QuestionBank::factory()->create([
+            'school_id' => $this->school->id,
+            'subject_id' => $otherSubject->id,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        $this->actingAs($guru)
+            ->get(route('admin.question-banks.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('questionBanks.data', 1)
+                ->where('questionBanks.data.0.id', $ownBank->id)
+                ->has('subjects', 1)
+                ->where('subjects.0.id', $this->subject->id)
+                ->has('classes', 1)
+                ->where('classes.0.id', $this->schoolClass->id)
+                ->where('subjectOptions.0.subject_ids', [$this->subject->id])
+            );
+    }
+
+    public function test_guru_can_manage_a_question_bank_of_a_taught_subject(): void
+    {
+        $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
+
+        SubjectTeacher::factory()
+            ->forClass($this->schoolClass, $this->academicYear, $this->subject, $guru)
+            ->create(['is_active' => true]);
+
+        $this->actingAs($guru)
+            ->post(route('admin.question-banks.store'), $this->payload())
+            ->assertRedirect()
+            ->assertSessionHas('toast.type', 'success');
+
+        $questionBank = QuestionBank::query()->firstOrFail();
+
+        $this->actingAs($guru)
+            ->put(route('admin.question-banks.update', $questionBank), $this->payload([
+                'name' => 'Bank Soal Revisi',
+            ]))
+            ->assertRedirect()
+            ->assertSessionHas('toast.type', 'success');
+
+        $this->assertSame('Bank Soal Revisi', $questionBank->refresh()->name);
+
+        $this->actingAs($guru)
+            ->delete(route('admin.question-banks.destroy', $questionBank))
+            ->assertRedirect()
+            ->assertSessionHas('toast.type', 'success');
+
+        $this->assertDatabaseMissing('question_banks', ['id' => $questionBank->id]);
+    }
+
+    public function test_guru_cannot_store_a_question_bank_of_an_untaught_subject(): void
+    {
+        $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
+
+        $this->actingAs($guru)
+            ->post(route('admin.question-banks.store'), $this->payload())
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('question_banks', 0);
+    }
+
+    public function test_guru_cannot_store_a_question_bank_for_a_class_they_do_not_teach(): void
+    {
+        $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
+        $otherClass = SchoolClass::factory()->create([
+            'school_id' => $this->school->id,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        SubjectTeacher::factory()
+            ->forClass($this->schoolClass, $this->academicYear, $this->subject, $guru)
+            ->create(['is_active' => true]);
+
+        $this->actingAs($guru)
+            ->post(route('admin.question-banks.store'), $this->payload([
+                'class_ids' => [$otherClass->id],
+            ]))
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('question_banks', 0);
+    }
+
+    public function test_guru_cannot_manage_a_question_bank_of_an_untaught_subject(): void
+    {
+        $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
+        $otherSubject = Subject::factory()->create();
+        $otherClass = SchoolClass::factory()->create([
+            'school_id' => $this->school->id,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        SubjectTeacher::factory()
+            ->forClass($this->schoolClass, $this->academicYear, $this->subject, $guru)
+            ->create(['is_active' => true]);
+
+        SubjectTeacher::factory()
+            ->forClass($otherClass, $this->academicYear, $otherSubject)
+            ->create(['is_active' => true]);
+
+        $questionBank = QuestionBank::factory()->create([
+            'school_id' => $this->school->id,
+            'subject_id' => $otherSubject->id,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        $this->actingAs($guru)
+            ->put(route('admin.question-banks.update', $questionBank), $this->payload([
+                'subject_id' => $otherSubject->id,
+            ]))
+            ->assertForbidden();
+
+        $this->actingAs($guru)
+            ->delete(route('admin.question-banks.destroy', $questionBank))
+            ->assertForbidden();
+    }
+
     public function test_store_creates_a_question_bank_with_classes(): void
     {
         $secondClass = SchoolClass::factory()->create([

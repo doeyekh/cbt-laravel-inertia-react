@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -62,6 +63,12 @@ class LoginController extends Controller
         RateLimiter::clear($throttleKey);
 
         $request->session()->regenerate();
+
+        $user = $request->user();
+
+        if ($user instanceof User && $user->isRestrictedGuru()) {
+            return redirect()->route('admin.reports.index');
+        }
 
         return redirect()->intended(route('admin.dashboard'));
     }

@@ -49,7 +49,11 @@ class HandleInertiaRequests extends Middleware
                     'is_guru' => $user->isGuru(),
                     'is_headmaster' => $user->isHeadmaster(),
                     'is_school_admin' => $user->isSchoolAdmin(),
+                    'is_restricted_guru' => $user->isRestrictedGuru(),
                     'can_access_school' => $user->isAdministrator() || $user->isHeadmaster() || $user->isSchoolAdmin(),
+                    'can_manage_question_banks' => $user->isAdministrator()
+                        || $user->isSchoolAdmin()
+                        || $user->isRestrictedGuru(),
                 ] : null,
             ],
             'flash' => [

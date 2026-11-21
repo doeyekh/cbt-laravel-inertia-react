@@ -9,13 +9,12 @@ use Symfony\Component\HttpFoundation\Response;
 class EnsureGuruAccessIsLimited
 {
     /**
-     * Rute yang tetap boleh diakses guru selain dashboard, bank soal, dan laporan.
+     * Rute yang tetap boleh diakses guru selain bank soal dan laporan.
      * Profil, password, dan logout diperlukan untuk mengelola akun sendiri.
      *
      * @var list<string>
      */
     private const ALLOWED_ROUTE_NAMES = [
-        'admin.dashboard',
         'admin.profile.show',
         'admin.profile.update',
         'admin.password.edit',

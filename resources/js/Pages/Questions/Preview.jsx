@@ -202,9 +202,7 @@ export default function QuestionsPreview({
     const { toasts, toast, dismiss } = useToast();
     const contentRef = useRef(null);
     const handledToast = useRef(null);
-    const canManage = Boolean(
-        auth?.user?.is_administrator || auth?.user?.is_school_admin
-    );
+    const canManage = Boolean(auth?.user?.can_manage_question_banks);
 
     useEffect(() => {
         if (!flash?.toast || handledToast.current === flash.toast) {

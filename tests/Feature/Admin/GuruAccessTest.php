@@ -45,6 +45,14 @@ class GuruAccessTest extends TestCase
             ->assertOk();
     }
 
+    public function test_guru_cannot_access_the_dashboard(): void
+    {
+        $this->actingAs(User::factory()->guru()->create());
+
+        $this->get(route('admin.dashboard'))
+            ->assertForbidden();
+    }
+
     public function test_administrator_keeps_access_to_user_management(): void
     {
         $this->actingAs(User::factory()->administrator()->create());
@@ -59,7 +67,6 @@ class GuruAccessTest extends TestCase
     public static function allowedMenus(): array
     {
         return [
-            'dashboard' => ['admin.dashboard', 'Home'],
             'bank soal' => ['admin.question-banks.index', 'QuestionBanks/Index'],
             'laporan' => ['admin.reports.index', 'Reports/Index'],
         ];

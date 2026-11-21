@@ -28,7 +28,7 @@ export default function QuestionsIndex({
 }) {
     const { flash, auth } = usePage().props;
     const { toasts, toast, dismiss } = useToast();
-    const canManage = Boolean(auth?.user?.is_administrator || auth?.user?.is_school_admin);
+    const canManage = Boolean(auth?.user?.can_manage_question_banks);
 
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);

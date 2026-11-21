@@ -30,9 +30,7 @@ const columnDescriptions = [
 export default function QuestionsImport({ questionBank, types = [] }) {
     const { flash, auth } = usePage().props;
     const { toasts, toast, dismiss } = useToast();
-    const canManage = Boolean(
-        auth?.user?.is_administrator || auth?.user?.is_school_admin
-    );
+    const canManage = Boolean(auth?.user?.can_manage_question_banks);
 
     const { data, setData, post, processing, errors, clearErrors } = useForm({
         file: null,

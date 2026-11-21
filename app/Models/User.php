@@ -79,6 +79,79 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if the user is a guru without headmaster or school admin privileges.
+     */
+    public function isRestrictedGuru(): bool
+    {
+        return $this->isGuru() && ! $this->isSchoolAdmin() && ! $this->isHeadmaster();
+    }
+
+    /**
+     * Get the subject teacher assignments of this user.
+     *
+     * @return HasMany<SubjectTeacher, $this>
+     */
+    public function subjectTeachers(): HasMany
+    {
+        return $this->hasMany(SubjectTeacher::class, 'teacher_id');
+    }
+
+    /**
+     * Get the subject ids the user teaches in the given academic year.
+     *
+     * @return array<int, int>
+     */
+    public function taughtSubjectIds(?int $academicYearId = null): array
+    {
+        $academicYearId ??= (int) (AcademicYear::active()?->id ?? 0);
+
+        if ($academicYearId <= 0) {
+            return [];
+        }
+
+        return $this->subjectTeachers()
+            ->where('academic_year_id', $academicYearId)
+            ->where('is_active', true)
+            ->whereIn('school_class_id', SchoolClass::query()
+                ->whereIn('school_id', $this->accessibleSchoolIds())
+                ->where('academic_year_id', $academicYearId)
+                ->select('id'))
+            ->pluck('subject_id')
+            ->map(fn ($subjectId): int => (int) $subjectId)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Get the class ids the user teaches, optionally limited to one subject.
+     *
+     * @return array<int, int>
+     */
+    public function taughtClassIds(?int $subjectId = null, ?int $academicYearId = null): array
+    {
+        $academicYearId ??= (int) (AcademicYear::active()?->id ?? 0);
+
+        if ($academicYearId <= 0) {
+            return [];
+        }
+
+        return $this->subjectTeachers()
+            ->where('academic_year_id', $academicYearId)
+            ->where('is_active', true)
+            ->when($subjectId !== null, fn ($query) => $query->where('subject_id', $subjectId))
+            ->whereIn('school_class_id', SchoolClass::query()
+                ->whereIn('school_id', $this->accessibleSchoolIds())
+                ->where('academic_year_id', $academicYearId)
+                ->select('id'))
+            ->pluck('school_class_id')
+            ->map(fn ($classId): int => (int) $classId)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
      * Check if user acts as a headmaster of any school.
      */
     public function isHeadmaster(): bool

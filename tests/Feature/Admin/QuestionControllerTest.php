@@ -10,7 +10,9 @@ use App\Models\QuestionBlank;
 use App\Models\QuestionOption;
 use App\Models\QuestionPair;
 use App\Models\School;
+use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Models\SubjectTeacher;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -265,6 +267,60 @@ class QuestionControllerTest extends TestCase
         $this->actingAs($schoolAdmin)
             ->get(route('admin.question-banks.questions.index', $otherBank))
             ->assertForbidden();
+    }
+
+    public function test_guru_can_view_and_manage_questions_of_a_taught_subject(): void
+    {
+        $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
+        $this->assignGuruToQuestionBankSubject($guru);
+
+        $this->actingAs($guru)
+            ->get(route('admin.question-banks.questions.index', $this->questionBank))
+            ->assertOk();
+
+        $this->actingAs($guru)
+            ->get(route('admin.question-banks.questions.preview', $this->questionBank))
+            ->assertOk();
+
+        $this->actingAs($guru)
+            ->get(route('admin.question-banks.questions.print', $this->questionBank))
+            ->assertOk();
+
+        $this->actingAs($guru)
+            ->post(
+                route('admin.question-banks.questions.store', $this->questionBank),
+                $this->payload()
+            )->assertRedirect()->assertSessionHas('toast.type', 'success');
+
+        $question = Question::query()->firstOrFail();
+
+        $this->actingAs($guru)
+            ->put(
+                route('admin.question-banks.questions.update', [$this->questionBank, $question]),
+                $this->payload(['body' => 'Soal revisi'])
+            )->assertRedirect()->assertSessionHas('toast.type', 'success');
+
+        $this->actingAs($guru)
+            ->delete(
+                route('admin.question-banks.questions.destroy', [$this->questionBank, $question])
+            )->assertRedirect()->assertSessionHas('toast.type', 'success');
+
+        $this->actingAs($guru)
+            ->delete(route('admin.question-banks.questions.destroy-all', $this->questionBank))
+            ->assertRedirect();
+    }
+
+    public function test_guru_cannot_store_questions_of_an_untaught_subject(): void
+    {
+        $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
+
+        $this->actingAs($guru)
+            ->post(
+                route('admin.question-banks.questions.store', $this->questionBank),
+                $this->payload()
+            )->assertForbidden();
+
+        $this->assertDatabaseCount('questions', 0);
     }
 
     public function test_store_creates_a_multiple_choice_question(): void
@@ -1081,6 +1137,26 @@ class QuestionControllerTest extends TestCase
         )->assertRedirect();
 
         return Question::query()->latest('id')->firstOrFail();
+    }
+
+    /**
+     * Assign the guru to the subject of the question bank.
+     */
+    private function assignGuruToQuestionBankSubject(User $guru): SchoolClass
+    {
+        $schoolClass = SchoolClass::factory()->create([
+            'school_id' => $this->school->id,
+            'academic_year_id' => $this->questionBank->academic_year_id,
+        ]);
+
+        SubjectTeacher::factory()
+            ->forClass($schoolClass, null, $this->subject, $guru)
+            ->create([
+                'academic_year_id' => $this->questionBank->academic_year_id,
+                'is_active' => true,
+            ]);
+
+        return $schoolClass;
     }
 
     /**

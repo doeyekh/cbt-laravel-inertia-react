@@ -15,7 +15,6 @@ use App\Models\QuestionBank;
 use App\Models\QuestionBlank;
 use App\Models\QuestionOption;
 use App\Models\QuestionPair;
-use App\Models\User;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\RedirectResponse;
@@ -394,18 +393,6 @@ class QuestionController extends Controller
         if ((int) $question->question_bank_id !== (int) $questionBank->id) {
             abort(404);
         }
-    }
-
-    /**
-     * Determine whether the user may make changes to questions.
-     */
-    private function authorizeQuestionManage(User $user): void
-    {
-        if ($user->isAdministrator() || $user->isSchoolAdmin()) {
-            return;
-        }
-
-        abort(403);
     }
 
     /**

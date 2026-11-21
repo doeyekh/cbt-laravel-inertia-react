@@ -36,7 +36,11 @@ class ExamReportController extends Controller
 {
     public function index(Request $request): InertiaResponse
     {
-        $schoolIds = $request->user()->accessibleSchoolIds();
+        $user = $request->user();
+        $schoolIds = $user->accessibleSchoolIds();
+        $isRestrictedGuru = $user->isRestrictedGuru();
+        $taughtSubjectIds = $isRestrictedGuru ? $user->taughtSubjectIds() : [];
+        $taughtClassIds = $isRestrictedGuru ? $user->taughtClassIds() : [];
 
         $request->validate([
             'academic_year_id' => ['nullable', 'integer'],
@@ -55,6 +59,9 @@ class ExamReportController extends Controller
                 'room:id,name',
             ])
             ->whereHas('examPackage', fn($query) => $query->whereIn('school_id', $schoolIds))
+            ->when($isRestrictedGuru, fn($query) => $query
+                ->whereIn('subject_id', $taughtSubjectIds)
+                ->whereIn('class_id', $taughtClassIds))
             ->when($request->integer('academic_year_id') > 0, fn($query) => $query
                 ->whereHas('examPackage', fn($packageQuery) => $packageQuery
                     ->where('academic_year_id', $request->integer('academic_year_id'))))
@@ -122,10 +129,17 @@ class ExamReportController extends Controller
             ->pluck('academic_year_id');
         $subjectIds = ExamSchedule::query()
             ->whereHas('examPackage', fn($query) => $query->whereIn('school_id', $schoolIds))
+            ->when($isRestrictedGuru, fn($query) => $query
+                ->whereIn('subject_id', $taughtSubjectIds)
+                ->whereIn('class_id', $taughtClassIds))
             ->distinct()
             ->pluck('subject_id');
         $packages = ExamPackage::query()
             ->whereIn('school_id', $schoolIds)
+            ->when($isRestrictedGuru, fn($query) => $query
+                ->whereHas('schedules', fn($scheduleQuery) => $scheduleQuery
+                    ->whereIn('subject_id', $taughtSubjectIds)
+                    ->whereIn('class_id', $taughtClassIds)))
             ->when($request->integer('academic_year_id') > 0, fn($query) => $query
                 ->where('academic_year_id', $request->integer('academic_year_id')))
             ->orderByDesc('start_date')
@@ -158,6 +172,7 @@ class ExamReportController extends Controller
             'packages' => $packages,
             'classes' => SchoolClass::query()
                 ->whereIn('school_id', $schoolIds)
+                ->when($isRestrictedGuru, fn($query) => $query->whereIn('id', $taughtClassIds))
                 ->when($request->integer('academic_year_id') > 0, fn($query) => $query
                     ->where('academic_year_id', $request->integer('academic_year_id')))
                 ->orderBy('name')
@@ -645,9 +660,22 @@ class ExamReportController extends Controller
     private function authorizeSchedule(Request $request, ExamSchedule $examSchedule): void
     {
         $examSchedule->loadMissing('examPackage');
+        $user = $request->user();
 
         abort_unless(
-            in_array((int) $examSchedule->examPackage?->school_id, $request->user()->accessibleSchoolIds(), true),
+            in_array((int) $examSchedule->examPackage?->school_id, $user->accessibleSchoolIds(), true),
+            404,
+        );
+
+        if (! $user->isRestrictedGuru()) {
+            return;
+        }
+
+        $academicYearId = (int) $examSchedule->examPackage?->academic_year_id;
+
+        abort_unless(
+            in_array((int) $examSchedule->subject_id, $user->taughtSubjectIds($academicYearId), true)
+                && in_array((int) $examSchedule->class_id, $user->taughtClassIds((int) $examSchedule->subject_id, $academicYearId), true),
             404,
         );
     }

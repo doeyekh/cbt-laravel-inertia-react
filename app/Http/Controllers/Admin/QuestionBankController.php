@@ -45,9 +45,13 @@ class QuestionBankController extends Controller
 
         $activeAcademicYear = AcademicYear::active();
         $activeAcademicYearId = (int) ($activeAcademicYear?->id ?? 0);
+        $isRestrictedGuru = $user->isRestrictedGuru();
+        $taughtSubjectIds = $isRestrictedGuru ? $user->taughtSubjectIds($activeAcademicYearId) : [];
+        $taughtClassIds = $isRestrictedGuru ? $user->taughtClassIds(null, $activeAcademicYearId) : [];
 
         $baseQuery = QuestionBank::query()
             ->whereIn('school_id', $accessibleSchoolIds)
+            ->when($isRestrictedGuru, fn ($query) => $query->whereIn('subject_id', $taughtSubjectIds))
             ->when($activeAcademicYearId > 0, fn ($query) => $query->where('academic_year_id', $activeAcademicYearId))
             ->when($schoolFilter > 0, fn ($query) => $query->where('school_id', $schoolFilter))
             ->when($subjectFilter > 0, fn ($query) => $query->where('subject_id', $subjectFilter))
@@ -94,6 +98,7 @@ class QuestionBankController extends Controller
             ->get(['id', 'name', 'code', 'is_active']);
 
         $subjects = Subject::query()
+            ->when($isRestrictedGuru, fn ($query) => $query->whereIn('id', $taughtSubjectIds))
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'is_active']);
 
@@ -104,6 +109,7 @@ class QuestionBankController extends Controller
 
         $classes = SchoolClass::query()
             ->whereIn('school_id', $accessibleSchoolIds)
+            ->when($isRestrictedGuru, fn ($query) => $query->whereIn('id', $taughtClassIds))
             ->when($activeAcademicYearId > 0, fn ($query) => $query->where('academic_year_id', $activeAcademicYearId))
             ->orderBy('name')
             ->get(['id', 'school_id', 'code', 'name']);
@@ -113,7 +119,7 @@ class QuestionBankController extends Controller
             'questionBanks' => $questionBanks,
             'schools' => $schools,
             'subjects' => $subjects,
-            'subjectOptions' => $this->subjectOptionsBySchool($accessibleSchoolIds, $activeAcademicYearId),
+            'subjectOptions' => $this->subjectOptionsBySchool($accessibleSchoolIds, $activeAcademicYearId, $user),
             'examTypes' => $examTypes,
             'classes' => $classes,
             'activeAcademicYear' => $activeAcademicYear === null ? null : [
@@ -142,6 +148,11 @@ class QuestionBankController extends Controller
         $data = $request->validated();
 
         $this->authorizeSchoolAccess($request->user(), (int) $data['school_id']);
+        $this->authorizeSubjectClassScope(
+            $request->user(),
+            (int) $data['subject_id'],
+            array_map('intval', $data['class_ids']),
+        );
 
         $questionBank = DB::transaction(function () use ($data): QuestionBank {
             $questionBank = QuestionBank::create([
@@ -192,6 +203,17 @@ class QuestionBankController extends Controller
         $data = $request->validated();
 
         $this->authorizeSchoolAccess($request->user(), (int) $data['school_id']);
+
+        $classIds = array_key_exists('class_ids', $data)
+            ? array_map('intval', $data['class_ids'])
+            : $questionBank->classes()->pluck('classes.id')->map(fn ($classId): int => (int) $classId)->all();
+
+        $this->authorizeSubjectClassScope(
+            $request->user(),
+            (int) $data['subject_id'],
+            $classIds,
+            $questionBank,
+        );
 
         DB::transaction(function () use ($questionBank, $data): void {
             $questionBank->update([
@@ -268,7 +290,7 @@ class QuestionBankController extends Controller
      */
     private function authorizeQuestionBankManage(User $user): void
     {
-        if ($user->isAdministrator() || $user->isSchoolAdmin()) {
+        if ($user->isAdministrator() || $user->isSchoolAdmin() || $user->isRestrictedGuru()) {
             return;
         }
 
@@ -291,30 +313,97 @@ class QuestionBankController extends Controller
     private function authorizeRecordAccess(User $user, QuestionBank $questionBank): void
     {
         $this->authorizeSchoolAccess($user, (int) $questionBank->school_id);
+
+        if ($user->isRestrictedGuru()
+            && ! in_array((int) $questionBank->subject_id, $user->taughtSubjectIds((int) $questionBank->academic_year_id), true)) {
+            abort(403, 'Anda hanya dapat mengakses bank soal mata pelajaran yang Anda ampu.');
+        }
+    }
+
+    /**
+     * Determine whether the guru may manage the subject and the selected classes.
+     *
+     * @param  array<int, int>  $classIds
+     */
+    private function authorizeSubjectClassScope(
+        User $user,
+        int $subjectId,
+        array $classIds,
+        ?QuestionBank $questionBank = null,
+    ): void {
+        if (! $user->isRestrictedGuru()) {
+            return;
+        }
+
+        $academicYearId = (int) ($questionBank?->academic_year_id ?? $this->activeAcademicYearId());
+
+        if (! in_array($subjectId, $user->taughtSubjectIds($academicYearId), true)) {
+            abort(403, 'Anda hanya dapat mengelola bank soal mata pelajaran yang Anda ampu.');
+        }
+
+        $allowedClassIds = $user->taughtClassIds($subjectId, $academicYearId);
+
+        if ($questionBank !== null && (int) $questionBank->subject_id === $subjectId) {
+            $allowedClassIds = array_values(array_unique([
+                ...$allowedClassIds,
+                ...$questionBank->classes()
+                    ->pluck('classes.id')
+                    ->map(fn ($classId): int => (int) $classId)
+                    ->all(),
+            ]));
+        }
+
+        if (array_diff($classIds, $allowedClassIds) !== []) {
+            abort(403, 'Anda hanya dapat memilih kelas yang Anda ampu untuk mata pelajaran ini.');
+        }
     }
 
     /**
      * Get the subjects mapped to each school's classes in the given academic year.
      *
      * @param  array<int, int>  $accessibleSchoolIds
-     * @return array<int, array{school_id: int, subject_ids: array<int, int>}>
+     * @return array<int, array{school_id: int, subject_ids: array<int, int>, class_ids_by_subject: array<string, array<int, int>>}>
      */
-    private function subjectOptionsBySchool(array $accessibleSchoolIds, int $academicYearId): array
+    private function subjectOptionsBySchool(array $accessibleSchoolIds, int $academicYearId, ?User $user = null): array
     {
         if ($academicYearId <= 0 || $accessibleSchoolIds === []) {
             return [];
         }
 
+        $isRestrictedGuru = $user?->isRestrictedGuru() ?? false;
+
         return SubjectTeacher::query()
             ->where('subject_teachers.academic_year_id', $academicYearId)
             ->join('classes', 'classes.id', '=', 'subject_teachers.school_class_id')
             ->whereIn('classes.school_id', $accessibleSchoolIds)
-            ->get(['classes.school_id', 'subject_teachers.subject_id'])
+            ->when($isRestrictedGuru, fn ($query) => $query->where('subject_teachers.teacher_id', $user->id))
+            ->get(['classes.school_id', 'subject_teachers.subject_id', 'subject_teachers.school_class_id'])
             ->groupBy('school_id')
-            ->map(fn ($subjectTeachers, $schoolId): array => [
-                'school_id' => (int) $schoolId,
-                'subject_ids' => $subjectTeachers->pluck('subject_id')->unique()->values()->all(),
-            ])
+            ->map(function ($subjectTeachers, $schoolId) use ($isRestrictedGuru): array {
+                $classIdsBySubject = [];
+
+                foreach ($subjectTeachers as $subjectTeacher) {
+                    $classIdsBySubject[(string) $subjectTeacher->subject_id][] = (int) $subjectTeacher->school_class_id;
+                }
+
+                $option = [
+                    'school_id' => (int) $schoolId,
+                    'subject_ids' => $subjectTeachers->pluck('subject_id')
+                        ->map(fn ($subjectId): int => (int) $subjectId)
+                        ->unique()
+                        ->values()
+                        ->all(),
+                ];
+
+                if ($isRestrictedGuru) {
+                    $option['class_ids_by_subject'] = array_map(
+                        fn (array $classIds): array => array_values(array_unique($classIds)),
+                        $classIdsBySubject,
+                    );
+                }
+
+                return $option;
+            })
             ->values()
             ->all();
     }

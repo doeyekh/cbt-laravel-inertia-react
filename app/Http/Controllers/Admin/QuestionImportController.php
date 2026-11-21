@@ -44,6 +44,7 @@ class QuestionImportController extends Controller
      */
     public function store(ImportQuestionsRequest $request, QuestionBank $questionBank): RedirectResponse
     {
+        $this->authorizeQuestionManage($request->user());
         $this->authorizeQuestionAccess($request->user());
         $this->authorizeRecordAccess($request->user(), $questionBank);
 

@@ -67,9 +67,9 @@ export default function Sidebar({ isOpen, onClose }) {
         () =>
             buildNavItems()
                 .filter((item) => {
-                    // Guru hanya melihat dashboard, bank soal, dan laporan.
+                    // Guru hanya melihat bank soal dan laporan.
                     if (isRestrictedGuru) {
-                        return ['Dashboard', 'Pengelolaan Ujian', 'Laporan'].includes(item.name);
+                        return ['Pengelolaan Ujian', 'Laporan'].includes(item.name);
                     }
 
                     if (item.name === 'Users') {
@@ -81,7 +81,7 @@ export default function Sidebar({ isOpen, onClose }) {
                     }
 
                     if (item.name === 'Laporan') {
-                        return isSchoolAdmin;
+                        return isSchoolAdmin || isRestrictedGuru;
                     }
 
                     return true;

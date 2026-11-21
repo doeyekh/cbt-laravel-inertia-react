@@ -96,22 +96,35 @@ export default function QuestionBankModal({
     const isEdit = mode === 'edit' && Boolean(initialData);
     const [classSearch, setClassSearch] = useState('');
 
-    const availableClasses = useMemo(
-        () =>
-            classes.filter(
-                (schoolClass) =>
-                    (!data.school_id ||
-                        String(schoolClass.school_id) === String(data.school_id)) &&
-                    (!classSearch.trim() ||
-                        schoolClass.name
-                            .toLowerCase()
-                            .includes(classSearch.trim().toLowerCase()) ||
-                        schoolClass.code
-                            .toLowerCase()
-                            .includes(classSearch.trim().toLowerCase()))
-            ),
-        [classes, data.school_id, classSearch]
-    );
+    const subjectClassIds = useMemo(() => {
+        const option = subjectOptions.find(
+            (item) => String(item.school_id) === String(data.school_id)
+        );
+
+        return option?.class_ids_by_subject ?? null;
+    }, [subjectOptions, data.school_id]);
+
+    const availableClasses = useMemo(() => {
+        const allowedClassIds =
+            subjectClassIds && data.subject_id
+                ? (subjectClassIds[String(data.subject_id)] ?? []).map(String)
+                : null;
+
+        return classes.filter(
+            (schoolClass) =>
+                (!data.school_id ||
+                    String(schoolClass.school_id) === String(data.school_id)) &&
+                (!allowedClassIds ||
+                    allowedClassIds.includes(String(schoolClass.id))) &&
+                (!classSearch.trim() ||
+                    schoolClass.name
+                        .toLowerCase()
+                        .includes(classSearch.trim().toLowerCase()) ||
+                    schoolClass.code
+                        .toLowerCase()
+                        .includes(classSearch.trim().toLowerCase()))
+        );
+    }, [classes, data.school_id, data.subject_id, subjectClassIds, classSearch]);
 
     const mappedSubjectIds = useMemo(() => {
         const option = subjectOptions.find(
@@ -230,6 +243,23 @@ export default function QuestionBankModal({
         });
 
         clearErrors('school_id', 'subject_id', 'exam_type_id', 'class_ids');
+    };
+
+    const handleSubjectChange = (value) => {
+        const allowedClassIds = subjectClassIds?.[String(value)]?.map(String);
+        const nextClassIds = allowedClassIds
+            ? data.class_ids.filter((classId) =>
+                  allowedClassIds.includes(String(classId))
+              )
+            : data.class_ids;
+
+        setData({
+            ...data,
+            subject_id: value,
+            class_ids: nextClassIds,
+        });
+
+        clearErrors('subject_id', 'class_ids');
     };
 
     const toggleClass = (classId) => {
@@ -428,7 +458,7 @@ export default function QuestionBankModal({
                             label="Mata Pelajaran"
                             value={data.subject_id}
                             onChange={(event) =>
-                                setField('subject_id', event.target.value)
+                                handleSubjectChange(event.target.value)
                             }
                             error={errors.subject_id}
                             placeholder="Pilih mata pelajaran..."
