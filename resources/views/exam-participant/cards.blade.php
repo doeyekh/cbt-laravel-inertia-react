@@ -38,20 +38,21 @@
         }
 
         .card-cell {
-            width: 50%;
+            width: 47%;
             padding: 0;
             vertical-align: top;
             margin-right: 2mm;
-            /* border: 1mm solid red; */
+            
         }
 
         .card {
-            width: 96%;
-            height: 66mm;
+            width: 94%;
+            height: 64mm;
             padding: 2mm;
             border: 0.8pt solid #475569;
             page-break-inside: avoid;
             overflow: hidden;
+            /* border: 1mm solid red; */
         }
 
         /* =========================================
@@ -262,8 +263,11 @@
                 <table class="header" cellpadding="0" cellspacing="0">
                     <tr>
                         <td class="header-logo">
-                            @if (!empty($school['logo_left']))
-                                <img src="{{ $school['logo_left'] }}" alt="Logo">
+                            @if(file_exists(public_path('img/logo.png')))
+                                <img
+                                    src="{{ public_path('img/logo.png') }}"
+                                    class="logo"
+                                >
                             @endif
                         </td>
 
@@ -284,8 +288,6 @@
                         </td>
                     </tr>
                 </table>
-
-                <!-- <hr class="header-divider"> -->
 
                 {{-- IDENTITAS PESERTA --}}
                 <table class="identity" cellpadding="0" cellspacing="0">
@@ -348,21 +350,33 @@
                 </table>
 
                 {{-- FOOTER --}}
+               {{-- FOOTER --}}
                 <table class="footer" cellpadding="0" cellspacing="0">
                     <tr>
-                        <td class="footer-info">Harap membawa kartu saat ujian.</td>
-                        <td class="footer-signature">Paraf petugas: ______________</td>
+                        <td class="footer-info">
+                            Harap membawa kartu saat ujian.<br>
+                            <span>Dicetak: {{ $print_date }}</span>
+                        </td>
+                        <td class="footer-signature">
+                            <div>Kepala Sekolah,</div>
+                            <div class="principal-name">{{ $school['headmaster_name'] }}</div>
+                        </td>
                     </tr>
                 </table>
             </div>
         </td>
 
-        {{-- Tutup baris setiap 2 peserta --}}
+        {{-- Jika iterasi terakhir ganjil, tambahkan sel kosong agar kolom kanan tetap terkunci --}}
+        @if ($loop->last && $loop->iteration % 2 === 1)
+            <td class="card-cell"></td>
+        @endif
+
+        {{-- Tutup baris setiap 2 peserta atau di akhir --}}
         @if ($loop->iteration % 2 === 0 || $loop->last)
             </tr>
         @endif
 
-        {{-- Tutup tabel setiap 8 peserta --}}
+        {{-- Tutup tabel setiap 8 peserta atau di akhir --}}
         @if ($loop->iteration % 8 === 0 || $loop->last)
             </table>
 

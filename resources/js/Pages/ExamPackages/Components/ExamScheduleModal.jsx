@@ -124,37 +124,53 @@ export default function ExamScheduleModal({
     const handleClassChange = (event) => {
         const classId = event.target.value;
         const options = subjectsByClass[classId] ?? [];
-        const next = { class_id: classId };
-        let nextSubject = options.find(
-            (subject) => String(subject.id) === String(data.subject_id),
-        );
 
-        if (!nextSubject) {
-            nextSubject = options[0];
-            next.subject_id = nextSubject?.id ? String(nextSubject.id) : '';
-        }
+        setData((current) => {
+            const next = { class_id: classId };
+            let nextSubject = options.find(
+                (subject) => String(subject.id) === String(current.subject_id),
+            );
 
-        const nextBanks = nextSubject?.question_banks ?? [];
-        if (!nextBanks.some((bank) => String(bank.id) === String(data.question_bank_id))) {
-            next.question_bank_id = nextBanks[0]?.id ? String(nextBanks[0].id) : '';
-        }
+            if (!nextSubject) {
+                nextSubject = options[0];
+                next.subject_id = nextSubject?.id ? String(nextSubject.id) : '';
+            }
 
-        setData(next);
+            const nextBanks = nextSubject?.question_banks ?? [];
+            if (
+                !nextBanks.some(
+                    (bank) => String(bank.id) === String(current.question_bank_id),
+                )
+            ) {
+                next.question_bank_id = nextBanks[0]?.id
+                    ? String(nextBanks[0].id)
+                    : '';
+            }
+
+            return { ...current, ...next };
+        });
+
         clearErrors(['class_id', 'subject_id', 'question_bank_id']);
     };
 
     const handleSubjectChange = (event) => {
         const subjectId = event.target.value;
-        const subject = availableSubjects.find(
-            (item) => String(item.id) === String(subjectId),
-        );
 
-        setData({
-            subject_id: subjectId,
-            question_bank_id: subject?.question_banks?.[0]?.id
-                ? String(subject.question_banks[0].id)
-                : '',
+        setData((current) => {
+            const options = subjectsByClass[String(current.class_id)] ?? [];
+            const subject = options.find(
+                (item) => String(item.id) === String(subjectId),
+            );
+
+            return {
+                ...current,
+                subject_id: subjectId,
+                question_bank_id: subject?.question_banks?.[0]?.id
+                    ? String(subject.question_banks[0].id)
+                    : '',
+            };
         });
+
         clearErrors(['subject_id', 'question_bank_id']);
     };
 

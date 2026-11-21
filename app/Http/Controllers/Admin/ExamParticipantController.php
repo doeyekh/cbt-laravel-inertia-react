@@ -414,8 +414,9 @@ class ExamParticipantController extends Controller
         abort_if($schoolId <= 0 || $academicYearId <= 0, 403);
 
         $this->authorizeParticipantSchoolAccess($request->user(), $schoolId);
-
-        $school = School::query()->findOrFail($schoolId);
+        $school = School::query()
+            ->with('headmaster:id,name')
+            ->findOrFail($schoolId);
         $academicYear = AcademicYear::query()->findOrFail($academicYearId);
 
         $participants = ExamParticipant::query()
@@ -477,10 +478,12 @@ class ExamParticipantController extends Controller
 
         $dompdf = new Dompdf($options);
 
+       
         $html = view('exam-participant.cards', [
             'school' => [
                 'name' => $school->name,
                 'code' => $school->code,
+                'headmaster_name' => $school->headmaster?->name ?? '-',
             ],
             'academic_year' => [
                 'code' => $academicYear->code,
