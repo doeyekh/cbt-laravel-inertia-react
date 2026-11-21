@@ -9,13 +9,17 @@ use App\Http\Requests\Admin\BulkUpdateExamScheduleRequest;
 use App\Http\Requests\Admin\StoreExamScheduleRequest;
 use App\Http\Requests\Admin\UpdateExamScheduleRequest;
 use App\Models\ExamPackage;
+use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
 use App\Models\Room;
 use App\Models\Session;
 use App\Models\User;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExamScheduleController extends Controller
 {
@@ -28,7 +32,7 @@ class ExamScheduleController extends Controller
         $this->authorizeRecordAccess($request->user(), $examPackage);
 
         $examSchedule = DB::transaction(
-            fn (): ExamSchedule => $examPackage->schedules()->create($request->validated())
+            fn(): ExamSchedule => $examPackage->schedules()->create($request->validated())
         );
 
         return back()->with('toast', [
@@ -111,7 +115,7 @@ class ExamScheduleController extends Controller
         return back()->with('toast', [
             'type' => 'success',
             'title' => $isActive ? 'Jadwal Diaktifkan' : 'Jadwal Dinonaktifkan',
-            'description' => "Jadwal {$examSchedule->subject?->name} untuk {$examSchedule->schoolClass?->name} sekarang ".($isActive ? 'aktif' : 'nonaktif').'.',
+            'description' => "Jadwal {$examSchedule->subject?->name} untuk {$examSchedule->schoolClass?->name} sekarang " . ($isActive ? 'aktif' : 'nonaktif') . '.',
         ]);
     }
 
@@ -185,7 +189,7 @@ class ExamScheduleController extends Controller
         return back()->with('toast', [
             'type' => 'success',
             'title' => 'Sesi dan Ruang Diperbarui',
-            'description' => "{$count} jadwal ujian telah diperbarui dengan ".implode(' dan ', $parts).'.',
+            'description' => "{$count} jadwal ujian telah diperbarui dengan " . implode(' dan ', $parts) . '.',
         ]);
     }
 
@@ -219,5 +223,85 @@ class ExamScheduleController extends Controller
         if (! in_array((int) $examPackage->school_id, $user->accessibleSchoolIds(), true)) {
             abort(403);
         }
+    }
+
+
+    public function printAttendance(Request $request, ExamSchedule $schedule): StreamedResponse
+    {
+        $this->authorizeScheduleManage($request->user());
+
+        // Load relasi yang diperlukan termasuk school lewat examPackage
+        $schedule->load([
+            'examPackage.school',
+            'examPackage.academicYear',
+            'examPackage.examType',
+            'subject',
+            'schoolClass',
+            'session',
+            'room',
+        ]);
+
+        $this->authorizeRecordAccess(
+            $request->user(),
+            $schedule->examPackage
+        );
+
+        // Ambil peserta berdasarkan room_id dan session_id dari jadwal
+        $participants = ExamParticipant::query()
+            ->where('school_id', $schedule->examPackage->school_id)
+            ->where('room_id', $schedule->room_id)
+            ->where('session_id', $schedule->session_id)
+            ->with(['student.registrations' => fn($query) => $query->where('school_id', $schedule->examPackage->school_id)])
+            ->orderBy('participant_number')
+            ->get()
+            ->map(function (ExamParticipant $participant): array {
+                return [
+                    'username' => $participant->username ?? '-',
+                    'participant_number' => $participant->participant_number ?? '-',
+                    'name' => $participant->student?->name ?? '-',
+                ];
+            })
+            ->values()
+            ->all();
+
+        // Konfigurasi Dompdf (menyamakan dengan method cards)
+        $options = new Options();
+        $options->set([
+            'isRemoteEnabled' => false,
+            'isHtml5ParserEnabled' => true,
+            'chroot' => [
+                public_path(),
+                storage_path('app/public'),
+            ],
+            'defaultFont' => 'DejaVu Sans',
+            'defaultPaperSize' => 'A4',
+            'dpi' => 96,
+            'isPhpEnabled' => false,
+        ]);
+
+        $dompdf = new Dompdf($options);
+
+        // Render view Blade menjadi HTML
+        $html = view('exam-packages.print-attendance', [
+            'examPackage' => $schedule->examPackage,
+            'schedule' => $schedule,
+            'participants' => $participants,
+            'print_date' => now()->format('d/m/Y H:i'),
+        ])->render();
+
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $filename = 'Daftar-Hadir-' . ($schedule->subject->name ?? 'Ujian') . '-' . now()->format('Ymd') . '.pdf';
+
+        return response()->stream(
+            fn() => print($dompdf->output()),
+            200,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            ]
+        );
     }
 }

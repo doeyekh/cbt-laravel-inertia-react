@@ -10,16 +10,16 @@ import Table, {
     TableCell,
 } from '@/Components/UI/Table';
 import Button from '@/Components/UI/Button';
+import { route } from '@/Utils/route';
 
 const ScheduleSettingChip = ({ active, children }) => (
     <span
         className={`
             inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px]
             font-label font-semibold
-            ${
-                active
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-surface-container-low text-on-surface-variant'
+            ${active
+                ? 'bg-primary/10 text-primary'
+                : 'bg-surface-container-low text-on-surface-variant'
             }
         `}
     >
@@ -37,6 +37,24 @@ export default function ExamScheduleList({
     onEdit,
     onDelete,
 }) {
+
+    const printAttendanceUrl = (item) => {
+        console.log('Jadwal dipilih:', item);
+
+        if (!item?.id) {
+            console.error('ID jadwal tidak ditemukan');
+            return;
+        }
+
+        const url = route('admin.exam-schedules.print-attendance', {
+            schedule: item.id,
+        });
+
+        console.log('URL cetak:', url);
+
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
     return (
         <Card padding="p-0">
             <div className="px-6 py-4 bg-surface-container-low/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -170,8 +188,8 @@ export default function ExamScheduleList({
                                                 examPackage?.status === 'selesai'
                                                     ? 'Paket ujian sudah selesai.'
                                                     : item.status === 'aktif'
-                                                      ? 'Klik untuk menonaktifkan jadwal ini'
-                                                      : 'Klik untuk mengaktifkan jadwal ini'
+                                                        ? 'Klik untuk menonaktifkan jadwal ini'
+                                                        : 'Klik untuk mengaktifkan jadwal ini'
                                             }
                                             className="group inline-flex items-center rounded-xl transition enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                                         >
@@ -184,17 +202,16 @@ export default function ExamScheduleList({
                                                 className="transition group-hover:brightness-95"
                                             >
                                                 <span
-                                                    className={`material-symbols-outlined text-[13px] ${
-                                                        togglingId === item.id
-                                                            ? 'animate-spin'
-                                                            : ''
-                                                    }`}
+                                                    className={`material-symbols-outlined text-[13px] ${togglingId === item.id
+                                                        ? 'animate-spin'
+                                                        : ''
+                                                        }`}
                                                 >
                                                     {togglingId === item.id
                                                         ? 'sync'
                                                         : item.status === 'aktif'
-                                                          ? 'check_circle'
-                                                          : 'remove_circle'}
+                                                            ? 'check_circle'
+                                                            : 'remove_circle'}
                                                 </span>
                                                 {item.status_label}
                                             </Badge>
@@ -219,24 +236,29 @@ export default function ExamScheduleList({
                                 {canManage && (
                                     <TableCell className="text-right">
                                         <div className="inline-flex items-center gap-1">
-                                            <Button variant="outline" size="sm" label="Cetak" onClick={() => window.open(item.print_url, '_blank')}>
+                                            <button
+                                                type="button"
+                                                onClick={() => printAttendanceUrl(item)}
+                                                className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-sm hover:bg-surface-container-low"
+                                            >
                                                 <span className="material-symbols-outlined text-[18px]">
                                                     print
                                                 </span>
-                                            </Button>
+                                                Cetak
+                                            </button>
                                             <RowActions
-                                            onEdit={
-                                                examPackage?.status !== 'selesai'
-                                                    ? () => onEdit(item)
-                                                    : undefined
-                                            }
-                                            onDelete={
-                                                item.status === 'nonaktif' &&
-                                                examPackage?.status !== 'selesai'
-                                                    ? () => onDelete(item)
-                                                    : undefined
-                                            }
-                                        />
+                                                onEdit={
+                                                    examPackage?.status !== 'selesai'
+                                                        ? () => onEdit(item)
+                                                        : undefined
+                                                }
+                                                onDelete={
+                                                    item.status === 'nonaktif' &&
+                                                        examPackage?.status !== 'selesai'
+                                                        ? () => onDelete(item)
+                                                        : undefined
+                                                }
+                                            />
                                         </div>
 
                                     </TableCell>

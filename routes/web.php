@@ -168,6 +168,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('exam-packages/{examPackage}/schedules/bulk', [ExamScheduleController::class, 'bulkUpdate'])
             ->name('exam-schedules.bulk-update');
 
+        Route::get(
+            '/exam-schedules/{schedule}/print-attendance',
+            [ExamScheduleController::class, 'printAttendance']
+        )->name('exam-schedules.print-attendance');
+
         Route::get('question-banks/{questionBank}/questions', [QuestionController::class, 'index'])
             ->name('question-banks.questions.index');
 
