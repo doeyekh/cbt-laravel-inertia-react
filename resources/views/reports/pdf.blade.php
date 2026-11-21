@@ -4,12 +4,12 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Laporan Ujian {{ $schedule['name'] }}</title>
+    <title>Laporan Ujian {{ $schedule['name'] ?? '' }}</title>
 
     <style>
         @page {
             size: A4 portrait;
-            margin: 10mm 10mm 16mm 10mm;
+            margin: 10mm 10mm 16mm;
         }
 
         * {
@@ -34,13 +34,28 @@
             margin: 0;
         }
 
-        /* HEADER */
+        /* ========================================
+           HEADER
+        ======================================== */
+
         .header {
             margin-bottom: 3mm;
         }
 
         .header td {
             vertical-align: middle;
+        }
+
+        .header-logo {
+            width: 12%;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .school-logo {
+            width: 22mm;
+            height: 22mm;
+            object-fit: contain;
         }
 
         .school-name {
@@ -66,6 +81,7 @@
         }
 
         .header-meta {
+            width: 35%;
             text-align: right;
             font-size: 7.5pt;
             line-height: 1.7;
@@ -81,33 +97,38 @@
             margin: 2mm 0 4mm;
         }
 
-        /* INFORMASI UJIAN */
+        /* ========================================
+           INFORMASI UJIAN
+        ======================================== */
+
         .info-table {
-            margin-bottom: 4mm;
+            margin-bottom: 5mm;
         }
 
         .info-table td {
             padding: 1.5mm 2mm;
-            /* border: 0.5pt solid #e2e8f0; */
             vertical-align: middle;
         }
 
         .info-label {
-            width: 20%;
-            background: #f8fafc;
+            width: 18%;
             color: #64748b;
-            font-size: 7pt;
+            font-size: 7.5pt;
         }
 
         .info-value {
-            width: 30%;
+            width: 32%;
             font-weight: bold;
             color: #334155;
         }
 
-        /* RINGKASAN */
+        /* ========================================
+           JUDUL BAGIAN
+        ======================================== */
+
         .section-title {
-            margin-bottom: 2mm;
+            margin-bottom: 2.5mm;
+            text-align: center;
             font-size: 9pt;
             font-weight: bold;
             color: #064e3b;
@@ -115,33 +136,10 @@
             letter-spacing: 0.3pt;
         }
 
-        .summary-table {
-            table-layout: fixed;
-            margin-bottom: 5mm;
-        }
+        /* ========================================
+           TABEL PESERTA
+        ======================================== */
 
-        .summary-table td {
-            width: 25%;
-            padding: 2.5mm 2mm;
-            border: 0.5pt solid #d1d5db;
-            background: #f8fafc;
-            vertical-align: middle;
-        }
-
-        .summary-label {
-            font-size: 6.5pt;
-            color: #64748b;
-            text-transform: uppercase;
-        }
-
-        .summary-value {
-            margin-top: 1mm;
-            font-size: 12pt;
-            font-weight: bold;
-            color: #064e3b;
-        }
-
-        /* TABEL PESERTA */
         .data-table {
             table-layout: fixed;
             margin-bottom: 4mm;
@@ -168,7 +166,7 @@
             border: 0.5pt solid #dbe3e9;
             font-size: 7.2pt;
             vertical-align: middle;
-            overflow-wrap: break-word;
+            word-wrap: break-word;
         }
 
         .data-table tbody tr:nth-child(even) td {
@@ -181,10 +179,6 @@
 
         .text-center {
             text-align: center;
-        }
-
-        .text-right {
-            text-align: right;
         }
 
         .participant-name {
@@ -203,7 +197,10 @@
             color: #94a3b8;
         }
 
-        /* CATATAN */
+        /* ========================================
+           CATATAN
+        ======================================== */
+
         .note {
             margin-top: 2mm;
             padding: 2.5mm 3mm;
@@ -211,11 +208,12 @@
             border-left: 2pt solid #047857;
             color: #64748b;
             font-size: 7pt;
+            page-break-inside: avoid;
         }
 
-        .footer-space {
-            height: 3mm;
-        }
+        /* ========================================
+           TANDA TANGAN
+        ======================================== */
 
         .signature {
             margin-top: 8mm;
@@ -225,6 +223,7 @@
         .signature-block {
             width: 42%;
             text-align: center;
+            vertical-align: top;
         }
 
         .signature-space {
@@ -235,6 +234,7 @@
             font-weight: bold;
             text-decoration: underline;
         }
+
     </style>
 </head>
 
@@ -257,19 +257,23 @@
             ($schedule['open_time'] ?? '') . ' - ' . ($schedule['close_time'] ?? ''),
             ' -'
         );
-
-        $participantCount = $summary['participant_count'] ?? 0;
-        $completedCount = $summary['completed_count'] ?? 0;
-        $average = $summary['average_percentage'] ?? null;
-        $highest = $summary['highest_percentage'] ?? null;
-        $lowest = $summary['lowest_percentage'] ?? null;
-        $passPercentage = $summary['pass_percentage'] ?? null;
     @endphp
 
-    {{-- HEADER --}}
+    {{-- ========================================
+         HEADER LAPORAN
+    ======================================== --}}
+
     <table class="header">
         <tr>
-            <td width="65%">
+            <td width="12%" class="header-logo">
+                <img
+                    src="{{ public_path('img/logo.png') }}"
+                    alt="Logo Sekolah"
+                    class="school-logo"
+                >
+            </td>
+
+            <td width="53%">
                 <p class="school-name">
                     {{ $schedule['school'] ?? 'Sekolah' }}
                 </p>
@@ -280,9 +284,11 @@
 
                 <p class="header-subtitle">
                     {{ $schedule['name'] ?? '-' }}
+
                     @if (!empty($schedule['code']))
                         · {{ $schedule['code'] }}
                     @endif
+
                     @if (!empty($schedule['academic_year']))
                         · Tahun Pelajaran {{ $schedule['academic_year'] }}
                     @endif
@@ -291,7 +297,9 @@
 
             <td width="35%" class="header-meta">
                 <p>Dicetak pada</p>
+
                 <strong>{{ $print_date }}</strong>
+
                 <p style="margin-top: 1mm;">
                     {{ $schedule['subject'] ?? '-' }}
                 </p>
@@ -301,69 +309,70 @@
 
     <div class="divider"></div>
 
+    {{-- ========================================
+         INFORMASI UJIAN
+    ======================================== --}}
 
     <table class="info-table">
         <tr>
             <td class="info-label">Mata Pelajaran</td>
-            <td class="info-value">{{ $schedule['subject'] ?? '-' }}</td>
-
-            <td class="info-label">Sesi</td>
-            <td class="info-value">{{ $schedule['session'] ?? '-' }}</td>
-        </tr>
-
-        <tr>
-            <td class="info-label">Kelas</td>
-            <td class="info-value">{{ $schedule['class'] ?? '-' }}</td>
-
-            <td class="info-label">Ruang</td>
-            <td class="info-value">{{ $schedule['room'] ?? '-' }}</td>
-        </tr>
-
-        <tr>
-            <td class="info-label">Tanggal</td>
-            <td class="info-value">{{ $examDate }}</td>
-
-            <td class="info-label">Waktu</td>
             <td class="info-value">
-                {{ $timeRange !== '' ? $timeRange : '-' }}
+                {{ $schedule['subject'] ?? '-' }}
+            </td>
+
+            <td class="info-label">Kelas</td>
+            <td class="info-value">
+                {{ $schedule['class'] ?? '-' }}
+            </td>
+        </tr>
+
+        <tr>
+            <td class="info-label">Tanggal Ujian</td>
+            <td class="info-value">
+                {{ $examDate }}
+            </td>
+
+            <td class="info-label">Waktu Ujian</td>
+            <td class="info-value">
+                {{ $timeRange ?: '-' }}
             </td>
         </tr>
     </table>
 
-    
+    {{-- ========================================
+         REKAPITULASI NILAI PESERTA
+    ======================================== --}}
 
-    {{-- REKAP PESERTA --}}
-    <h2 class="section-title">Rekapitulasi Nilai Peserta</h2>
+    <h2 class="section-title">
+        Rekapitulasi Nilai Peserta
+    </h2>
 
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 5mm;">No.</th>
-                <th style="width: 23mm;">No. Peserta</th>
-                <th>Nama Peserta</th>
-                <th style="width: 19mm;">NISN</th>
-                <th style="width: 12mm;">Benar</th>
-                <th style="width: 12mm;">Salah</th>
-                <th style="width: 17mm;">Nilai</th>
-                <th style="width: 21mm;">Waktu</th>
+                <th width="5%">No.</th>
+                <th width="15%">NISN</th>
+                <th width="35%">Nama Peserta</th>
+                <th width="10%">Benar</th>
+                <th width="10%">Salah</th>
+                <th width="12%">Nilai</th>
+                <th width="13%">Waktu</th>
             </tr>
         </thead>
 
         <tbody>
             @forelse ($participants as $index => $participant)
                 <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-
                     <td class="text-center">
-                        {{ $participant['participant_number'] ?? '-' }}
-                    </td>
-
-                    <td class="participant-name">
-                        {{ $participant['name'] ?? '-' }}
+                        {{ $index + 1 }}
                     </td>
 
                     <td class="text-center">
                         {{ $participant['nisn'] ?? '-' }}
+                    </td>
+
+                    <td class="participant-name">
+                        {{ $participant['name'] ?? '-' }}
                     </td>
 
                     <td class="text-center">
@@ -379,12 +388,12 @@
                     </td>
 
                     <td class="text-center">
-                        {{ $minutes($participant['time_spent_seconds'] ?? 0) }}
+                        {{ $minutes($participant['time_spent_seconds'] ?? null) }}
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="empty-row">
+                    <td colspan="7" class="empty-row">
                         Belum ada siswa yang terdaftar pada kelas ini.
                     </td>
                 </tr>
@@ -392,7 +401,10 @@
         </tbody>
     </table>
 
-    {{-- CATATAN --}}
+    {{-- ========================================
+         CATATAN
+    ======================================== --}}
+
     <div class="note">
         <strong>Catatan:</strong>
         Nilai akhir dihitung dari skor perolehan dibagi skor maksimum,
@@ -400,12 +412,19 @@
         Peserta dengan nilai di bawah 70 dinyatakan belum tuntas.
     </div>
 
+    {{-- ========================================
+         TANDA TANGAN
+    ======================================== --}}
+
     <table class="signature">
         <tr>
             <td width="58%"></td>
+
             <td class="signature-block">
                 <p>Pengajar Mata Pelajaran</p>
+
                 <div class="signature-space"></div>
+
                 <p class="signature-name">
                     {{ $schedule['teacher'] ?? '........................................' }}
                 </p>
