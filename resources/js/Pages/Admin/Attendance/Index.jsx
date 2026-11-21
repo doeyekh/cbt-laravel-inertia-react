@@ -425,6 +425,7 @@ export default function AttendanceIndex({
                                     ini.
                                 </div>
                             ) : (
+                                
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="bg-surface-container-low text-on-surface-variant font-label text-[11px] font-semibold uppercase tracking-wider">
