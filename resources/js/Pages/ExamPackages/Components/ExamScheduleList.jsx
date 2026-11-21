@@ -9,6 +9,7 @@ import Table, {
     TableRow,
     TableCell,
 } from '@/Components/UI/Table';
+import Button from '@/Components/UI/Button';
 
 const ScheduleSettingChip = ({ active, children }) => (
     <span
@@ -217,7 +218,13 @@ export default function ExamScheduleList({
                                 </TableCell>
                                 {canManage && (
                                     <TableCell className="text-right">
-                                        <RowActions
+                                        <div className="inline-flex items-center gap-1">
+                                            <Button variant="outline" size="sm" label="Cetak" onClick={() => window.open(item.print_url, '_blank')}>
+                                                <span className="material-symbols-outlined text-[18px]">
+                                                    print
+                                                </span>
+                                            </Button>
+                                            <RowActions
                                             onEdit={
                                                 examPackage?.status !== 'selesai'
                                                     ? () => onEdit(item)
@@ -230,6 +237,8 @@ export default function ExamScheduleList({
                                                     : undefined
                                             }
                                         />
+                                        </div>
+
                                     </TableCell>
                                 )}
                             </TableRow>
