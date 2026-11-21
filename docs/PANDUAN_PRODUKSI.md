@@ -89,12 +89,19 @@ vendor/bin/pint --dirty --format agent
 ```powershell
 New-Item -ItemType Directory -Force .\backups | Out-Null
 
-docker compose -f docker-compose.prod.yml exec -T db sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --triggers --databases cbt --result-file=/tmp/cbt-backup.sql'
+1. docker compose -f docker-compose.prod.yml exec -T db sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --triggers --databases cbt --result-file=/tmp/cbt-backup.sql'
+
+2. docker compose -f docker-compose.prod.yml exec -T db sh -c 'ls -lh /tmp/cbt-backup.sql && head -n 25 /tmp/cbt-backup.sql && tail -n 10 /tmp/cbt-backup.sql'
 
 docker compose -f docker-compose.prod.yml cp db:/tmp/cbt-backup.sql ./backups/cbt-backup.sql
 ```
 
 > Jangan simpan file backup di git. Simpan di folder lokal/CI yang aman.
+
+#### Salin Database Backup ke folder Backup
+```powershell
+docker compose -f docker-compose.prod.yml cp db:/tmp/cbt-backup.sql ./cbt-backup.sql
+```
 
 ### 2.5 Aktifkan maintenance mode untuk perubahan besar
 
