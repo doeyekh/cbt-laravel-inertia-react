@@ -1,225 +1,415 @@
+
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <title>Daftar Hadir Peserta Ujian</title>
+
     <style>
+        @page {
+            size: A4 portrait;
+            margin: 8mm 10mm 10mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
-            font-size: 10px;
-            color: #000;
-            line-height: 1.2;
+            margin: 0;
+            padding: 0;
+            font-family: 'DejaVu Sans', sans-serif;
+            font-size: 8pt;
+            line-height: 1.25;
+            color: #1e293b;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        p {
             margin: 0;
             padding: 0;
         }
-        .header-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
+
+        /* HEADER */
+
+        .header {
+            margin-bottom: 2mm;
         }
-        .logo-box {
-            width: 60px;
-            height: 60px;
-            border: 1px solid #000;
-            text-align: center;
+
+        .header td {
             vertical-align: middle;
-            font-size: 8px;
-            font-weight: bold;
         }
-        .title-container {
+
+        .header-logo {
+            width: 18%;
             text-align: center;
-            vertical-align: top;
         }
-        .title-container h3 {
-            margin: 0;
-            font-size: 13px;
+
+        .school-logo {
+            width: 21mm;
+            height: 21mm;
+        }
+
+        .header-content {
+            width: 55%;
+        }
+
+        .exam-type {
+            font-size: 8pt;
             font-weight: bold;
-            letter-spacing: 0.5px;
+            margin-bottom: 1mm;
         }
-        .title-container h4 {
-            margin: 3px 0 0 0;
-            font-size: 12px;
+
+        .report-title {
+            font-size: 10pt;
             font-weight: bold;
             text-transform: uppercase;
+            margin-bottom: 1mm;
         }
 
-        /* Tabel Informasi / Identitas */
+        .school-name {
+            font-size: 12pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #064e3b;
+            line-height: 1.2;
+        }
+
+        .header-subtitle {
+            margin-top: 1mm;
+            font-size: 7.5pt;
+            color: #64748b;
+        }
+
+        .header-meta {
+            width: 27%;
+            text-align: right;
+            font-size: 7pt;
+            line-height: 1.5;
+            color: #64748b;
+        }
+
+        .header-meta strong {
+            color: #334155;
+        }
+
+        .divider {
+            border-top: 2pt solid #047857;
+            margin: 2mm 0 3mm;
+        }
+
+        /* INFORMASI UJIAN */
+
         .info-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-            font-size: 10px;
-        }
-        .info-table td {
-            padding: 2px 0;
-            vertical-align: top;
+            margin-bottom: 3mm;
+            font-size: 7.5pt;
         }
 
-        /* Tabel Data Peserta */
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 5px;
-        }
-        .data-table th, .data-table td {
-            border: 1px solid #000;
-            padding: 4px 5px;
-            font-size: 10px;
+        .info-table td {
+            padding: 1.1mm 1mm;
             vertical-align: middle;
         }
-        .data-table th {
-            background-color: #bfa15f; /* Menyesuaikan warna header tabel kecoklatan/abu gelap di gambar */
-            color: #000;
+
+        .info-label {
+            width: 14%;
+            color: #475569;
+        }
+
+        .info-separator {
+            width: 2%;
             text-align: center;
+        }
+
+        .info-value {
+            font-weight: bold;
+            color: #334155;
+        }
+
+        /* TABEL PESERTA */
+
+        .data-table {
+            table-layout: fixed;
+            margin-bottom: 3mm;
+        }
+
+        .data-table thead {
+            display: table-header-group;
+        }
+
+        .data-table th {
+            padding: 1.6mm 1mm;
+            background-color: #047857;
+            border: 0.5pt solid #047857;
+            color: #ffffff;
+            font-size: 7pt;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            vertical-align: middle;
+        }
+
+        .data-table td {
+            padding: 1.5mm;
+            border: 0.5pt solid #cbd5e1;
+            font-size: 7.5pt;
+            vertical-align: middle;
+            word-wrap: break-word;
+        }
+
+        .data-table tbody tr:nth-child(even) td {
+            background-color: #f8fafc;
+        }
+
+        .data-table tbody tr {
+            page-break-inside: avoid;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .participant-name {
             font-weight: bold;
         }
-        
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
 
-        /* Keterangan & Tanda Tangan */
+        .signature-number {
+            padding-left: 3mm !important;
+            text-align: left;
+        }
+
+        .empty-row {
+            padding: 5mm !important;
+            text-align: center;
+            color: #64748b;
+        }
+
+        /* CATATAN */
+
         .footer-section {
-            margin-top: 10px;
-            font-size: 9px;
+            margin-top: 2mm;
+            font-size: 7pt;
+            line-height: 1.4;
             page-break-inside: avoid;
         }
+
         .footer-section ol {
-            margin: 2px 0 0 0;
-            padding-left: 15px;
+            margin: 1mm 0 0 5mm;
+            padding-left: 3mm;
         }
+
+        .footer-section li {
+            padding: 0.3mm 0;
+        }
+
+        /* TANDA TANGAN */
+
         .signature-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-            font-size: 10px;
+            margin-top: 5mm;
             page-break-inside: avoid;
+            font-size: 7.5pt;
         }
+
         .signature-table td {
+            width: 50%;
             text-align: center;
             vertical-align: top;
-            width: 50%;
         }
+
         .signature-space {
-            height: 50px;
+            height: 15mm;
+        }
+
+        /* CETAK */
+
+        @media print {
+            .data-table {
+                page-break-inside: auto;
+            }
+
+            .data-table tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
         }
     </style>
 </head>
+
 <body>
 
-    <!-- KOP / HEADER -->
-    <table class="header-table">
+    {{-- HEADER --}}
+
+    <table class="header">
         <tr>
-            <td style="width: 12%;">
-                <div class="logo-box">
-                    <!-- Jika ada logo gambar, bisa pakai: <img src="{{ public_path('images/logo.png') }}" width="45"> -->
-                    TUT WURI<br>HANDAYANI
-                </div>
+            <td class="header-logo">
+                <img
+                    src="{{ public_path('img/logo.png') }}"
+                    alt="Logo Sekolah"
+                    class="school-logo"
+                >
             </td>
-            <td class="title-container" style="width: 76%;">
-                <h3>DAFTAR HADIR PESERTA</h3>
-                <h4>{{ strtoupper($schedule->examPackage->examType->name ?? 'SUSULAN TES KEMAMPUAN AKADEMIK SMK') }}</h4>
-                <h4>TAHUN {{ $schedule->examPackage->academicYear->name ?? '2026' }}</h4>
+
+            <td class="header-content">
+                <p class="exam-type">
+                    Daftar Hadir Peserta Ujian
+                </p>
+
+                <p class="report-title">
+                    {{ strtoupper($schedule->examPackage->examType->name ?? 'SUSULAN TES KEMAMPUAN AKADEMIK SMK') }}
+                </p>
+
+                <p class="school-name">
+                    {{ strtoupper($schedule->examPackage->school->name ?? 'SMKS IT RAUDHATUL ULUUM') }}
+                </p>
+
+                <p class="header-subtitle">
+                    Tahun Pelajaran
+                    {{ $schedule->examPackage->academicYear->name ?? '2026' }}
+                </p>
             </td>
-            <td style="width: 12%;"></td>
+
+            <td class="header-meta">
+                <p>Dicetak pada:</p>
+                <strong>{{ $print_date }}</strong>
+
+                <p style="margin-top: 2mm;">Mata Pelajaran</p>
+                <strong>{{ $schedule->subject->name ?? '-' }}</strong>
+            </td>
         </tr>
     </table>
 
-    <!-- INFORMASI DETAIL -->
+    <div class="divider"></div>
+
+    {{-- INFORMASI UJIAN --}}
+
+    @php
+        $days = [
+            'Sunday' => 'Minggu',
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
+        ];
+
+        $examDate = strtotime($schedule->exam_date);
+        $dayName = $days[date('l', $examDate)] ?? date('l', $examDate);
+    @endphp
+
     <table class="info-table">
         <tr>
-            <td style="width: 18%;">KOTA/KABUPATEN</td>
-            <td style="width: 2%;">:</td>
-            <td style="width: 50%;">{{ strtoupper($schedule->examPackage->school->city ?? 'KAB. SUBANG') }}</td>
-            <td style="width: 8%;">KODE</td>
-            <td style="width: 2%;">:</td>
-            <td style="width: 20%;">{{ substr($schedule->room->code ?? '230178', 0, 2) }}</td>
-        </tr>
-        <tr>
-            <td>SEKOLAH/MADRASAH</td>
-            <td>:</td>
-            <td>{{ strtoupper($schedule->examPackage->school->name ?? 'SMKS IT RAUDHATUL ULUUM') }}</td>
-            <td>KODE</td>
-            <td>:</td>
-            <td>{{ substr($schedule->room->code ?? '230178', 2) }}</td>
-        </tr>
-        <tr>
-            <td>ID SERVER / RUANG</td>
-            <td>:</td>
-            <td>{{ $schedule->room->server_id ?? 'K02230178-AX7Z' }} / {{ $schedule->room->name ?? '1' }}</td>
-            <td>SESI</td>
-            <td>:</td>
-            <td>{{ $schedule->session->name ?? '1' }}</td>
-        </tr>
-        <tr>
-            <td>HARI</td>
-            <td>:</td>
-            <td>
-                @php
-                    $days = ['Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa', 'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'];
-                    $engDay = date('l', strtotime($schedule->exam_date));
-                    echo $days[$engDay] ?? $engDay;
-                @endphp
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                TANGGAL : {{ date('d F Y', strtotime($schedule->exam_date)) }}
+            <td class="info-label">Kelas</td>
+            <td class="info-separator">:</td>
+            <td class="info-value">
+                {{ strtoupper($schedule->examPackage->schoolClass->name ?? 'XII RPL 1') }}
             </td>
-            <td>PUKUL</td>
-            <td>:</td>
-            <td>{{ date('H:i', strtotime($schedule->open_time)) }}-{{ date('H:i', strtotime($schedule->close_time)) }}</td>
+        </tr>
+
+        <tr>
+            <td class="info-label">ID SERVER / RUANG</td>
+            <td class="info-separator">:</td>
+            <td class="info-value">
+                {{ $schedule->room->server_id ?? 'K02230178-AX7Z' }}
+                / {{ $schedule->room->name ?? '1' }}
+            </td>
+        </tr>
+
+        <tr>
+            <td class="info-label">HARI / TANGGAL</td>
+            <td class="info-separator">:</td>
+            <td class="info-value">
+                {{ $dayName }}, {{ date('d-m-Y', $examDate) }}
+            </td>
         </tr>
     </table>
 
-    <!-- TABEL UTAMA PESERTA -->
+    {{-- TABEL PESERTA --}}
+
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 6%;">No.</th>
-                <th style="width: 24%;">Username</th>
-                <th style="width: 40%;">Nama Peserta</th>
-                <th style="width: 15%;">Tanda Tangan</th>
-                <th style="width: 15%;">Keterangan</th>
+                <th style="width: 5%;">No.</th>
+                <th style="width: 10%;">Username</th>
+                <th style="width: 38%;">Nama Peserta</th>
+                <th style="width: 20%;">Tanda Tangan</th>
+                <th style="width: 10%;">Keterangan</th>
             </tr>
         </thead>
+
         <tbody>
             @forelse($participants as $index => $participant)
+                @php
+                    $number = $index + 1;
+                @endphp
+
                 <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td class="text-center">{{ $participant['username'] }}</td>
-                    <td>{{ $participant['name'] }}</td>
-                    <td style="padding-left: 10px;">{{ $index + 1 }}.</td>
+                    <td class="text-center">
+                        {{ $number }}
+                    </td>
+
+                    <td class="text-center">
+                        {{ $participant['username'] }}
+                    </td>
+
+                    <td class="participant-name">
+                        {{ $participant['name'] }}
+                    </td>
+
+                    <td class="signature-number"
+                        style="{{ $number % 2 === 0 ? 'text-align: center; padding-left: 0;' : '' }}">
+                        {{ $number }}.
+                    </td>
+
                     <td></td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" class="text-center">Tidak ada peserta ujian pada sesi/ruangan ini.</td>
+                    <td colspan="5" class="empty-row">
+                        Tidak ada peserta ujian pada sesi/ruangan ini.
+                    </td>
                 </tr>
             @endforelse
         </tbody>
     </table>
 
-    <!-- KETERANGAN / CATATAN BAWAH -->
+    {{-- KETERANGAN --}}
+
     <div class="footer-section">
-        <strong>Keterangan :</strong>
+        <strong>Keterangan:</strong>
+
         <ol>
-            <li>Dibuat rangkap 3 (tiga), masing-masing untuk sekolah, kota/kab dan Provinsi.</li>
-            <li>Pengawas ruang menyilang Nama Peserta yang tidak hadir.</li>
-            <li>Daftar hadir untuk pusat di upload melalui laman TKA.</li>
+            <li>
+                Dibuat rangkap 3 (tiga), masing-masing untuk sekolah sebagai arsip.
+            </li>
+            <li>
+                Pengawas ruang menyilang nama peserta yang tidak hadir.
+            </li>
         </ol>
     </div>
 
-    <!-- TANDA TANGAN PENGAWAS & PROKTOR -->
+    {{-- TANDA TANGAN --}}
+
     <table class="signature-table">
         <tr>
             <td>
                 Proktor
+
                 <div class="signature-space"></div>
-                ( ................................................... )<br>
-                NIP. ................................................
+
+                ( {{ strtoupper($schedule->examPackage->school->admin->name ?? '.....................................') }} )
             </td>
+
             <td>
                 Pengawas
+
                 <div class="signature-space"></div>
-                ( ................................................... )<br>
-                NIP. ................................................
+
+                ( ........................................ )
             </td>
         </tr>
     </table>

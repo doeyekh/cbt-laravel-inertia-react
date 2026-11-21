@@ -291,6 +291,19 @@ class ExamScheduleController extends Controller
 
         $dompdf->loadHtml($html, 'UTF-8');
         $dompdf->setPaper('A4', 'portrait');
+        $canvas = $dompdf->getCanvas();
+        $color = [0.35, 0.35, 0.4];
+
+        $canvas->page_text(
+            30,
+            $canvas->get_height() - 24,
+            'Daftar Hadir ' . ($schedule->examPackage->examType?->name ?? 'Ujian') . ' - ' . ($schedule->examPackage->school?->name ?? 'Sekolah'),
+            'dejavu',
+            8,
+            $color,
+        );
+
+        
         $dompdf->render();
 
         $filename = 'Daftar-Hadir-' . ($schedule->subject->name ?? 'Ujian') . '-' . now()->format('Ymd') . '.pdf';
