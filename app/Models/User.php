@@ -22,6 +22,12 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
 
+    private ?bool $headmasterStatusCache = null;
+
+    private ?bool $schoolAdminStatusCache = null;
+
+    private ?array $accessibleSchoolIdsCache = null;
+
     /**
      * Get the questions created by this user.
      *
@@ -117,7 +123,7 @@ class User extends Authenticatable
                 ->where('academic_year_id', $academicYearId)
                 ->select('id'))
             ->pluck('subject_id')
-            ->map(fn ($subjectId): int => (int) $subjectId)
+            ->map(fn($subjectId): int => (int) $subjectId)
             ->unique()
             ->values()
             ->all();
@@ -139,13 +145,13 @@ class User extends Authenticatable
         return $this->subjectTeachers()
             ->where('academic_year_id', $academicYearId)
             ->where('is_active', true)
-            ->when($subjectId !== null, fn ($query) => $query->where('subject_id', $subjectId))
+            ->when($subjectId !== null, fn($query) => $query->where('subject_id', $subjectId))
             ->whereIn('school_class_id', SchoolClass::query()
                 ->whereIn('school_id', $this->accessibleSchoolIds())
                 ->where('academic_year_id', $academicYearId)
                 ->select('id'))
             ->pluck('school_class_id')
-            ->map(fn ($classId): int => (int) $classId)
+            ->map(fn($classId): int => (int) $classId)
             ->unique()
             ->values()
             ->all();
@@ -156,7 +162,8 @@ class User extends Authenticatable
      */
     public function isHeadmaster(): bool
     {
-        return $this->headmasterOf()->exists();
+        return $this->headmasterStatusCache
+            ??= $this->headmasterOf()->exists();
     }
 
     /**
@@ -164,26 +171,92 @@ class User extends Authenticatable
      *
      * @return array<int, int>
      */
+    // public function accessibleSchoolIds(): array
+    // {
+
+    //     if ($this->accessibleSchoolIdsCache !== null) {
+    //         return $this->accessibleSchoolIdsCache;
+    //     }
+    //     if ($this->isAdministrator()) {
+    //         return School::query()
+    //             ->pluck('id')
+    //             ->map(fn($id): int => (int) $id)
+    //             ->all();
+    //     }
+
+    //     // Sekolah dari jabatan kepala sekolah dan admin sekolah.
+    //     $schoolIds = $this->headmasterOf()->pluck('id')
+    //         ->merge($this->adminOf()->pluck('id'))
+    //         ->push($this->school_id);
+
+    //     // Sekolah dari kelas tempat guru ditugaskan mengajar.
+    //     if ($this->isGuru()) {
+    //         $academicYearId = (int) (AcademicYear::active()?->id ?? 0);
+
+    //         if ($academicYearId > 0) {
+    //             $teachingSchoolIds = SchoolClass::query()
+    //                 ->whereIn(
+    //                     'id',
+    //                     $this->subjectTeachers()
+    //                         ->where('academic_year_id', $academicYearId)
+    //                         ->where('is_active', true)
+    //                         ->select('school_class_id')
+    //                 )
+    //                 ->pluck('school_id');
+
+    //             $schoolIds = $schoolIds->merge($teachingSchoolIds);
+    //         }
+    //     }
+
+    //     return $schoolIds
+    //         ->filter()
+    //         ->map(fn($id): int => (int) $id)
+    //         ->unique()
+    //         ->values()
+    //         ->all();
+    // }
+
     public function accessibleSchoolIds(): array
     {
+        if ($this->accessibleSchoolIdsCache !== null) {
+            return $this->accessibleSchoolIdsCache;
+        }
+
         if ($this->isAdministrator()) {
-            return School::query()
+            return $this->accessibleSchoolIdsCache = School::query()
                 ->pluck('id')
+                ->map(fn($id): int => (int) $id)
                 ->all();
         }
 
         $schoolIds = $this->headmasterOf()->pluck('id')
             ->merge($this->adminOf()->pluck('id'))
-            ->push($this->school_id)
+            ->push($this->school_id);
+
+        if ($this->isGuru()) {
+            $academicYearId = (int) (AcademicYear::active()?->id ?? 0);
+
+            if ($academicYearId > 0) {
+                $teachingSchoolIds = SchoolClass::query()
+                    ->whereIn(
+                        'id',
+                        $this->subjectTeachers()
+                            ->where('academic_year_id', $academicYearId)
+                            ->where('is_active', true)
+                            ->select('school_class_id')
+                    )
+                    ->pluck('school_id');
+
+                $schoolIds = $schoolIds->merge($teachingSchoolIds);
+            }
+        }
+
+        return $this->accessibleSchoolIdsCache = $schoolIds
             ->filter()
+            ->map(fn($id): int => (int) $id)
             ->unique()
             ->values()
             ->all();
-
-        return array_map(
-            fn ($schoolId): int => (int) $schoolId,
-            $schoolIds,
-        );
     }
 
     /**
@@ -191,7 +264,8 @@ class User extends Authenticatable
      */
     public function isSchoolAdmin(): bool
     {
-        return $this->adminOf()->exists();
+        return $this->schoolAdminStatusCache
+            ??= $this->adminOf()->exists();
     }
 
     /**

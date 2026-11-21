@@ -33,6 +33,7 @@ class QuestionBankController extends Controller
         $this->authorizeQuestionBankAccess($request->user());
 
         $user = $request->user();
+        
         $accessibleSchoolIds = $user->accessibleSchoolIds();
         $search = trim((string) $request->string('search'));
         $schoolFilter = (int) $request->integer('school_id');
@@ -51,12 +52,12 @@ class QuestionBankController extends Controller
 
         $baseQuery = QuestionBank::query()
             ->whereIn('school_id', $accessibleSchoolIds)
-            ->when($isRestrictedGuru, fn ($query) => $query->whereIn('subject_id', $taughtSubjectIds))
-            ->when($activeAcademicYearId > 0, fn ($query) => $query->where('academic_year_id', $activeAcademicYearId))
-            ->when($schoolFilter > 0, fn ($query) => $query->where('school_id', $schoolFilter))
-            ->when($subjectFilter > 0, fn ($query) => $query->where('subject_id', $subjectFilter))
-            ->when($statusFilter === 'active', fn ($query) => $query->where('is_active', true))
-            ->when($statusFilter === 'inactive', fn ($query) => $query->where('is_active', false))
+            ->when($isRestrictedGuru, fn($query) => $query->whereIn('subject_id', $taughtSubjectIds))
+            ->when($activeAcademicYearId > 0, fn($query) => $query->where('academic_year_id', $activeAcademicYearId))
+            ->when($schoolFilter > 0, fn($query) => $query->where('school_id', $schoolFilter))
+            ->when($subjectFilter > 0, fn($query) => $query->where('subject_id', $subjectFilter))
+            ->when($statusFilter === 'active', fn($query) => $query->where('is_active', true))
+            ->when($statusFilter === 'inactive', fn($query) => $query->where('is_active', false))
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
                     $query->where('code', 'like', "%{$search}%")
@@ -80,7 +81,7 @@ class QuestionBankController extends Controller
             ->latest()
             ->paginate(10)
             ->withQueryString()
-            ->through(fn (QuestionBank $questionBank): array => $this->presentQuestionBank($questionBank));
+            ->through(fn(QuestionBank $questionBank): array => $this->presentQuestionBank($questionBank));
 
         $stats = [
             'total' => (clone $baseQuery)->count(),
@@ -98,7 +99,7 @@ class QuestionBankController extends Controller
             ->get(['id', 'name', 'code', 'is_active']);
 
         $subjects = Subject::query()
-            ->when($isRestrictedGuru, fn ($query) => $query->whereIn('id', $taughtSubjectIds))
+            ->when($isRestrictedGuru, fn($query) => $query->whereIn('id', $taughtSubjectIds))
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'is_active']);
 
@@ -109,8 +110,8 @@ class QuestionBankController extends Controller
 
         $classes = SchoolClass::query()
             ->whereIn('school_id', $accessibleSchoolIds)
-            ->when($isRestrictedGuru, fn ($query) => $query->whereIn('id', $taughtClassIds))
-            ->when($activeAcademicYearId > 0, fn ($query) => $query->where('academic_year_id', $activeAcademicYearId))
+            ->when($isRestrictedGuru, fn($query) => $query->whereIn('id', $taughtClassIds))
+            ->when($activeAcademicYearId > 0, fn($query) => $query->where('academic_year_id', $activeAcademicYearId))
             ->orderBy('name')
             ->get(['id', 'school_id', 'code', 'name']);
 
@@ -206,7 +207,7 @@ class QuestionBankController extends Controller
 
         $classIds = array_key_exists('class_ids', $data)
             ? array_map('intval', $data['class_ids'])
-            : $questionBank->classes()->pluck('classes.id')->map(fn ($classId): int => (int) $classId)->all();
+            : $questionBank->classes()->pluck('classes.id')->map(fn($classId): int => (int) $classId)->all();
 
         $this->authorizeSubjectClassScope(
             $request->user(),
@@ -314,8 +315,10 @@ class QuestionBankController extends Controller
     {
         $this->authorizeSchoolAccess($user, (int) $questionBank->school_id);
 
-        if ($user->isRestrictedGuru()
-            && ! in_array((int) $questionBank->subject_id, $user->taughtSubjectIds((int) $questionBank->academic_year_id), true)) {
+        if (
+            $user->isRestrictedGuru()
+            && ! in_array((int) $questionBank->subject_id, $user->taughtSubjectIds((int) $questionBank->academic_year_id), true)
+        ) {
             abort(403, 'Anda hanya dapat mengakses bank soal mata pelajaran yang Anda ampu.');
         }
     }
@@ -348,7 +351,7 @@ class QuestionBankController extends Controller
                 ...$allowedClassIds,
                 ...$questionBank->classes()
                     ->pluck('classes.id')
-                    ->map(fn ($classId): int => (int) $classId)
+                    ->map(fn($classId): int => (int) $classId)
                     ->all(),
             ]));
         }
@@ -376,7 +379,7 @@ class QuestionBankController extends Controller
             ->where('subject_teachers.academic_year_id', $academicYearId)
             ->join('classes', 'classes.id', '=', 'subject_teachers.school_class_id')
             ->whereIn('classes.school_id', $accessibleSchoolIds)
-            ->when($isRestrictedGuru, fn ($query) => $query->where('subject_teachers.teacher_id', $user->id))
+            ->when($isRestrictedGuru, fn($query) => $query->where('subject_teachers.teacher_id', $user->id))
             ->get(['classes.school_id', 'subject_teachers.subject_id', 'subject_teachers.school_class_id'])
             ->groupBy('school_id')
             ->map(function ($subjectTeachers, $schoolId) use ($isRestrictedGuru): array {
@@ -389,7 +392,7 @@ class QuestionBankController extends Controller
                 $option = [
                     'school_id' => (int) $schoolId,
                     'subject_ids' => $subjectTeachers->pluck('subject_id')
-                        ->map(fn ($subjectId): int => (int) $subjectId)
+                        ->map(fn($subjectId): int => (int) $subjectId)
                         ->unique()
                         ->values()
                         ->all(),
@@ -397,7 +400,7 @@ class QuestionBankController extends Controller
 
                 if ($isRestrictedGuru) {
                     $option['class_ids_by_subject'] = array_map(
-                        fn (array $classIds): array => array_values(array_unique($classIds)),
+                        fn(array $classIds): array => array_values(array_unique($classIds)),
                         $classIdsBySubject,
                     );
                 }
@@ -424,7 +427,7 @@ class QuestionBankController extends Controller
     private function typeOptions(): array
     {
         return array_map(
-            fn (QuestionType $type): array => [
+            fn(QuestionType $type): array => [
                 'value' => $type->value,
                 'label' => $type->label(),
                 'count_field' => $type->countColumn(),
