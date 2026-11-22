@@ -205,8 +205,6 @@ trait ValidatesExamSchedule
             ->whereHas('examPackage', fn ($query) => $query->where('school_id', $examPackage->school_id))
             ->when($ignore !== null, fn ($query) => $query->whereKeyNot($ignore->id));
 
-        $classId = (int) $this->input('class_id');
-
         if ($sessionId !== null && $roomId !== null) {
             $roomConflict = (clone $schoolQuery)
                 ->whereDate('exam_date', $examDate)
@@ -219,16 +217,16 @@ trait ValidatesExamSchedule
             }
         }
 
-        $classConflictQuery = (clone $schoolQuery)
-            ->whereDate('exam_date', $examDate)
-            ->where('class_id', $classId);
+        if ($sessionId !== null && $roomId === null) {
+            $roomConflict = (clone $schoolQuery)
+                ->whereDate('exam_date', $examDate)
+                ->where('session_id', (int) $sessionId)
+                ->where('room_id', (int) $roomId)
+                ->exists();
 
-        if ($sessionId !== null) {
-            $classConflictQuery->where('session_id', (int) $sessionId);
-        }
-
-        if ($classConflictQuery->exists()) {
-            $validator->errors()->add('class_id', 'Kelas sudah memiliki jadwal lain pada tanggal dan sesi tersebut.');
+            if ($roomConflict) {
+                $validator->errors()->add('room_id', 'Ruangan sudah digunakan pada tanggal dan sesi tersebut.');
+            }
         }
     }
 }

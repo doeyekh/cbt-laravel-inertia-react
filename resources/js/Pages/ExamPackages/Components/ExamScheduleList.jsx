@@ -63,8 +63,7 @@ export default function ExamScheduleList({
                         Jadwal Ujian
                     </h3>
                     <p className="text-[11px] text-on-surface-variant font-body mt-0.5">
-                        Satu kelas tidak dapat memiliki dua jadwal pada tanggal dan
-                        sesi yang sama.
+                        satu kelas dapat memiliki beberapa jadwal ujian, namun tidak dapat memiliki jadwal ujian yang sama pada tanggal dan sesi yang sama.
                     </p>
                 </div>
             </div>

@@ -201,7 +201,7 @@ class ExamScheduleControllerTest extends TestCase
         $this->post($this->scheduleStoreUrl(), $this->schedulePayload([
             'subject_id' => $otherSubject->id,
             'room_id' => Room::factory()->create(['school_id' => $this->school->id])->id,
-        ]))->assertSessionHasErrors('class_id');
+        ]))->assertRedirect()->assertSessionHas('toast.type', 'success');
     }
 
     public function test_store_rejects_schedule_for_completed_package(): void
