@@ -42,6 +42,10 @@ return [
             'journal_mode' => null,
             'synchronous' => null,
             'transaction_mode' => 'DEFERRED',
+            'dump' => [
+                'dump_binary_path' => env('DB_BACKUP_SQLITE_BINARY_PATH'),
+                'timeout' => 600,
+            ],
         ],
 
         'mysql' => [
@@ -62,6 +66,11 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            'dump' => [
+                'dump_binary_path' => env('DB_BACKUP_MYSQL_BINARY_PATH'),
+                'use_single_transaction' => true,
+                'timeout' => 600,
+            ],
         ],
 
         'mariadb' => [

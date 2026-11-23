@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AcademicYearController;
 use App\Http\Controllers\Admin\AssessmentTypeController;
 use App\Http\Controllers\Admin\AttendanceController;
+use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\ClassMemberController;
 use App\Http\Controllers\Admin\ExamAttemptResetController;
@@ -334,6 +335,25 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             Route::resource('users', UserController::class)
                 ->only(['index', 'store', 'update', 'destroy']);
+
+            Route::get('backups', [BackupController::class, 'index'])
+                ->name('backups.index');
+
+            Route::post('backups', [BackupController::class, 'store'])
+                ->name('backups.store');
+
+            Route::get('backups/{backup}/download', [BackupController::class, 'download'])
+                ->where('backup', '[A-Za-z0-9_.-]+')
+                ->name('backups.download');
+
+            Route::post('backups/{backup}/restore', [BackupController::class, 'restore'])
+                ->middleware('throttle:5,1')
+                ->where('backup', '[A-Za-z0-9_.-]+')
+                ->name('backups.restore');
+
+            Route::delete('backups/{backup}', [BackupController::class, 'destroy'])
+                ->where('backup', '[A-Za-z0-9_.-]+')
+                ->name('backups.destroy');
         });
     });
 });

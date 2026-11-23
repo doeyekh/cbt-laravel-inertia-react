@@ -46,6 +46,7 @@ const buildNavItems = () => [
     { name: 'Users', href: navRoute('admin.users.index'), icon: 'person' },
     { name: 'Laporan', href: navRoute('admin.reports.index', '/admin/reports'), icon: 'assessment' },
     { name: 'Pengaturan', href: navRoute('admin.settings.index'), icon: 'settings' },
+    { name: 'Backup Database', href: navRoute('admin.backups.index'), icon: 'backup' },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -58,7 +59,7 @@ export default function Sidebar({ isOpen, onClose }) {
     const isSchoolAdmin = user?.is_school_admin ?? false;
     const isHeadmaster = user?.is_headmaster ?? false;
     // Admin sekolah dan kepala sekolah memakai role "guru" tetapi punya hak akses tersendiri.
-    const isRestrictedGuru = isGuru && ! isSchoolAdmin && ! isHeadmaster;
+    const isRestrictedGuru = isGuru && !isSchoolAdmin && !isHeadmaster;
     const canAccessSchool = user?.can_access_school ?? isAdministrator;
 
     // Route helper only works after Ziggy is initialized on the client,
@@ -84,28 +85,29 @@ export default function Sidebar({ isOpen, onClose }) {
                         return isSchoolAdmin || isRestrictedGuru;
                     }
 
+                    if (item.name === 'Backup Database') {
+                        return isAdministrator;
+                    }
+
                     return true;
                 })
                 .map((item) => {
                     if (item.children) {
                         return {
                             ...item,
-                            children: item.children.filter((child) =>{
+                            children: item.children.filter((child) => {
                                 if (isRestrictedGuru && item.name === 'Pengelolaan Ujian') {
                                     return child.name === 'Bank Soal';
                                 }
 
                                 // tahun pelajaran
-                                if(child.name === 'Tahun Pelajaran' && !isAdministrator)
-                                {
+                                if (child.name === 'Tahun Pelajaran' && !isAdministrator) {
                                     return false;
                                 }
-                                if(child.name === 'Kelas' && !canAccessSchool)
-                                {
+                                if (child.name === 'Kelas' && !canAccessSchool) {
                                     return false;
                                 }
-                                if(child.name === 'Sekolah' && !canAccessSchool)
-                                {
+                                if (child.name === 'Sekolah' && !canAccessSchool) {
                                     return false;
                                 }
                                 if (
