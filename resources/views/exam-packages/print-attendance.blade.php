@@ -116,7 +116,7 @@
         }
 
         .info-label {
-            width: 14%;
+            width: 16%;
             color: #475569;
         }
 
@@ -255,7 +255,7 @@
 
             <td class="header-content">
                 <p class="exam-type">
-                    Daftar Hadir Peserta Ujian
+                    Daftar Hadir Peserta
                 </p>
 
                 <p class="report-title">
@@ -300,13 +300,12 @@
         $examDate = strtotime($schedule->exam_date);
         $dayName = $days[date('l', $examDate)] ?? date('l', $examDate);
     @endphp
-
     <table class="info-table">
         <tr>
             <td class="info-label">Kelas</td>
             <td class="info-separator">:</td>
             <td class="info-value">
-                {{ strtoupper($schedule->examPackage->schoolClass->name ?? 'XII RPL 1') }}
+                {{ strtoupper($schedule->schoolClass?->name ?? 'XII RPL 1') }}
             </td>
         </tr>
 

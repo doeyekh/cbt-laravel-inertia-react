@@ -31,18 +31,19 @@ class QuestionBankController extends Controller
     public function index(Request $request): Response
     {
         $this->authorizeQuestionBankAccess($request->user());
-
         $user = $request->user();
-        
         $accessibleSchoolIds = $user->accessibleSchoolIds();
-        $search = trim((string) $request->string('search'));
-        $schoolFilter = (int) $request->integer('school_id');
-        $subjectFilter = (int) $request->integer('subject_id');
-        $statusFilter = (string) $request->string('status');
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'school_id' => ['nullable', 'integer', 'min:1'],
+            'subject_id' => ['nullable', 'integer', 'min:1'],
+            'status' => ['nullable', 'in:active,inactive'],
+        ]);
 
-        if (! in_array($schoolFilter, $accessibleSchoolIds, true)) {
-            $schoolFilter = 0;
-        }
+        $search = trim($filters['search'] ?? '');
+        $schoolFilter = $filters['school_id'] ?? null;
+        $subjectFilter = $filters['subject_id'] ?? null;
+        $statusFilter = $filters['status'] ?? null;
 
         $activeAcademicYear = AcademicYear::active();
         $activeAcademicYearId = (int) ($activeAcademicYear?->id ?? 0);
@@ -50,25 +51,66 @@ class QuestionBankController extends Controller
         $taughtSubjectIds = $isRestrictedGuru ? $user->taughtSubjectIds($activeAcademicYearId) : [];
         $taughtClassIds = $isRestrictedGuru ? $user->taughtClassIds(null, $activeAcademicYearId) : [];
 
+        $subjectOptions = $this->subjectOptionsBySchool($accessibleSchoolIds, $activeAcademicYearId, $user);
+
+        /**
+         * @var array<int, array{school_id: int, subject_ids: array<int, int>, class_ids_by_subject: array<string, array<int, int>>>>
+         */
+        $allowedAssignments = [];
+
+        if ($isRestrictedGuru) {
+            foreach ($subjectOptions as $option) {
+                foreach ($option['subject_ids'] as $subjectId) {
+                    $classIds = $option['class_ids_by_subject'][(string) $subjectId] ?? [];
+
+                    // Abaikan mata pelajaran yang tidak memiliki kelas ampuan.
+                    if ($classIds === []) {
+                        continue;
+                    }
+
+                    $allowedAssignments[] = [
+                        'school_id' => $option['school_id'],
+                        'subject_id' => $subjectId,
+                        'class_ids' => $classIds,
+                    ];
+                }
+            }
+        }
+
         $baseQuery = QuestionBank::query()
             ->whereIn('school_id', $accessibleSchoolIds)
-            ->when($isRestrictedGuru, fn($query) => $query->whereIn('subject_id', $taughtSubjectIds))
+            ->when($isRestrictedGuru, function ($query) use ($allowedAssignments): void {
+                if ($allowedAssignments === []) {
+                    $query->whereRaw('1 = 0');
+                    return;
+                }
+
+                $query->where(function ($query) use ($allowedAssignments): void {
+                    foreach ($allowedAssignments as $assignment) {
+                        $query->orWhere(function ($query) use ($assignment): void {
+                            $query->where('school_id', $assignment['school_id'])
+                                ->where('subject_id', $assignment['subject_id'])
+                                ->whereHas('classes', function ($query) use ($assignment): void {
+                                    $query->whereIn('classes.id', $assignment['class_ids']);
+                                });
+                        });
+                    }
+                });
+            })
             ->when($activeAcademicYearId > 0, fn($query) => $query->where('academic_year_id', $activeAcademicYearId))
-            ->when($schoolFilter > 0, fn($query) => $query->where('school_id', $schoolFilter))
-            ->when($subjectFilter > 0, fn($query) => $query->where('subject_id', $subjectFilter))
+            ->when($schoolFilter > 0, fn($query) => $query->where('school_id', (int) $schoolFilter))
+            ->when($subjectFilter > 0, fn($query) => $query->where('subject_id', (int) $subjectFilter))
             ->when($statusFilter === 'active', fn($query) => $query->where('is_active', true))
             ->when($statusFilter === 'inactive', fn($query) => $query->where('is_active', false))
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where(function ($query) use ($search): void {
-                    $query->where('code', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%")
-                        ->orWhereHas('subject', function ($query) use ($search): void {
-                            $query->where('name', 'like', "%{$search}%")
-                                ->orWhere('code', 'like', "%{$search}%");
-                        });
-                });
-            });
+            ->when($search !== '', fn($query) => $query->where(function ($query) use ($search): void {
+                $query->where('code', 'like', "%{$search}%")
+                    ->orWhere('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('subject', function ($query) use ($search): void {
+                        $query->where('name', 'like', "%{$search}%")
+                            ->orWhere('code', 'like', "%{$search}%");
+                    });
+            }));
 
         $questionBanks = (clone $baseQuery)
             ->with([
@@ -81,15 +123,39 @@ class QuestionBankController extends Controller
             ->latest()
             ->paginate(10)
             ->withQueryString()
-            ->through(fn(QuestionBank $questionBank): array => $this->presentQuestionBank($questionBank));
+            ->through(
+                fn(QuestionBank $questionBank): array =>
+                $this->presentQuestionBank($questionBank)
+            );
+        $stats = (clone $baseQuery)
+            ->selectRaw('
+        COUNT(*) AS total,
+
+        COALESCE(
+            SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END),
+            0
+        ) AS active,
+
+        COALESCE(
+            SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END),
+            0
+        ) AS inactive,
+
+        COALESCE(SUM(
+            COALESCE(pilihan_ganda_count, 0) +
+            COALESCE(pilihan_ganda_kompleks_count, 0) +
+            COALESCE(menjodohkan_count, 0) +
+            COALESCE(isian_count, 0) +
+            COALESCE(esai_count, 0)
+        ), 0) AS question_total
+    ')
+            ->first();
 
         $stats = [
-            'total' => (clone $baseQuery)->count(),
-            'active' => (clone $baseQuery)->where('is_active', true)->count(),
-            'inactive' => (clone $baseQuery)->where('is_active', false)->count(),
-            'question_total' => (int) (clone $baseQuery)
-                ->selectRaw('COALESCE(SUM(pilihan_ganda_count), 0) + COALESCE(SUM(pilihan_ganda_kompleks_count), 0) + COALESCE(SUM(menjodohkan_count), 0) + COALESCE(SUM(isian_count), 0) + COALESCE(SUM(esai_count), 0) as total')
-                ->value('total'),
+            'total' => (int) $stats->total,
+            'active' => (int) $stats->active,
+            'inactive' => (int) $stats->inactive,
+            'question_total' => (int) $stats->question_total,
         ];
 
         $schools = School::query()
@@ -106,21 +172,20 @@ class QuestionBankController extends Controller
         $examTypes = ExamType::query()
             ->whereIn('school_id', $accessibleSchoolIds)
             ->orderBy('name')
-            ->get(['id', 'school_id', 'code', 'name', 'is_active']);
-
+            ->get(['id', 'school_id', 'name', 'code', 'is_active']);
         $classes = SchoolClass::query()
             ->whereIn('school_id', $accessibleSchoolIds)
             ->when($isRestrictedGuru, fn($query) => $query->whereIn('id', $taughtClassIds))
             ->when($activeAcademicYearId > 0, fn($query) => $query->where('academic_year_id', $activeAcademicYearId))
             ->orderBy('name')
-            ->get(['id', 'school_id', 'code', 'name']);
+            ->get(['id', 'name', 'code', 'school_id']);
 
         return Inertia::render('QuestionBanks/Index', [
             'title' => 'Bank Soal',
             'questionBanks' => $questionBanks,
             'schools' => $schools,
             'subjects' => $subjects,
-            'subjectOptions' => $this->subjectOptionsBySchool($accessibleSchoolIds, $activeAcademicYearId, $user),
+            'subjectOptions' => $subjectOptions,
             'examTypes' => $examTypes,
             'classes' => $classes,
             'activeAcademicYear' => $activeAcademicYear === null ? null : [
@@ -138,7 +203,6 @@ class QuestionBankController extends Controller
             'stats' => $stats,
         ]);
     }
-
     /**
      * Store a newly created question bank.
      */
@@ -315,11 +379,18 @@ class QuestionBankController extends Controller
     {
         $this->authorizeSchoolAccess($user, (int) $questionBank->school_id);
 
-        if (
-            $user->isRestrictedGuru()
-            && ! in_array((int) $questionBank->subject_id, $user->taughtSubjectIds((int) $questionBank->academic_year_id), true)
-        ) {
-            abort(403, 'Anda hanya dapat mengakses bank soal mata pelajaran yang Anda ampu.');
+        if (!$user->isRestrictedGuru()) {
+            return;
+        }
+        $academicYearId = (int) $questionBank->academic_year_id;
+        $allowedClassIds = $user->taughtClassIds((int)$questionBank->subject_id, $academicYearId);
+
+        $bankClassIds = $questionBank->classes()
+            ->pluck('classes.id')
+            ->map(fn($classId): int => (int) $classId)
+            ->all();
+        if (array_intersect($bankClassIds, $allowedClassIds) === []) {
+            abort(403, 'Anda hanya dapat mengakses bank soal untuk mata pelajaran dan kelas yang Anda ampu.');
         }
     }
 

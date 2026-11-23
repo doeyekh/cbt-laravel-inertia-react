@@ -248,21 +248,26 @@ class ExamScheduleController extends Controller
 
         // Ambil peserta berdasarkan room_id dan session_id dari jadwal
         $participants = ExamParticipant::query()
-            ->where('school_id', $schedule->examPackage->school_id)
-            ->where('room_id', $schedule->room_id)
-            ->where('session_id', $schedule->session_id)
-            ->with(['student.registrations' => fn($query) => $query->where('school_id', $schedule->examPackage->school_id)])
-            ->orderBy('participant_number')
-            ->get()
-            ->map(function (ExamParticipant $participant): array {
-                return [
-                    'username' => $participant->username ?? '-',
-                    'participant_number' => $participant->participant_number ?? '-',
-                    'name' => $participant->student?->name ?? '-',
-                ];
-            })
-            ->values()
-            ->all();
+    ->where('school_id', $schedule->examPackage->school_id)
+    ->where('room_id', $schedule->room_id)
+    ->where('session_id', $schedule->session_id)
+    ->whereHas('student.classMembers', function ($query) use ($schedule) {
+        $query
+            ->where('class_id', $schedule->class_id)
+            ->where('academic_year_id', $schedule->examPackage->academic_year_id);
+    })
+    ->with('student')
+    ->orderBy('participant_number')
+    ->get()
+    ->map(function (ExamParticipant $participant): array {
+        return [
+            'username' => $participant->username ?? '-',
+            'participant_number' => $participant->participant_number ?? '-',
+            'name' => $participant->student?->name ?? '-',
+        ];
+    })
+    ->values()
+    ->all();
 
         // Konfigurasi Dompdf (menyamakan dengan method cards)
         $options = new Options();
