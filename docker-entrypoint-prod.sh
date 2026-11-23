@@ -83,11 +83,19 @@ fi
 rm -f /app/public/storage
 ln -s ../storage/app/public /app/public/storage
 
+# Folder runtime backup tidak ikut ter-commit; pastikan selalu ada.
+mkdir -p /app/storage/app/backup-temp /app/storage/app/private/backups
+
 php artisan optimize:clear >/dev/null 2>&1 || true
 php artisan config:cache
 php artisan route:cache >/dev/null 2>&1 || true
 php artisan view:cache >/dev/null 2>&1 || true
 php artisan event:cache >/dev/null 2>&1 || true
+
+# PHP-FPM berjalan sebagai www-data, sedangkan entrypoint ini berjalan sebagai root.
+# Samakan ownership setelah semua artisan selesai menulis cache/log.
+chown -R www-data:www-data /app/storage /app/bootstrap/cache
+chmod -R ug+rwX /app/storage /app/bootstrap/cache
 
 echo "[prod] Ready. Starting PHP-FPM and queue worker..."
 exec "$@"
