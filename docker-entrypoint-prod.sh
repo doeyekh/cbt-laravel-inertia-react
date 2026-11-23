@@ -79,7 +79,9 @@ if [ "$user_count" = "0" ]; then
     php artisan db:seed --force
 fi
 
-php artisan storage:link --force >/dev/null 2>&1 || true
+# Symlink relatif agar bisa diikuti nginx (mount storage terpisah dari /app).
+rm -f /app/public/storage
+ln -s ../storage/app/public /app/public/storage
 
 php artisan optimize:clear >/dev/null 2>&1 || true
 php artisan config:cache

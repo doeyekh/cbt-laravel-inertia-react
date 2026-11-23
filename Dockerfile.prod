@@ -21,6 +21,7 @@ RUN apt-get update \
         libicu-dev \
         libonig-dev \
         libxml2-dev \
+        mariadb-client \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
         bcmath \
@@ -32,6 +33,11 @@ RUN apt-get update \
         pdo_mysql \
         zip \
     && rm -rf /var/lib/apt/lists/*
+
+# Spatie/db-dumper memanggil "mysqldump" untuk koneksi mysql.
+# Jika paket hanya menyediakan "mariadb-dump", dibuatkan aliasnya sebagai pengaman.
+RUN test -n "$(command -v mariadb-dump)" \
+    && (command -v mysqldump >/dev/null 2>&1 || ln -s "$(command -v mariadb-dump)" /usr/local/bin/mysqldump)
 
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
