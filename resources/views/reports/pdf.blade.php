@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="id">
 
@@ -30,7 +29,10 @@
             border-collapse: collapse;
         }
 
-        p, h1, h2, h3 {
+        p,
+        h1,
+        h2,
+        h3 {
             margin: 0;
         }
 
@@ -39,7 +41,7 @@
         ======================================== */
 
         .header {
-            margin-bottom: 3mm;
+            margin-bottom: 2mm;
         }
 
         .header td {
@@ -47,31 +49,36 @@
         }
 
         .header-logo {
-            width: 12%;
+            width: 18%;
             text-align: center;
-            vertical-align: middle;
         }
 
         .school-logo {
-            width: 22mm;
-            height: 22mm;
-            object-fit: contain;
+            width: 21mm;
+            height: 21mm;
         }
 
-        .school-name {
-            font-size: 14pt;
+        
+
+        .exam-type {
+            font-size: 8pt;
             font-weight: bold;
-            text-transform: uppercase;
-            color: #064e3b;
-            letter-spacing: 0.3pt;
+            margin-bottom: 1mm;
         }
 
         .report-title {
-            margin-top: 1mm;
-            font-size: 11pt;
+            font-size: 10pt;
             font-weight: bold;
             text-transform: uppercase;
-            color: #1e293b;
+            margin-bottom: 1mm;
+        }
+
+        .school-name {
+            font-size: 12pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #064e3b;
+            line-height: 1.2;
         }
 
         .header-subtitle {
@@ -81,10 +88,10 @@
         }
 
         .header-meta {
-            width: 35%;
+            width: 27%;
             text-align: right;
-            font-size: 7.5pt;
-            line-height: 1.7;
+            font-size: 7pt;
+            line-height: 1.5;
             color: #64748b;
         }
 
@@ -235,29 +242,173 @@
             text-decoration: underline;
         }
 
+        /* ========================================
+   COVER
+======================================== */
+
+        .cover {
+            /* height: 265mm; */
+            text-align: center;
+            position: relative;
+            page-break-after: always;
+        }
+
+        .cover-inner {
+            border: 3px double #047857;
+            height: 238mm;
+            padding: 15mm 12mm;
+            position: relative;
+        }
+
+        .cover-logo {
+            width: 35mm;
+            height: 35mm;
+            margin: 15mm auto 10mm;
+        }
+
+        .cover-school {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #064e3b;
+            text-transform: uppercase;
+            /* margin-bottom: 5mm; */
+        }
+
+        .cover-divider {
+            width: 55%;
+            margin: 8mm auto;
+            border-top: 2pt solid #047857;
+        }
+
+        .cover-title {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #064e3b;
+            text-transform: uppercase;
+            /* margin-top: 18mm; */
+        }
+
+        .cover-subtitle {
+            font-size: 12pt;
+            color: #64748b;
+            /* margin-top: 5mm; */
+        }
+
+        .cover-info {
+            margin-top: 18mm;
+            font-size: 11pt;
+            line-height: 2;
+        }
+
+        .cover-footer {
+            position: absolute;
+            bottom: 10mm;
+            left: 20;
+            right: 5;
+            color: #64748b;
+            font-size: 9pt;
+            width: 90%;
+            border: .2mm solid #064e3b;
+        }
+
+        /* ========================================
+   PAGE BREAK
+======================================== */
+
+        /* .page-break {
+            page-break-before: always;
+        } */
+
+        /* .section-title {
+            page-break-after: avoid;
+        }
+
+        .data-table {
+            page-break-inside: auto;
+        } */
     </style>
 </head>
 
 <body>
 
     @php
-        $score = fn ($value) => $value === null
-            ? '-'
-            : number_format((float) $value, 1, ',', '.');
+    $score = fn ($value) => $value === null
+    ? '-'
+    : number_format((float) $value, 1, ',', '.');
 
-        $minutes = fn ($seconds) => $seconds === null
-            ? '-'
-            : floor((int) $seconds / 60) . ' menit';
+    $minutes = fn ($seconds) => $seconds === null
+    ? '-'
+    : floor((int) $seconds / 60) . ' menit';
 
-        $examDate = !empty($schedule['exam_date'])
-            ? \Illuminate\Support\Carbon::parse($schedule['exam_date'])->format('d/m/Y')
-            : '-';
+    $examDate = !empty($schedule['exam_date'])
+    ? \Illuminate\Support\Carbon::parse($schedule['exam_date'])->format('d/m/Y')
+    : '-';
 
-        $timeRange = trim(
-            ($schedule['open_time'] ?? '') . ' - ' . ($schedule['close_time'] ?? ''),
-            ' -'
-        );
+    $timeRange = trim(
+    ($schedule['open_time'] ?? '') . ' - ' . ($schedule['close_time'] ?? ''),
+    ' -'
+    );
     @endphp
+
+
+    {{-- ========================================
+     COVER LAPORAN
+======================================== --}}
+
+    <div class="cover">
+        <div class="cover-inner">
+
+            <img
+                src="{{ public_path('img/logo.png') }}"
+                class="cover-logo"
+                alt="Logo Sekolah">
+
+            <p class="cover-school">
+                {{ strtoupper($schedule['school'] ?? 'NAMA SEKOLAH') }}
+            </p>
+
+            <div class="cover-divider"></div>
+
+            
+
+            <h1 class="cover-title">
+                LAPORAN
+                HASIL UJIAN
+            </h1>
+            <p style="font-size: 13pt; font-weight: bold;">
+                {{ strtoupper($schedule['exam_type'] ?? 'UJIAN') }}
+            </p>
+
+            <p class="cover-subtitle">
+                Tahun Pelajaran {{ $schedule['academic_year'] ?? '-' }}
+            </p>
+
+            <div class="cover-divider"></div>
+
+            <div class="cover-info">
+                <p>
+                    <strong>Mata Pelajaran :</strong>
+                    {{ $schedule['subject'] ?? '-' }}
+                </p>
+
+                <p>
+                    <strong>Kelas :</strong>
+                    {{ $schedule['class'] ?? '-' }}
+                </p>
+                <p>
+                    <strong>Guru Pelajaran :</strong>
+                    {{ $schedule['teacher'] ?? '..........................' }}
+                </p>
+
+            </div>
+
+            <div class="cover-footer">
+                Dokumen Resmi Laporan Hasil Ujian <br>
+                Dicetak pada {{ $print_date }}
+            </div>
+
+        </div>
+    </div>
 
     {{-- ========================================
          HEADER LAPORAN
@@ -265,43 +416,30 @@
 
     <table class="header">
         <tr>
-            <td width="12%" class="header-logo">
+            <td class="header-logo">
                 <img
                     src="{{ public_path('img/logo.png') }}"
                     alt="Logo Sekolah"
-                    class="school-logo"
-                >
+                    class="school-logo">
             </td>
 
-            <td width="53%">
-                <p class="school-name">
-                    {{ $schedule['school'] ?? 'Sekolah' }}
-                </p>
+            <td class="header-content">
+                <!-- <p class="report-title">
+                    Laporan Hasil Ujian
+                </p> -->
 
                 <p class="report-title">
-                    Laporan Hasil Ujian
+                    {{ strtoupper($schedule['exam_type'] ?? 'SUSULAN TES KEMAMPUAN AKADEMIK SMK') }}
+                </p>
+
+                <p class="school-name">
+                    {{ strtoupper($schedule['school'] ?? 'SMKS IT RAUDHATUL ULUUM') }}
                 </p>
 
                 <p class="header-subtitle">
-                    {{ $schedule['name'] ?? '-' }}
-
-                    @if (!empty($schedule['code']))
-                        · {{ $schedule['code'] }}
-                    @endif
-
                     @if (!empty($schedule['academic_year']))
-                        · Tahun Pelajaran {{ $schedule['academic_year'] }}
+                    Tahun Pelajaran {{ $schedule['academic_year'] }}
                     @endif
-                </p>
-            </td>
-
-            <td width="35%" class="header-meta">
-                <p>Dicetak pada</p>
-
-                <strong>{{ $print_date }}</strong>
-
-                <p style="margin-top: 1mm;">
-                    {{ $schedule['subject'] ?? '-' }}
                 </p>
             </td>
         </tr>
@@ -320,21 +458,18 @@
                 {{ $schedule['subject'] ?? '-' }}
             </td>
 
-            <td class="info-label">Kelas</td>
-            <td class="info-value">
-                {{ $schedule['class'] ?? '-' }}
-            </td>
-        </tr>
-
-        <tr>
             <td class="info-label">Tanggal Ujian</td>
             <td class="info-value">
                 {{ $examDate }}
             </td>
+        </tr>
 
-            <td class="info-label">Waktu Ujian</td>
+        <tr>
+            
+
+            <td class="info-label">Kelas</td>
             <td class="info-value">
-                {{ $timeRange ?: '-' }}
+                {{ $schedule['class'] ?? '-' }}
             </td>
         </tr>
     </table>
@@ -351,52 +486,52 @@
         <thead>
             <tr>
                 <th width="5%">No.</th>
-                <th width="15%">NISN</th>
-                <th width="35%">Nama Peserta</th>
-                <th width="10%">Benar</th>
-                <th width="10%">Salah</th>
-                <th width="12%">Nilai</th>
+                <th width="10%">Username</th>
+                <th>Nama Peserta</th>
+                <th width="8%">Benar</th>
+                <th width="8%">Salah</th>
+                <th width="8%">Nilai</th>
                 <th width="13%">Waktu</th>
             </tr>
         </thead>
 
         <tbody>
             @forelse ($participants as $index => $participant)
-                <tr>
-                    <td class="text-center">
-                        {{ $index + 1 }}
-                    </td>
+            <tr>
+                <td class="text-center">
+                    {{ $index + 1 }}
+                </td>
 
-                    <td class="text-center">
-                        {{ $participant['nisn'] ?? '-' }}
-                    </td>
+                <td class="text-center">
+                    {{ $participant['username'] ?? '-' }}
+                </td>
 
-                    <td class="participant-name">
-                        {{ $participant['name'] ?? '-' }}
-                    </td>
+                <td class="participant-name">
+                    {{ $participant['name'] ?? '-' }}
+                </td>
 
-                    <td class="text-center">
-                        {{ $participant['correct_count'] ?? '-' }}
-                    </td>
+                <td class="text-center">
+                    {{ $participant['correct_count'] ?? '-' }}
+                </td>
 
-                    <td class="text-center">
-                        {{ $participant['wrong_count'] ?? '-' }}
-                    </td>
+                <td class="text-center">
+                    {{ $participant['wrong_count'] ?? '-' }}
+                </td>
 
-                    <td class="text-center score">
-                        {{ $score($participant['percentage'] ?? null) }}
-                    </td>
+                <td class="text-center score">
+                    {{ $score($participant['percentage'] ?? null) }}
+                </td>
 
-                    <td class="text-center">
-                        {{ $minutes($participant['time_spent_seconds'] ?? null) }}
-                    </td>
-                </tr>
+                <td class="text-center">
+                    {{ $minutes($participant['time_spent_seconds'] ?? null) }}
+                </td>
+            </tr>
             @empty
-                <tr>
-                    <td colspan="7" class="empty-row">
-                        Belum ada siswa yang terdaftar pada kelas ini.
-                    </td>
-                </tr>
+            <tr>
+                <td colspan="7" class="empty-row">
+                    Belum ada siswa yang terdaftar pada kelas ini.
+                </td>
+            </tr>
             @endforelse
         </tbody>
     </table>
@@ -432,5 +567,300 @@
         </tr>
     </table>
 
+    <div style="page-break-after: always;"></div>
+
+
+    {{-- ========================================
+         HEADER LAPORAN
+    ======================================== --}}
+
+    <table class="header">
+        <tr>
+            <td class="header-logo">
+                <img
+                    src="{{ public_path('img/logo.png') }}"
+                    alt="Logo Sekolah"
+                    class="school-logo">
+            </td>
+
+            <td class="header-content">
+                <!-- <p class="report-title">
+                    Laporan Hasil Ujian
+                </p> -->
+
+                <p class="report-title">
+                    {{ strtoupper($schedule['exam_type'] ?? 'SUSULAN TES KEMAMPUAN AKADEMIK SMK') }}
+                </p>
+
+                <p class="school-name">
+                    {{ strtoupper($schedule['school'] ?? 'SMKS IT RAUDHATUL ULUUM') }}
+                </p>
+
+                <p class="header-subtitle">
+                    @if (!empty($schedule['academic_year']))
+                    Tahun Pelajaran {{ $schedule['academic_year'] }}
+                    @endif
+                </p>
+            </td>
+        </tr>
+    </table>
+
+    <div class="divider"></div>
+
+    {{-- ========================================
+         INFORMASI UJIAN
+    ======================================== --}}
+
+    <table class="info-table">
+        <tr>
+            <td class="info-label">Mata Pelajaran</td>
+            <td class="info-value">
+                {{ $schedule['subject'] ?? '-' }}
+            </td>
+
+            <td class="info-label">Tanggal Ujian</td>
+            <td class="info-value">
+                {{ $examDate }}
+            </td>
+        </tr>
+
+        <tr>
+            
+
+            <td class="info-label">Kelas</td>
+            <td class="info-value">
+                {{ $schedule['class'] ?? '-' }}
+            </td>
+        </tr>
+    </table>
+
+    {{-- ========================================
+     ABSENSI PESERTA
+======================================== --}}
+
+<div class="page-break"></div>
+
+<h2 class="section-title">
+    DAFTAR HADIR PESERTA UJIAN
+</h2>
+
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th width="5%">No.</th>
+            <th width="13%">Username</th>
+            <th>Nama Peserta</th>
+            <th width="17%">NISN</th>
+            <th width="17%">Kehadiran</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @forelse ($participants as $index => $participant)
+            <tr>
+                <td class="text-center">
+                    {{ $index + 1 }}
+                </td>
+
+                <td class="text-center">
+                    {{ $participant['username'] ?? '-' }}
+                </td>
+
+                <td>
+                    {{ $participant['name'] ?? '-' }}
+                </td>
+
+                <td class="text-center">
+                    {{ $participant['nisn'] ?? '-' }}
+                </td>
+
+                <td class="text-center">
+                    <strong>
+                        {{ $participant['attendance_status'] }}
+                    </strong>
+                </td>
+            </tr>
+        @empty
+            <tr>
+                <td colspan="5" class="empty-row">
+                    Tidak ada data peserta.
+                </td>
+            </tr>
+        @endforelse
+    </tbody>
+</table>
+
+{{-- ========================================
+         TANDA TANGAN
+    ======================================== --}}
+
+    <table class="signature">
+        <tr>
+            <td width="58%"></td>
+
+            <td class="signature-block">
+                <p>Pengajar Mata Pelajaran</p>
+
+                <div class="signature-space"></div>
+
+                <p class="signature-name">
+                    {{ $schedule['teacher'] ?? '........................................' }}
+                </p>
+            </td>
+        </tr>
+    </table>
+
+<div style="page-break-after: always;"></div>
+
+{{-- ========================================
+     REKAPITULASI SOAL
+======================================== --}}
+{{-- ========================================
+         HEADER LAPORAN
+    ======================================== --}}
+
+    <table class="header">
+        <tr>
+            <td class="header-logo">
+                <img
+                    src="{{ public_path('img/logo.png') }}"
+                    alt="Logo Sekolah"
+                    class="school-logo">
+            </td>
+
+            <td class="header-content">
+                <!-- <p class="report-title">
+                    Laporan Hasil Ujian
+                </p> -->
+
+                <p class="report-title">
+                    {{ strtoupper($schedule['exam_type'] ?? 'SUSULAN TES KEMAMPUAN AKADEMIK SMK') }}
+                </p>
+
+                <p class="school-name">
+                    {{ strtoupper($schedule['school'] ?? 'SMKS IT RAUDHATUL ULUUM') }}
+                </p>
+
+                <p class="header-subtitle">
+                    @if (!empty($schedule['academic_year']))
+                    Tahun Pelajaran {{ $schedule['academic_year'] }}
+                    @endif
+                </p>
+            </td>
+        </tr>
+    </table>
+
+    <div class="divider"></div>
+
+    {{-- ========================================
+         INFORMASI UJIAN
+    ======================================== --}}
+
+    <table class="info-table">
+        <tr>
+            <td class="info-label">Mata Pelajaran</td>
+            <td class="info-value">
+                {{ $schedule['subject'] ?? '-' }}
+            </td>
+
+            <td class="info-label">Tanggal Ujian</td>
+            <td class="info-value">
+                {{ $examDate }}
+            </td>
+        </tr>
+
+        <tr>
+            
+
+            <td class="info-label">Kelas</td>
+            <td class="info-value">
+                {{ $schedule['class'] ?? '-' }}
+            </td>
+        </tr>
+    </table>
+
+
+<h2 class="section-title">
+    REKAPITULASI ANALISIS SOAL
+</h2>
+
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th width="7%">No.</th>
+            <th width="16%">Type Soal</th>
+            <th> Soal</th>
+            <th width="8%">Bobot</th>
+            <th width="8%">Dijawab</th>
+            <th width="8%">Benar</th>
+            <th width="8%">Ketepatan</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @forelse ($questionAnalysis as $question)
+            <tr>
+                <td class="text-center">
+                    {{ $question['number'] }}
+                </td>
+
+                <td>
+                    {{ $question['type'] }}
+                </td>
+                <td>
+                    {{ $question['body'] }}
+                </td>
+
+                <td class="text-center">
+                    {{ $score($question['score']) }}
+                </td>
+
+                <td class="text-center">
+                    {{ $question['answered_count'] }}
+                </td>
+
+                <td class="text-center">
+                    {{ $question['correct_count'] }}
+                </td>
+
+                <td class="text-center score">
+                    {{ $question['accuracy_percentage'] !== null
+                        ? $score($question['accuracy_percentage']) . '%'
+                        : '-' }}
+                </td>
+            </tr>
+        @empty
+            <tr>
+                <td colspan="6" class="empty-row">
+                    Belum tersedia analisis soal.
+                </td>
+            </tr>
+        @endforelse
+    </tbody>
+</table>
+
+{{-- ========================================
+         TANDA TANGAN
+    ======================================== --}}
+
+    <table class="signature">
+        <tr>
+            <td width="58%"></td>
+
+            <td class="signature-block">
+                <p>Pengajar Mata Pelajaran</p>
+
+                <div class="signature-space"></div>
+
+                <p class="signature-name">
+                    {{ $schedule['teacher'] ?? '........................................' }}
+                </p>
+            </td>
+        </tr>
+    </table>
+
 </body>
+
 </html>

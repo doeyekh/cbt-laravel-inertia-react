@@ -215,6 +215,7 @@ class ExamReportController extends Controller
             ?->teacher
             ?->name;
 
+        // dd($data);
         $options = new Options;
         $options->set([
             'isRemoteEnabled' => false,
@@ -228,6 +229,7 @@ class ExamReportController extends Controller
             'dpi' => 96,
             'isPhpEnabled' => false,
         ]);
+
 
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml(
@@ -281,6 +283,7 @@ class ExamReportController extends Controller
             ->where('academic_year_id', $examPackage->academic_year_id)
             ->with('student:id,name,nisn')
             ->get();
+
         $examParticipants = ExamParticipant::query()
             ->where('school_id', $examPackage->school_id)
             ->where('academic_year_id', $examPackage->academic_year_id)
@@ -295,25 +298,41 @@ class ExamReportController extends Controller
                 'answers:id,exam_attempt_id,is_correct',
             ])
             ->get()
-            ->keyBy(fn (ExamAttempt $attempt): ?int => $attempt->participant?->student_id);
+            ->keyBy(fn(ExamAttempt $attempt): ?int => $attempt->participant?->student_id);
 
         return $classMembers
-            ->map(function (ClassMember $classMember) use ($examParticipants, $attemptsByStudentId): array {
+            ->map(function (ClassMember $classMember) use (
+                $examParticipants,
+                $attemptsByStudentId
+            ): array {
                 $student = $classMember->student;
                 $examParticipant = $examParticipants->get($classMember->student_id);
                 $attempt = $attemptsByStudentId->get($classMember->student_id);
 
                 return [
                     'participant_number' => $examParticipant?->participant_number,
+                    'username' => $examParticipant?->username,
                     'name' => $student?->name,
                     'nisn' => $student?->nisn,
-                    'correct_count' => $attempt?->answers->whereStrict('is_correct', true)->count(),
-                    'wrong_count' => $attempt?->answers->whereStrict('is_correct', false)->count(),
+
+                    // Kehadiran berdasarkan keberadaan attempt.
+                    'attendance_status' => $attempt ? 'Hadir' : 'Tidak Hadir',
+
+                    'correct_count' => $attempt
+                        ? $attempt->answers->whereStrict('is_correct', true)->count()
+                        : 0,
+
+                    'wrong_count' => $attempt
+                        ? $attempt->answers->whereStrict('is_correct', false)->count()
+                        : 0,
+
                     'percentage' => $attempt?->scorePercentage(),
                     'time_spent_seconds' => $attempt?->time_spent_seconds,
                 ];
             })
-            ->sortBy(fn (array $participant): string => mb_strtolower((string) $participant['name']))
+            ->sortBy(fn(array $participant): string => mb_strtolower(
+                (string) $participant['name']
+            ))
             ->values();
     }
 
@@ -403,9 +422,10 @@ class ExamReportController extends Controller
     {
         $this->authorizeSchedule($request, $examSchedule);
         $examSchedule->load([
-            'examPackage:id,name,code,school_id,academic_year_id',
+            'examPackage:id,name,code,school_id,academic_year_id,exam_type_id',
             'examPackage.school:id,name',
             'examPackage.academicYear:id,name',
+            'examPackage.examType:id,name',
             'subject:id,name',
             'schoolClass:id,name',
             'session:id,name',
@@ -466,6 +486,7 @@ class ExamReportController extends Controller
                 'participant_number' => $attempt->participant?->participant_number,
                 'name' => $attempt->participant?->student?->name,
                 'nisn' => $attempt->participant?->student?->nisn,
+                'username' => $attempt->participant?->username,
                 'status' => $attempt->status->label(),
                 'score' => $attempt->score,
                 'max_score' => $attempt->max_score,
@@ -503,6 +524,7 @@ class ExamReportController extends Controller
                 'id' => $examSchedule->id,
                 'name' => $examSchedule->examPackage?->name,
                 'code' => $examSchedule->examPackage?->code,
+                'exam_type' => $examSchedule->examPackage?->examType?->name,
                 'school' => $examSchedule->examPackage?->school?->name,
                 'academic_year' => $examSchedule->examPackage?->academicYear?->name,
                 'subject' => $examSchedule->subject?->name,
