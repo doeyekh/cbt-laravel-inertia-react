@@ -173,7 +173,7 @@ class PageController extends Controller
                 && $answer->answer !== ''
                 && $answer->answer !== 'flagged')
             ->count() ?? 0;
-        $isOnline = $attempt?->updated_at?->gte($now->copy()->subMinutes(2)) ?? false;
+        $isOnline = $attempt?->updated_at?->gte($now->copy()->subMinutes(5)) ?? false;
         $pendingEssayCount = $attempt?->answers
             ->filter(fn (ExamAnswer $answer): bool => $answer->question?->type?->value === 'esai'
                 && $answer->answer !== null
