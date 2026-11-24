@@ -29,16 +29,22 @@ class ExamPackageController extends Controller
     /**
      * Display a paginated listing of exam packages.
      */
+
+
     public function index(Request $request): Response
     {
         $this->authorizeExamAccess($request->user());
 
         $user = $request->user();
         $accessibleSchoolIds = $user->accessibleSchoolIds();
+
         $search = trim((string) $request->string('search'));
-        $schoolFilter = (int) $request->integer('school_id');
-        $examTypeFilter = (int) $request->integer('exam_type_id');
-        $statusFilter = ExamPackageStatus::tryFrom((string) $request->string('status'));
+        $schoolFilter = $request->integer('school_id');
+        $examTypeFilter = $request->integer('exam_type_id');
+
+        $statusFilter = ExamPackageStatus::tryFrom(
+            (string) $request->string('status')
+        );
 
         if (! in_array($schoolFilter, $accessibleSchoolIds, true)) {
             $schoolFilter = 0;
@@ -49,38 +55,71 @@ class ExamPackageController extends Controller
 
         $baseQuery = ExamPackage::query()
             ->whereIn('school_id', $accessibleSchoolIds)
-            ->when($activeAcademicYearId > 0, fn ($query) => $query->where('academic_year_id', $activeAcademicYearId))
-            ->when($schoolFilter > 0, fn ($query) => $query->where('school_id', $schoolFilter))
-            ->when($examTypeFilter > 0, fn ($query) => $query->where('exam_type_id', $examTypeFilter))
-            ->when($statusFilter !== null, fn ($query) => $query->where('status', $statusFilter->value))
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where(function ($query) use ($search): void {
+            ->when(
+                $activeAcademicYearId > 0,
+                fn($query) => $query->where(
+                    'academic_year_id',
+                    $activeAcademicYearId
+                )
+            )
+            ->when(
+                $schoolFilter > 0,
+                fn($query) => $query->where('school_id', $schoolFilter)
+            )
+            ->when(
+                $examTypeFilter > 0,
+                fn($query) => $query->where('exam_type_id', $examTypeFilter)
+            )
+            ->when(
+                $statusFilter !== null,
+                fn($query) => $query->where('status', $statusFilter->value)
+            )
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
                     $query->where('code', 'like', "%{$search}%")
                         ->orWhere('name', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%")
-                        ->orWhereHas('school', function ($query) use ($search): void {
+                        ->orWhereHas('school', function ($query) use ($search) {
                             $query->where('name', 'like', "%{$search}%")
                                 ->orWhere('code', 'like', "%{$search}%");
                         });
                 });
             });
 
+        // Pagination dengan eager loading.
         $packages = (clone $baseQuery)
-            ->with(['school:id,name,code', 'academicYear:id,code,name', 'examType:id,code,name,is_active'])
+            ->with([
+                'school:id,name,code',
+                'academicYear:id,code,name',
+                'examType:id,code,name,is_active',
+            ])
             ->withCount('schedules')
             ->latest()
             ->paginate(10)
             ->withQueryString()
-            ->through(fn (ExamPackage $examPackage): array => $this->presentExamPackage($examPackage));
+            ->through(
+                fn(ExamPackage $package) => $this->presentExamPackage($package)
+            );
 
-        $total = (clone $baseQuery)->count();
-        $draft = (clone $baseQuery)->where('status', ExamPackageStatus::Draft->value)->count();
-        $active = (clone $baseQuery)->where('status', ExamPackageStatus::Aktif->value)->count();
-        $completed = (clone $baseQuery)->where('status', ExamPackageStatus::Selesai->value)->count();
+        // Statistik menggunakan satu query agregasi.
+        $stats = (clone $baseQuery)
+            ->selectRaw(
+                '
+                COUNT(*) AS total,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS draft,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS active,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS completed
+            ',
+                [
+                    ExamPackageStatus::Draft->value,
+                    ExamPackageStatus::Aktif->value,
+                    ExamPackageStatus::Selesai->value,
+                ]
+            )
+            ->first();
 
         $schools = School::query()
             ->whereIn('id', $accessibleSchoolIds)
-            ->whereNull('deleted_at')
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'is_active']);
 
@@ -93,41 +132,55 @@ class ExamPackageController extends Controller
             'title' => 'Paket Ujian',
             'examPackages' => $packages,
             'schools' => $schools,
-            'activeAcademicYear' => $activeAcademicYear === null ? null : [
-                'id' => $activeAcademicYear->id,
-                'code' => $activeAcademicYear->code,
-                'name' => $activeAcademicYear->name,
-            ],
+
+            'activeAcademicYear' => $activeAcademicYear
+                ? [
+                    'id' => $activeAcademicYear->id,
+                    'code' => $activeAcademicYear->code,
+                    'name' => $activeAcademicYear->name,
+                ]
+                : null,
+
             'examTypes' => $examTypes,
             'statuses' => $this->statusOptions(),
+
             'filters' => [
                 'search' => $search,
-                'school_id' => $schoolFilter > 0 ? $schoolFilter : null,
-                'exam_type_id' => $examTypeFilter > 0 ? $examTypeFilter : null,
+                'school_id' => $schoolFilter ?: null,
+                'exam_type_id' => $examTypeFilter ?: null,
                 'status' => $statusFilter?->value,
             ],
+
             'stats' => [
-                'total' => $total,
-                'draft' => $draft,
-                'active' => $active,
-                'completed' => $completed,
+                'total' => (int) ($stats->total ?? 0),
+                'draft' => (int) ($stats->draft ?? 0),
+                'active' => (int) ($stats->active ?? 0),
+                'completed' => (int) ($stats->completed ?? 0),
             ],
         ]);
     }
 
+
     /**
      * Display the specified exam package with its schedules.
      */
+
+
+
     public function show(Request $request, ExamPackage $examPackage): Response
     {
-        $this->authorizeExamAccess($request->user());
-        $this->authorizeRecordAccess($request->user(), $examPackage);
+        $user = $request->user();
 
+        $this->authorizeExamAccess($user);
+        $this->authorizeRecordAccess($user, $examPackage);
+
+        // Load seluruh relasi yang diperlukan sekaligus.
         $examPackage->load([
             'school:id,name,code',
             'academicYear:id,code,name',
             'examType:id,code,name,is_active',
-            'schedules' => fn ($query) => $query
+
+            'schedules' => fn($query) => $query
                 ->with([
                     'schoolClass:id,code,name',
                     'subject:id,code,name',
@@ -144,7 +197,10 @@ class ExamPackageController extends Controller
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
 
-        $subjectsByClass = $this->subjectsByClass($examPackage, $classes->pluck('id')->all());
+        $subjectsByClass = $this->subjectsByClass(
+            $examPackage,
+            $classes->pluck('id')->all()
+        );
 
         $sessions = Session::query()
             ->where('school_id', $examPackage->school_id)
@@ -158,23 +214,30 @@ class ExamPackageController extends Controller
 
         $presentedExamPackage = $this->presentExamPackage($examPackage);
 
-        if ($request->user()->isAdministrator() || $request->user()->isSchoolAdmin()) {
-            $presentedExamPackage['access_token'] = $examPackage->exam_access_token_encrypted;
+        if ($user->isAdministrator() || $user->isSchoolAdmin()) {
+            $presentedExamPackage['access_token'] =
+                $examPackage->exam_access_token_encrypted;
         }
 
         return Inertia::render('ExamPackages/Show', [
             'title' => 'Detail Paket Ujian',
+
             'examPackage' => $presentedExamPackage,
+
             'schedules' => $examPackage->schedules
-                ->map(fn (ExamSchedule $examSchedule): array => $this->presentExamSchedule($examSchedule))
-                ->values()
-                ->all(),
+                ->map(
+                    fn(ExamSchedule $schedule) =>
+                    $this->presentExamSchedule($schedule)
+                )
+                ->values(),
+
             'classes' => $classes,
             'subjectsByClass' => $subjectsByClass,
             'sessions' => $sessions,
             'rooms' => $rooms,
         ]);
     }
+
 
     /**
      * Generate or rotate the shared access token for the exam package.
@@ -247,7 +310,7 @@ class ExamPackageController extends Controller
         }
 
         $examPackage = DB::transaction(
-            fn (): ExamPackage => ExamPackage::create([
+            fn(): ExamPackage => ExamPackage::create([
                 'school_id' => (int) $data['school_id'],
                 'academic_year_id' => $activeAcademicYear->id,
                 'exam_type_id' => (int) $data['exam_type_id'],
@@ -429,46 +492,65 @@ class ExamPackageController extends Controller
      * @param  array<int, int>  $classIds
      * @return array<int, array<int, array{id: int, code: string, name: string, question_banks: array<int, array{id: int, code: string, name: string}>}>>
      */
-    private function subjectsByClass(ExamPackage $examPackage, array $classIds): array
-    {
+
+
+
+    private function subjectsByClass(
+        ExamPackage $examPackage,
+        array $classIds
+    ): array {
         if ($classIds === []) {
             return [];
         }
 
+        $classIdLookup = array_fill_keys($classIds, true);
         $questionBanksByClassSubject = [];
 
-        QuestionBank::query()
+        $questionBanks = QuestionBank::query()
             ->where('school_id', $examPackage->school_id)
             ->where('academic_year_id', $examPackage->academic_year_id)
             ->where('exam_type_id', $examPackage->exam_type_id)
-            ->whereHas('classes', fn ($query) => $query->whereIn('classes.id', $classIds))
+            ->whereHas(
+                'classes',
+                fn($query) => $query->whereIn('classes.id', $classIds)
+            )
             ->with('classes:id')
-            ->get(['id', 'subject_id', 'code', 'name'])
-            ->each(function (QuestionBank $questionBank) use (&$questionBanksByClassSubject, $classIds): void {
-                foreach ($questionBank->classes as $schoolClass) {
-                    if (in_array((int) $schoolClass->id, $classIds, true)) {
-                        $questionBanksByClassSubject[$schoolClass->id][$questionBank->subject_id][] = [
-                            'id' => (int) $questionBank->id,
-                            'code' => (string) $questionBank->code,
-                            'name' => (string) $questionBank->name,
-                        ];
-                    }
+            ->get(['id', 'subject_id', 'code', 'name']);
+
+        foreach ($questionBanks as $questionBank) {
+            foreach ($questionBank->classes as $schoolClass) {
+                $classId = (int) $schoolClass->id;
+
+                if (! isset($classIdLookup[$classId])) {
+                    continue;
                 }
-            });
+
+                $subjectId = (int) $questionBank->subject_id;
+
+                $questionBanksByClassSubject[$classId][$subjectId][] = [
+                    'id' => (int) $questionBank->id,
+                    'code' => (string) $questionBank->code,
+                    'name' => (string) $questionBank->name,
+                ];
+            }
+        }
 
         if ($questionBanksByClassSubject === []) {
             return [];
         }
 
-        $subjectIds = array_unique(array_merge(...array_map(
-            'array_keys',
-            array_values($questionBanksByClassSubject),
-        )));
+        // Ambil seluruh subject ID sekaligus.
+        $subjectIds = collect($questionBanksByClassSubject)
+            ->flatMap(fn($subjects) => array_keys($subjects))
+            ->unique()
+            ->values();
 
+        // Ambil semua subject dalam satu query.
         $subjects = Subject::query()
             ->whereIn('id', $subjectIds)
             ->orderBy('name')
-            ->get(['id', 'code', 'name']);
+            ->get(['id', 'code', 'name'])
+            ->keyBy('id');
 
         $subjectsByClass = [];
 
@@ -476,7 +558,7 @@ class ExamPackageController extends Controller
             $subjectsByClass[$classId] = [];
 
             foreach ($banksBySubject as $subjectId => $questionBanks) {
-                $subject = $subjects->firstWhere('id', (int) $subjectId);
+                $subject = $subjects->get($subjectId);
 
                 if ($subject === null) {
                     continue;
@@ -496,6 +578,7 @@ class ExamPackageController extends Controller
         return $subjectsByClass;
     }
 
+
     /**
      * Get the status options for filters and forms.
      *
@@ -504,7 +587,7 @@ class ExamPackageController extends Controller
     private function statusOptions(): array
     {
         return array_map(
-            fn (ExamPackageStatus $status): array => [
+            fn(ExamPackageStatus $status): array => [
                 'value' => $status->value,
                 'label' => $status->label(),
             ],

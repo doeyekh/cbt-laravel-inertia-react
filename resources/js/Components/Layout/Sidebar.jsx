@@ -44,7 +44,22 @@ const buildNavItems = () => [
         ],
     },
     { name: 'Users', href: navRoute('admin.users.index'), icon: 'person' },
-    { name: 'Laporan', href: navRoute('admin.reports.index', '/admin/reports'), icon: 'assessment' },
+    {
+        name : 'Laporan',
+        icon : 'assessment',
+        activePath : navRoute('admin.reports.index','/admin/reports'),
+        children : [
+            {
+                name: 'Laporan Ujian',
+                href: navRoute('admin.reports.index','/admin/reports')
+            },
+            {
+                name: 'Leger Nilai',
+                href: navRoute('admin.leger-grades.index','/admin/leger-grades')
+            }
+        ]
+    },
+    // { name: 'Laporan', href: navRoute('admin.reports.index', '/admin/reports'), icon: 'assessment' },
     { name: 'Pengaturan', href: navRoute('admin.settings.index'), icon: 'settings' },
     { name: 'Backup Database', href: navRoute('admin.backups.index'), icon: 'backup' },
 ];
@@ -82,7 +97,7 @@ export default function Sidebar({ isOpen, onClose }) {
                     }
 
                     if (item.name === 'Laporan') {
-                        return isSchoolAdmin || isRestrictedGuru;
+                        return isAdministrator || isSchoolAdmin || isRestrictedGuru;
                     }
 
                     if (item.name === 'Backup Database') {
@@ -125,6 +140,12 @@ export default function Sidebar({ isOpen, onClose }) {
                                     !canAccessSchool
                                 ) {
                                     return false;
+                                }
+                                if(item.name === 'Laporan' && child.name === 'Leger Nilai'){
+                                    return isAdministrator || isSchoolAdmin;
+                                }
+                                if(item.name === 'Laporan' && child.name === 'Laporan Ujian'){
+                                    return isSchoolAdmin || isRestrictedGuru;
                                 }
 
                                 return true;

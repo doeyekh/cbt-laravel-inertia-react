@@ -11,6 +11,8 @@ import { useToast } from '@/Hooks/useToast';
 import ClassTable from './Components/ClassTable';
 import ClassModal from './Components/ClassModal';
 import { route } from '@/Utils/route';
+import StatCardGroup from '../../Components/UI/stat-card-group';
+import useClassStatistic from './Components/useClassStatistuc';
 
 export default function ClassesIndex({ classes, filters, schools, academicYears, stats }) {
     const { flash } = usePage().props;
@@ -32,6 +34,12 @@ export default function ClassesIndex({ classes, filters, schools, academicYears,
     const rows = classes?.data ?? [];
     const editingItem = rows.find((schoolClass) => schoolClass.id === editingId) ?? null;
     const deletingItem = rows.find((schoolClass) => schoolClass.id === deletingId) ?? null;
+
+    const statistics = useClassStatistic({
+        total,
+        activeCount,
+        inactiveCount,
+    })
 
     useEffect(() => {
         if (skipInitialSearch.current) {
@@ -158,7 +166,7 @@ export default function ClassesIndex({ classes, filters, schools, academicYears,
     const activeCount = stats?.active ?? 0;
     const inactiveCount = stats?.inactive ?? 0;
 
-    console.log(rows)
+    
 
     return (
         <AppLayout>
@@ -190,60 +198,8 @@ export default function ClassesIndex({ classes, filters, schools, academicYears,
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <Card padding="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-[11px] font-label uppercase tracking-wider text-on-surface-variant font-semibold">
-                                    Total Kelas
-                                </p>
-                                <h3 className="font-headline text-2xl font-bold text-on-surface mt-1">
-                                    {total}
-                                </h3>
-                            </div>
-                            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                                <span className="material-symbols-outlined text-primary text-[24px]">
-                                    groups
-                                </span>
-                            </div>
-                        </div>
-                    </Card>
-
-                    <Card padding="p-6">
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                                <p className="text-[11px] font-label uppercase tracking-wider text-on-surface-variant font-semibold">
-                                    Aktif
-                                </p>
-                                <h3 className="font-headline text-2xl font-bold text-on-surface mt-1 truncate">
-                                    {activeCount}
-                                </h3>
-                            </div>
-                            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined text-success text-[24px]">
-                                    check_circle
-                                </span>
-                            </div>
-                        </div>
-                    </Card>
-
-                    <Card padding="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-[11px] font-label uppercase tracking-wider text-on-surface-variant font-semibold">
-                                    Tidak Aktif
-                                </p>
-                                <h3 className="font-headline text-2xl font-bold text-on-surface mt-1">
-                                    {inactiveCount}
-                                </h3>
-                            </div>
-                            <div className="w-12 h-12 rounded-xl bg-tertiary-container/30 flex items-center justify-center">
-                                <span className="material-symbols-outlined text-tertiary text-[24px]">
-                                    history
-                                </span>
-                            </div>
-                        </div>
-                    </Card>
+                <div>
+                    <StatCardGroup items={statistics} columns={3} />
                 </div>
 
                 {/* Table */}

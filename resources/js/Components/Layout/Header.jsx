@@ -2,13 +2,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 
-import Button from '@/Components/UI/Button';
+
 import { route } from '@/Utils/route';
+import ProfilMenuItem from './ProfilMenuItem';
 
 export default function Header({
     onMenuToggle,
-    onRefresh,
-    onEmergency,
 }) {
     const { auth } = usePage().props;
     const user = auth?.user;
@@ -107,35 +106,6 @@ export default function Header({
                     {/* STATUS SERVER */}
                     <ServerStatus />
 
-                    {/* TOMBOL AKSI */}
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="secondary"
-                            onClick={onRefresh}
-                            title="Segarkan Data"
-                        >
-                            <span className="material-symbols-outlined text-[16px]">
-                                sync
-                            </span>
-                            <span className="hidden sm:inline">
-                                Refresh Live
-                            </span>
-                        </Button>
-
-                        <Button
-                            variant="danger"
-                            onClick={onEmergency}
-                            title="Sesi Darurat"
-                        >
-                            <span className="material-symbols-outlined text-[18px]">
-                                warning
-                            </span>
-                            <span className="hidden md:inline">
-                                Mulai Sesi Darurat
-                            </span>
-                        </Button>
-                    </div>
-
                     <span className="w-px h-6 bg-surface-container-high hidden sm:block" />
 
                     {/* PROFIL PENGGUNA */}
@@ -188,7 +158,7 @@ export default function Header({
 
                                 <div className="py-2">
 
-                                    <ProfileMenuItem
+                                    <ProfilMenuItem
                                         icon="person"
                                         label="Profil Saya"
                                         onClick={() => handleNavigate('admin.profile.show')}
@@ -196,7 +166,7 @@ export default function Header({
 
                                     <div className="my-1.5 border-t border-outline/10" />
 
-                                    <ProfileMenuItem
+                                    <ProfilMenuItem
                                         icon="lock"
                                         label="Ganti Kata Sandi"
                                         onClick={() => handleNavigate('admin.password.edit')}
@@ -204,12 +174,14 @@ export default function Header({
 
                                     <div className="my-1.5 border-t border-outline/10" />
 
-                                    <ProfileMenuItem
+                                    <ProfilMenuItem
                                         icon="logout"
                                         label="Keluar"
                                         danger
                                         onClick={handleLogout}
                                     />
+
+                                    
                                 </div>
                             </div>
                         )}
@@ -255,36 +227,5 @@ function ServerStatus() {
                 </div>
             </div>
         </div>
-    );
-}
-
-
-// ========================================
-// COMPONENT: PROFILE MENU ITEM
-// ========================================
-
-function ProfileMenuItem({
-    icon,
-    label,
-    onClick,
-    danger = false,
-}) {
-    return (
-        <Button
-            type="button"
-            variant="ghost"
-            onClick={onClick}
-            className={`w-full text-left px-4 py-2.5 text-xs font-label flex items-center gap-3 ${
-                danger
-                    ? 'text-error hover:bg-error-container/10'
-                    : 'text-on-surface-variant hover:bg-surface-container-low'
-            }`}
-        >
-            <span className="material-symbols-outlined text-[18px]">
-                {icon}
-            </span>
-
-            {label}
-        </Button>
     );
 }
