@@ -1,3 +1,10 @@
+<style>
+    @page {
+            size: A4 potrait;
+            margin: 10mm;
+        }
+</style>
+
 <div class="cover-page">
     <div class="inner-border"></div>
 
@@ -12,6 +19,7 @@
 
     <div class="institution">
         {{ $institution_name }}
+
     </div>
 
     <div class="institution-subtitle">

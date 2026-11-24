@@ -58,6 +58,7 @@ class LegerGradeController extends Controller
             'summary' => $data['summary'],
             'filters' => $data['filters'],
             'print_date' => now()->format('d/m/Y H:i'),
+            'data' => $data['schools']
         ])->render();
 
         $dompdf = new Dompdf($options);
@@ -65,7 +66,7 @@ class LegerGradeController extends Controller
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
-        $filename = 'Leger-Nilai-'.now()->format('Ymd-His').'.pdf';
+        $filename = 'Leger-Nilai-' . now()->format('Ymd-His') . '.pdf';
 
         return response()->stream(
             static function () use ($dompdf): void {
@@ -74,7 +75,7 @@ class LegerGradeController extends Controller
             200,
             [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="'.$filename.'"',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
             ],
         );
     }
@@ -85,7 +86,7 @@ class LegerGradeController extends Controller
 
         return Excel::download(
             new LegerGradeExport(collect($data['rows']), collect($data['columns'])),
-            'Leger-Nilai-'.now()->format('Ymd').'.xlsx',
+            'Leger-Nilai-' . now()->format('Ymd') . '.xlsx',
         );
     }
 
@@ -97,36 +98,76 @@ class LegerGradeController extends Controller
         $filters = $this->validatedFilters($request);
 
         $user = $request->user();
-        $accessibleSchoolIds = $user->accessibleSchoolIds();
-        $lockedSchoolId = $this->lockedSchoolId($request);
-        $schoolIds = $lockedSchoolId !== null ? [$lockedSchoolId] : $accessibleSchoolIds;
 
-        if ($schoolIds === [] && $user?->isAdministrator() !== true) {
+        $isAdministrator = $user?->isAdministrator() === true;
+
+        // ---------------------------------------------------------
+        // 1. Tentukan cakupan sekolah berdasarkan hak akses.
+        // ---------------------------------------------------------
+
+        $accessibleSchoolIds = $user->accessibleSchoolIds();
+
+        // Administrator dapat mengakses seluruh sekolah.
+        if ($isAdministrator) {
+            $accessibleSchoolIds = School::query()->pluck('id')->all();
+        }
+
+        $accessibleSchoolIds = array_values(
+            array_unique(
+                array_map('intval', $accessibleSchoolIds)
+            )
+        );
+
+        $lockedSchoolId = $this->lockedSchoolId($request);
+
+        $schoolIds = $lockedSchoolId !== null
+            ? [$lockedSchoolId]
+            : $accessibleSchoolIds;
+
+        if ($schoolIds === [] && ! $isAdministrator) {
             abort(403, 'Tidak ada sekolah yang dapat diakses.');
         }
 
+        // Validasi sekolah terkunci.
         if ($lockedSchoolId !== null) {
-            if (! in_array($lockedSchoolId, $accessibleSchoolIds, true)) {
+            if (! in_array((int) $lockedSchoolId, $accessibleSchoolIds, true)) {
                 abort(403, 'Anda tidak memiliki akses ke sekolah tersebut.');
             }
 
             $filters['school_id'] = $lockedSchoolId;
-        } elseif ($filters['school_id'] !== null && ! in_array($filters['school_id'], $schoolIds, true)) {
+        } elseif (
+            $filters['school_id'] !== null
+            && ! in_array((int) $filters['school_id'], $schoolIds, true)
+        ) {
             abort(403, 'Anda tidak memiliki akses ke sekolah tersebut.');
         }
 
         $filters['school_is_locked'] = $lockedSchoolId !== null;
 
+        // ---------------------------------------------------------
+        // 2. Data sekolah.
+        // Jika filter sekolah kosong, ambil semua sekolah
+        // yang dapat diakses pengguna.
+        // ---------------------------------------------------------
+
         $schools = School::query()
             ->whereIn('id', $schoolIds)
+            ->when(
+                $filters['school_id'] !== null,
+                fn($query) => $query->where('id', $filters['school_id'])
+            )
             ->orderBy('name')
             ->get(['id', 'name']);
+
+        // ---------------------------------------------------------
+        // 3. Data tahun ajaran.
+        // ---------------------------------------------------------
 
         $academicYears = AcademicYear::query()
             ->orderByDesc('is_active')
             ->orderByDesc('code')
             ->get(['id', 'code', 'name', 'semester', 'is_active'])
-            ->map(fn (AcademicYear $academicYear): array => [
+            ->map(fn(AcademicYear $academicYear): array => [
                 'id' => $academicYear->id,
                 'name' => $academicYear->name,
                 'semester_label' => $academicYear->semester?->label(),
@@ -134,26 +175,67 @@ class LegerGradeController extends Controller
             ])
             ->values();
 
+        // ---------------------------------------------------------
+        // 4. Data kelas.
+        // Jika filter kelas kosong, ambil semua kelas yang
+        // memiliki jadwal ujian dalam cakupan sekolah.
+        // ---------------------------------------------------------
+
         $classes = SchoolClass::query()
             ->whereHas(
                 'examSchedules.examPackage',
-                fn ($query) => $query->whereIn('school_id', $schoolIds),
+                fn($query) => $query
+                    ->whereIn('school_id', $schoolIds)
+                    ->when(
+                        $filters['school_id'] !== null,
+                        fn($query) => $query->where(
+                            'school_id',
+                            $filters['school_id']
+                        )
+                    )
             )
             ->orderBy('name')
             ->get(['id', 'name']);
+
+        // ---------------------------------------------------------
+        // 5. Data mata pelajaran.
+        // ---------------------------------------------------------
 
         $subjects = Subject::query()
             ->whereHas(
                 'examSchedules.examPackage',
-                fn ($query) => $query->whereIn('school_id', $schoolIds),
+                fn($query) => $query
+                    ->whereIn('school_id', $schoolIds)
+                    ->when(
+                        $filters['school_id'] !== null,
+                        fn($query) => $query->where(
+                            'school_id',
+                            $filters['school_id']
+                        )
+                    )
             )
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        // ---------------------------------------------------------
+        // 6. Data jenis ujian.
+        // ---------------------------------------------------------
+
         $examTypes = ExamType::query()
             ->whereIn('school_id', $schoolIds)
+            ->when(
+                $filters['school_id'] !== null,
+                fn($query) => $query->where(
+                    'school_id',
+                    $filters['school_id']
+                )
+            )
             ->orderBy('name')
             ->get(['id', 'name', 'is_active']);
+
+        // ---------------------------------------------------------
+        // 7. Tentukan tahun ajaran default.
+        // ---------------------------------------------------------
 
         if ($filters['academic_year_id'] === null) {
             $activeAcademicYear = $academicYears->firstWhere('is_active', true);
@@ -163,6 +245,10 @@ class LegerGradeController extends Controller
                 ?? $firstAcademicYear['id']
                 ?? null;
         }
+
+        // ---------------------------------------------------------
+        // 8. Tentukan jenis ujian default.
+        // ---------------------------------------------------------
 
         if ($filters['exam_type_id'] === null) {
             $filters['exam_type_id'] = $examTypes->firstWhere('is_active', true)?->id
@@ -174,12 +260,20 @@ class LegerGradeController extends Controller
 
         $filters['required_filters_selected'] = $hasRequiredFilters;
 
+        // ---------------------------------------------------------
+        // 9. Ambil nilai filter.
+        // ---------------------------------------------------------
+
         $schoolId = $filters['school_id'];
         $academicYearId = $filters['academic_year_id'];
         $classId = $filters['class_id'];
         $subjectId = $filters['subject_id'];
         $examTypeId = $filters['exam_type_id'];
         $search = $filters['search'];
+
+        // ---------------------------------------------------------
+        // 10. Query nilai ujian.
+        // ---------------------------------------------------------
 
         $attemptsQuery = ExamAttempt::query()
             ->select([
@@ -211,28 +305,34 @@ class LegerGradeController extends Controller
                 $academicYearId,
                 $examTypeId,
             ): void {
-                $query->whereIn('school_id', $schoolIds);
-
-                if ($schoolId !== null) {
-                    $query->where('school_id', $schoolId);
-                }
-
-                if ($academicYearId !== null) {
-                    $query->where('academic_year_id', $academicYearId);
-                }
-
-                if ($examTypeId !== null) {
-                    $query->where('exam_type_id', $examTypeId);
-                }
+                $query
+                    ->whereIn('school_id', $schoolIds)
+                    ->when(
+                        $schoolId !== null,
+                        fn($query) => $query->where('school_id', $schoolId)
+                    )
+                    ->when(
+                        $academicYearId !== null,
+                        fn($query) => $query->where('academic_year_id', $academicYearId)
+                    )
+                    ->when(
+                        $examTypeId !== null,
+                        fn($query) => $query->where('exam_type_id', $examTypeId)
+                    );
             })
-            ->whereHas('examSchedule', function ($query) use ($classId, $subjectId): void {
-                if ($classId !== null) {
-                    $query->where('class_id', $classId);
-                }
-
-                if ($subjectId !== null) {
-                    $query->where('subject_id', $subjectId);
-                }
+            ->whereHas('examSchedule', function ($query) use (
+                $classId,
+                $subjectId,
+            ): void {
+                $query
+                    ->when(
+                        $classId !== null,
+                        fn($query) => $query->where('class_id', $classId)
+                    )
+                    ->when(
+                        $subjectId !== null,
+                        fn($query) => $query->where('subject_id', $subjectId)
+                    );
             })
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
@@ -243,14 +343,24 @@ class LegerGradeController extends Controller
                                 ->orWhere('nisn', 'like', "%{$search}%");
                         })
                         ->orWhereHas('participant', function ($query) use ($search): void {
-                            $query->where('participant_number', 'like', "%{$search}%");
+                            $query->where(
+                                'participant_number',
+                                'like',
+                                "%{$search}%"
+                            );
                         });
                 });
             })
             ->orderBy('exam_participant_id')
             ->orderBy('exam_schedule_id');
 
-        $attempts = $hasRequiredFilters ? $attemptsQuery->get() : collect();
+        $attempts = $hasRequiredFilters
+            ? $attemptsQuery->get()
+            : collect();
+
+        // ---------------------------------------------------------
+        // 11. Kelompokkan nilai berdasarkan peserta.
+        // ---------------------------------------------------------
 
         $columns = collect();
         $grouped = collect();
@@ -265,8 +375,8 @@ class LegerGradeController extends Controller
                 continue;
             }
 
-            $schoolId = $attempt->examPackage?->school_id;
-            $classId = $schedule->class_id;
+            $attemptSchoolId = $attempt->examPackage?->school_id;
+            $attemptClassId = $schedule->class_id;
 
             $key = $participant->id;
 
@@ -274,9 +384,9 @@ class LegerGradeController extends Controller
                 $grouped->put($key, [
                     'participant_id' => $participant->id,
                     'student_id' => $student->id,
-                    'school_id' => $schoolId,
+                    'school_id' => $attemptSchoolId,
                     'school' => $attempt->examPackage?->school?->name ?? '-',
-                    'class_id' => $classId,
+                    'class_id' => $attemptClassId,
                     'class' => $schedule->schoolClass?->name ?? '-',
                     'participant_number' => $participant->participant_number,
                     'nisn' => $student->nisn,
@@ -314,10 +424,18 @@ class LegerGradeController extends Controller
             $grouped->put($key, $row);
         }
 
-        // Urutkan kolom mata pelajaran.
-        $columns = $columns->sortBy(fn (string $name): string => $name);
+        // ---------------------------------------------------------
+        // 12. Urutkan kolom mata pelajaran.
+        // ---------------------------------------------------------
 
-        // Bentuk nilai akhir masing-masing siswa.
+        $columns = $columns->sortBy(
+            fn(string $name): string => $name
+        );
+
+        // ---------------------------------------------------------
+        // 13. Bentuk nilai akhir masing-masing siswa.
+        // ---------------------------------------------------------
+
         $rows = $grouped
             ->map(function (array $row) use ($columns): array {
                 $scores = [];
@@ -338,6 +456,7 @@ class LegerGradeController extends Controller
                 }
 
                 $row['scores'] = $scores;
+
                 $row['average'] = $values !== []
                     ? round(collect($values)->avg(), 2)
                     : null;
@@ -349,19 +468,31 @@ class LegerGradeController extends Controller
             ->values()
             ->all();
 
-        // Bentuk kolom untuk Blade.
+        // ---------------------------------------------------------
+        // 14. Bentuk kolom untuk Blade.
+        // ---------------------------------------------------------
+
         $columnProps = $columns
-            ->map(fn (string $name, int $id): array => [
+            ->map(fn(string $name, int $id): array => [
                 'id' => $id,
                 'name' => $name,
             ])
             ->values()
             ->all();
 
-        // Statistik keseluruhan.
-        $summary = $this->summarizeRowS($rows, count($columnProps));
+        // ---------------------------------------------------------
+        // 15. Statistik keseluruhan.
+        // ---------------------------------------------------------
 
-        // Kelompokkan siswa berdasarkan sekolah, kemudian kelas.
+        $summary = $this->summarizeRowS(
+            $rows,
+            count($columnProps)
+        );
+
+        // ---------------------------------------------------------
+        // 16. Kelompokkan siswa berdasarkan sekolah dan kelas.
+        // ---------------------------------------------------------
+
         $schoolsData = collect($rows)
             ->groupBy('school_id')
             ->map(function ($schoolRows): array {
@@ -391,7 +522,9 @@ class LegerGradeController extends Controller
                 return [
                     'id' => $firstStudent['school_id'],
                     'name' => $firstStudent['school'],
-                    'summary' => $this->summarizeRows($schoolRows->values()->all()),
+                    'summary' => $this->summarizeRows(
+                        $schoolRows->values()->all()
+                    ),
                     'classes' => $classesData,
                 ];
             })
@@ -399,56 +532,81 @@ class LegerGradeController extends Controller
             ->values()
             ->all();
 
-        $lockedClassLabel = $lockedSchoolId !== null && $filters['class_id'] === null
-            ? (collect($rows)->pluck('class')->filter()->unique()->sort()->implode(', ') ?: '-')
+        // ---------------------------------------------------------
+        // 17. Label sekolah dan kelas terkunci.
+        // ---------------------------------------------------------
+
+        $lockedClassLabel = $lockedSchoolId !== null
+            && $filters['class_id'] === null
+            ? (
+                collect($rows)
+                ->pluck('class')
+                ->filter()
+                ->unique()
+                ->sort()
+                ->implode(', ') ?: '-'
+            )
             : null;
 
+        // ---------------------------------------------------------
+        // 18. Label tahun ajaran.
+        // ---------------------------------------------------------
+
         $selectedAcademicYear = $filters['academic_year_id'] !== null
-            ? $academicYears->firstWhere('id', $filters['academic_year_id'])
+            ? $academicYears->firstWhere(
+                'id',
+                $filters['academic_year_id']
+            )
             : null;
 
         $academicYearLabel = $filters['academic_year_id'] !== null
             ? trim(
-                ($selectedAcademicYear['name'] ?? '-').' - '.($selectedAcademicYear['semester_label'] ?? ''),
-                ' -',
+                ($selectedAcademicYear['name'] ?? '-')
+                    . ' - '
+                    . ($selectedAcademicYear['semester_label'] ?? ''),
+                ' -'
             )
             : 'Belum dipilih';
 
+        // ---------------------------------------------------------
+        // 19. Label filter.
+        // ---------------------------------------------------------
+
         $filters['labels'] = [
             'school' => $filters['school_id'] !== null
-                ? ($schools->firstWhere('id', $filters['school_id'])?->name ?? '-')
+                ? ($schools->firstWhere(
+                    'id',
+                    $filters['school_id']
+                )?->name ?? '-')
                 : 'Semua sekolah',
+
             'academic_year' => $academicYearLabel,
+
             'class' => $filters['class_id'] !== null
-                ? ($classes->firstWhere('id', $filters['class_id'])?->name ?? '-')
+                ? ($classes->firstWhere(
+                    'id',
+                    $filters['class_id']
+                )?->name ?? '-')
                 : ($lockedClassLabel ?? 'Semua kelas'),
+
             'subject' => $filters['subject_id'] !== null
-                ? ($subjects->firstWhere('id', $filters['subject_id'])?->name ?? '-')
+                ? ($subjects->firstWhere(
+                    'id',
+                    $filters['subject_id']
+                )?->name ?? '-')
                 : 'Semua mata pelajaran',
+
             'exam_type' => $filters['exam_type_id'] !== null
-                ? ($examTypes->firstWhere('id', $filters['exam_type_id'])?->name ?? '-')
+                ? ($examTypes->firstWhere(
+                    'id',
+                    $filters['exam_type_id']
+                )?->name ?? '-')
                 : 'Belum dipilih',
         ];
 
-        // return [
-        //     'title' => 'Leger Nilai',
-
-        //     // Data lama tetap dipertahankan.
-        //     'rows' => $rows,
-        //     'schools' => $schools->values()->all(),
-
-        //     // Data baru untuk PDF bertingkat.
-        //     'school_groups' => $schoolsData,
-
-        //     'columns' => $columnProps,
-        //     'summary' => $summary,
-        //     'filters' => $filters,
-
-        //     'academicYears' => $academicYears->values()->all(),
-        //     'classes' => $classes->values()->all(),
-        //     'subjects' => $subjects->values()->all(),
-        //     'examTypes' => $examTypes->values()->all(),
-        // ];
+        // ---------------------------------------------------------
+        // 20. Return data.
+        // ---------------------------------------------------------
 
         return [
             'title' => 'Leger Nilai',
@@ -471,12 +629,12 @@ class LegerGradeController extends Controller
     ): array {
         $averageValues = collect($rows)
             ->pluck('average')
-            ->filter(fn ($value): bool => $value !== null)
+            ->filter(fn($value): bool => $value !== null)
             ->values();
 
         $subjectCount ??= collect($rows)
-            ->flatMap(fn (array $row) => collect($row['scores'])
-                ->filter(fn ($value): bool => $value !== null)
+            ->flatMap(fn(array $row) => collect($row['scores'])
+                ->filter(fn($value): bool => $value !== null)
                 ->keys())
             ->unique()
             ->count();
@@ -492,7 +650,7 @@ class LegerGradeController extends Controller
             'passed_percentage' => $averageValues->isNotEmpty()
                 ? round(
                     $averageValues->filter(
-                        fn ($value): bool => $value >= 70
+                        fn($value): bool => $value >= 70
                     )->count() / $averageValues->count() * 100,
                     2,
                 )

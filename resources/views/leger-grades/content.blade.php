@@ -1,3 +1,10 @@
+<style>
+    @page {
+            size: A4 landscape;
+            margin: 10mm;
+        }
+</style>
+
 <section class="content-page">
     @php
         $format = static fn ($value): string => $value === null
