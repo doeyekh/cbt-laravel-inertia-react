@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\ExamParticipantController;
 use App\Http\Controllers\Admin\ExamReportController;
 use App\Http\Controllers\Admin\ExamScheduleController;
 use App\Http\Controllers\Admin\ExamTypeController;
+use App\Http\Controllers\Admin\LegerGradeController;
 use App\Http\Controllers\Admin\NominalListController;
 use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\QuestionBankController;
@@ -101,6 +102,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 ->name('reports.pdf');
             Route::get('/reports/{examSchedule}/attempts/{examAttempt}', [ExamReportController::class, 'attempt'])
                 ->name('reports.attempt');
+        });
+
+        Route::middleware('leger')->group(function () {
+            Route::get('/leger-grades', [LegerGradeController::class, 'index'])
+                ->name('leger-grades.index');
+
+            Route::get('/leger-grades/pdf', [LegerGradeController::class, 'pdf'])
+                ->name('leger-grades.pdf');
+
+            Route::get('/leger-grades/export', [LegerGradeController::class, 'export'])
+                ->name('leger-grades.export');
         });
         Route::middleware('school-admin')->group(function () {
             Route::patch('exam-attempts/{examAttempt}/extend-time', [ExamAttemptTimeController::class, 'extend'])

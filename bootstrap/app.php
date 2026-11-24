@@ -3,6 +3,7 @@
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\EnsureGuruAccessIsLimited;
 use App\Http\Middleware\EnsureStudentIsAuthenticated;
+use App\Http\Middleware\EnsureUserCanAccessLeger;
 use App\Http\Middleware\EnsureUserCanAccessReports;
 use App\Http\Middleware\EnsureUserIsAdministrator;
 use App\Http\Middleware\EnsureUserIsSchoolAdmin;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'student.auth' => EnsureStudentIsAuthenticated::class,
             'guru.access' => EnsureGuruAccessIsLimited::class,
             'reports' => EnsureUserCanAccessReports::class,
+            'leger' => EnsureUserCanAccessLeger::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
