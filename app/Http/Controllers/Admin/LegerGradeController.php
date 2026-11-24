@@ -45,25 +45,32 @@ class LegerGradeController extends Controller
             'isPhpEnabled' => false,
         ]);
 
+        $logoPath = public_path('img/logo.png');
+        $labels = $data['filters']['labels'] ?? [];
+
+        $html = view('leger-grades.pdf', [
+            'title' => 'Leger Nilai',
+            'logo_path' => is_file($logoPath) ? $logoPath : null,
+            'institution_name' => $labels['school'] ?? 'Seluruh Lembaga',
+            'rows' => $data['rows'],
+            'columns' => $data['columns'],
+            'schools' => $data['school_groups'] ?? [],
+            'summary' => $data['summary'],
+            'filters' => $data['filters'],
+            'print_date' => now()->format('d/m/Y H:i'),
+        ])->render();
+
         $dompdf = new Dompdf($options);
-        $dompdf->loadHtml(
-            view('leger-grades.pdf', [
-                'title' => 'Leger Nilai',
-                'rows' => $data['rows'],
-                'columns' => $data['columns'],
-                'summary' => $data['summary'],
-                'filters' => $data['filters'],
-                'print_date' => now()->format('d/m/Y H:i'),
-            ])->render(),
-            'UTF-8',
-        );
+        $dompdf->loadHtml($html, 'UTF-8');
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
-        $filename = 'Leger-Nilai-'.now()->format('Ymd').'.pdf';
+        $filename = 'Leger-Nilai-'.now()->format('Ymd-His').'.pdf';
 
         return response()->stream(
-            fn () => print ($dompdf->output()),
+            static function () use ($dompdf): void {
+                echo $dompdf->output();
+            },
             200,
             [
                 'Content-Type' => 'application/pdf',
@@ -89,15 +96,26 @@ class LegerGradeController extends Controller
     {
         $filters = $this->validatedFilters($request);
 
-        $schoolIds = $request->user()->accessibleSchoolIds();
+        $user = $request->user();
+        $accessibleSchoolIds = $user->accessibleSchoolIds();
+        $lockedSchoolId = $this->lockedSchoolId($request);
+        $schoolIds = $lockedSchoolId !== null ? [$lockedSchoolId] : $accessibleSchoolIds;
 
-        if ($schoolIds === [] && $request->user()?->isAdministrator() !== true) {
+        if ($schoolIds === [] && $user?->isAdministrator() !== true) {
             abort(403, 'Tidak ada sekolah yang dapat diakses.');
         }
 
-        if ($filters['school_id'] !== null && ! in_array($filters['school_id'], $schoolIds, true)) {
+        if ($lockedSchoolId !== null) {
+            if (! in_array($lockedSchoolId, $accessibleSchoolIds, true)) {
+                abort(403, 'Anda tidak memiliki akses ke sekolah tersebut.');
+            }
+
+            $filters['school_id'] = $lockedSchoolId;
+        } elseif ($filters['school_id'] !== null && ! in_array($filters['school_id'], $schoolIds, true)) {
             abort(403, 'Anda tidak memiliki akses ke sekolah tersebut.');
         }
+
+        $filters['school_is_locked'] = $lockedSchoolId !== null;
 
         $schools = School::query()
             ->whereIn('id', $schoolIds)
@@ -105,8 +123,16 @@ class LegerGradeController extends Controller
             ->get(['id', 'name']);
 
         $academicYears = AcademicYear::query()
-            ->orderByDesc('name')
-            ->get(['id', 'name']);
+            ->orderByDesc('is_active')
+            ->orderByDesc('code')
+            ->get(['id', 'code', 'name', 'semester', 'is_active'])
+            ->map(fn (AcademicYear $academicYear): array => [
+                'id' => $academicYear->id,
+                'name' => $academicYear->name,
+                'semester_label' => $academicYear->semester?->label(),
+                'is_active' => (bool) $academicYear->is_active,
+            ])
+            ->values();
 
         $classes = SchoolClass::query()
             ->whereHas(
@@ -125,8 +151,28 @@ class LegerGradeController extends Controller
             ->get(['id', 'name']);
 
         $examTypes = ExamType::query()
+            ->whereIn('school_id', $schoolIds)
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'is_active']);
+
+        if ($filters['academic_year_id'] === null) {
+            $activeAcademicYear = $academicYears->firstWhere('is_active', true);
+            $firstAcademicYear = $academicYears->first();
+
+            $filters['academic_year_id'] = $activeAcademicYear['id']
+                ?? $firstAcademicYear['id']
+                ?? null;
+        }
+
+        if ($filters['exam_type_id'] === null) {
+            $filters['exam_type_id'] = $examTypes->firstWhere('is_active', true)?->id
+                ?? $examTypes->first()?->id;
+        }
+
+        $hasRequiredFilters = $filters['academic_year_id'] !== null
+            && $filters['exam_type_id'] !== null;
+
+        $filters['required_filters_selected'] = $hasRequiredFilters;
 
         $schoolId = $filters['school_id'];
         $academicYearId = $filters['academic_year_id'];
@@ -135,7 +181,7 @@ class LegerGradeController extends Controller
         $examTypeId = $filters['exam_type_id'];
         $search = $filters['search'];
 
-        $attempts = ExamAttempt::query()
+        $attemptsQuery = ExamAttempt::query()
             ->select([
                 'exam_attempts.id',
                 'exam_attempts.exam_participant_id',
@@ -202,8 +248,9 @@ class LegerGradeController extends Controller
                 });
             })
             ->orderBy('exam_participant_id')
-            ->orderBy('exam_schedule_id')
-            ->get();
+            ->orderBy('exam_schedule_id');
+
+        $attempts = $hasRequiredFilters ? $attemptsQuery->get() : collect();
 
         $columns = collect();
         $grouped = collect();
@@ -218,17 +265,22 @@ class LegerGradeController extends Controller
                 continue;
             }
 
+            $schoolId = $attempt->examPackage?->school_id;
+            $classId = $schedule->class_id;
+
             $key = $participant->id;
 
             if (! $grouped->has($key)) {
                 $grouped->put($key, [
                     'participant_id' => $participant->id,
                     'student_id' => $student->id,
+                    'school_id' => $schoolId,
+                    'school' => $attempt->examPackage?->school?->name ?? '-',
+                    'class_id' => $classId,
+                    'class' => $schedule->schoolClass?->name ?? '-',
                     'participant_number' => $participant->participant_number,
                     'nisn' => $student->nisn,
                     'name' => $student->name,
-                    'school' => $attempt->examPackage?->school?->name,
-                    'class' => $schedule->schoolClass?->name,
                     'scores' => [],
                     'average' => null,
                     'completed_count' => 0,
@@ -246,10 +298,15 @@ class LegerGradeController extends Controller
 
             $row = $grouped->get($key);
 
-            $row['scores'][$subject->id] ??= ['total' => 0.0, 'count' => 0];
+            $row['scores'][$subject->id] ??= [
+                'total' => 0.0,
+                'count' => 0,
+            ];
+
             $row['scores'][$subject->id]['total'] += $percentage;
             $row['scores'][$subject->id]['count']++;
             $row['completed_count']++;
+
             if ($percentage >= 70) {
                 $row['passed_count']++;
             }
@@ -257,8 +314,10 @@ class LegerGradeController extends Controller
             $grouped->put($key, $row);
         }
 
+        // Urutkan kolom mata pelajaran.
         $columns = $columns->sortBy(fn (string $name): string => $name);
 
+        // Bentuk nilai akhir masing-masing siswa.
         $rows = $grouped
             ->map(function (array $row) use ($columns): array {
                 $scores = [];
@@ -290,6 +349,7 @@ class LegerGradeController extends Controller
             ->values()
             ->all();
 
+        // Bentuk kolom untuk Blade.
         $columnProps = $columns
             ->map(fn (string $name, int $id): array => [
                 'id' => $id,
@@ -298,59 +358,164 @@ class LegerGradeController extends Controller
             ->values()
             ->all();
 
-        $averageValues = collect($rows)
-            ->pluck('average')
-            ->filter(fn ($value): bool => $value !== null)
-            ->values();
+        // Statistik keseluruhan.
+        $summary = $this->summarizeRowS($rows, count($columnProps));
 
-        $summary = [
-            'student_count' => count($rows),
-            'subject_count' => count($columnProps),
-            'average_percentage' => $averageValues->isNotEmpty()
-                ? round($averageValues->avg(), 2)
-                : null,
-            'passed_percentage' => $averageValues->isNotEmpty()
-                ? round(
-                    $averageValues->filter(fn (float $value): bool => $value >= 70)->count()
-                    / $averageValues->count()
-                    * 100,
-                    2,
-                )
-                : null,
-            'highest_percentage' => $averageValues->max(),
-            'lowest_percentage' => $averageValues->min(),
-        ];
+        // Kelompokkan siswa berdasarkan sekolah, kemudian kelas.
+        $schoolsData = collect($rows)
+            ->groupBy('school_id')
+            ->map(function ($schoolRows): array {
+                $firstStudent = $schoolRows->first();
+
+                $classesData = $schoolRows
+                    ->groupBy('class_id')
+                    ->map(function ($classRows): array {
+                        $firstStudent = $classRows->first();
+
+                        $students = $classRows
+                            ->sortBy('name')
+                            ->values()
+                            ->all();
+
+                        return [
+                            'id' => $firstStudent['class_id'],
+                            'name' => $firstStudent['class'],
+                            'summary' => $this->summarizeRows($students),
+                            'students' => $students,
+                        ];
+                    })
+                    ->sortBy('name')
+                    ->values()
+                    ->all();
+
+                return [
+                    'id' => $firstStudent['school_id'],
+                    'name' => $firstStudent['school'],
+                    'summary' => $this->summarizeRows($schoolRows->values()->all()),
+                    'classes' => $classesData,
+                ];
+            })
+            ->sortBy('name')
+            ->values()
+            ->all();
+
+        $lockedClassLabel = $lockedSchoolId !== null && $filters['class_id'] === null
+            ? (collect($rows)->pluck('class')->filter()->unique()->sort()->implode(', ') ?: '-')
+            : null;
+
+        $selectedAcademicYear = $filters['academic_year_id'] !== null
+            ? $academicYears->firstWhere('id', $filters['academic_year_id'])
+            : null;
+
+        $academicYearLabel = $filters['academic_year_id'] !== null
+            ? trim(
+                ($selectedAcademicYear['name'] ?? '-').' - '.($selectedAcademicYear['semester_label'] ?? ''),
+                ' -',
+            )
+            : 'Belum dipilih';
 
         $filters['labels'] = [
             'school' => $filters['school_id'] !== null
                 ? ($schools->firstWhere('id', $filters['school_id'])?->name ?? '-')
                 : 'Semua sekolah',
-            'academic_year' => $filters['academic_year_id'] !== null
-                ? ($academicYears->firstWhere('id', $filters['academic_year_id'])?->name ?? '-')
-                : 'Semua tahun ajaran',
+            'academic_year' => $academicYearLabel,
             'class' => $filters['class_id'] !== null
                 ? ($classes->firstWhere('id', $filters['class_id'])?->name ?? '-')
-                : 'Semua kelas',
+                : ($lockedClassLabel ?? 'Semua kelas'),
             'subject' => $filters['subject_id'] !== null
                 ? ($subjects->firstWhere('id', $filters['subject_id'])?->name ?? '-')
                 : 'Semua mata pelajaran',
             'exam_type' => $filters['exam_type_id'] !== null
                 ? ($examTypes->firstWhere('id', $filters['exam_type_id'])?->name ?? '-')
-                : 'Semua jenis ujian',
+                : 'Belum dipilih',
         ];
+
+        // return [
+        //     'title' => 'Leger Nilai',
+
+        //     // Data lama tetap dipertahankan.
+        //     'rows' => $rows,
+        //     'schools' => $schools->values()->all(),
+
+        //     // Data baru untuk PDF bertingkat.
+        //     'school_groups' => $schoolsData,
+
+        //     'columns' => $columnProps,
+        //     'summary' => $summary,
+        //     'filters' => $filters,
+
+        //     'academicYears' => $academicYears->values()->all(),
+        //     'classes' => $classes->values()->all(),
+        //     'subjects' => $subjects->values()->all(),
+        //     'examTypes' => $examTypes->values()->all(),
+        // ];
 
         return [
             'title' => 'Leger Nilai',
             'rows' => $rows,
+            'schools' => $schools->values()->all(),
+            'school_groups' => $schoolsData,
             'columns' => $columnProps,
             'summary' => $summary,
             'filters' => $filters,
-            'schools' => $schools->values()->all(),
             'academicYears' => $academicYears->values()->all(),
             'classes' => $classes->values()->all(),
             'subjects' => $subjects->values()->all(),
             'examTypes' => $examTypes->values()->all(),
         ];
+    }
+
+    private function summarizeRows(
+        array $rows,
+        ?int $subjectCount = null,
+    ): array {
+        $averageValues = collect($rows)
+            ->pluck('average')
+            ->filter(fn ($value): bool => $value !== null)
+            ->values();
+
+        $subjectCount ??= collect($rows)
+            ->flatMap(fn (array $row) => collect($row['scores'])
+                ->filter(fn ($value): bool => $value !== null)
+                ->keys())
+            ->unique()
+            ->count();
+
+        return [
+            'student_count' => count($rows),
+            'subject_count' => $subjectCount,
+
+            'average_percentage' => $averageValues->isNotEmpty()
+                ? round($averageValues->avg(), 2)
+                : null,
+
+            'passed_percentage' => $averageValues->isNotEmpty()
+                ? round(
+                    $averageValues->filter(
+                        fn ($value): bool => $value >= 70
+                    )->count() / $averageValues->count() * 100,
+                    2,
+                )
+                : null,
+
+            'highest_percentage' => $averageValues->max(),
+            'lowest_percentage' => $averageValues->min(),
+        ];
+    }
+
+    private function lockedSchoolId(Request $request): ?int
+    {
+        $user = $request->user();
+
+        if ($user === null) {
+            return null;
+        }
+
+        $schoolId = $user->adminOf()->value('id')
+            ?? $user->headmasterOf()->value('id')
+            ?? $user->school_id;
+
+        return $schoolId === null ? null : (int) $schoolId;
     }
 
     /**

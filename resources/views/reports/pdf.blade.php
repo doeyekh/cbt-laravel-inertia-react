@@ -651,7 +651,6 @@
             <th width="5%">No.</th>
             <th width="13%">Username</th>
             <th>Nama Peserta</th>
-            <th width="17%">NISN</th>
             <th width="17%">Kehadiran</th>
         </tr>
     </thead>
@@ -669,10 +668,6 @@
 
                 <td>
                     {{ $participant['name'] ?? '-' }}
-                </td>
-
-                <td class="text-center">
-                    {{ $participant['nisn'] ?? '-' }}
                 </td>
 
                 <td class="text-center">
@@ -789,8 +784,8 @@
 <table class="data-table">
     <thead>
         <tr>
-            <th width="7%">No.</th>
-            <th width="16%">Type Soal</th>
+            <th width="5%">No.</th>
+            <th width="14%">Type Soal</th>
             <th> Soal</th>
             <th width="8%">Bobot</th>
             <th width="8%">Dijawab</th>

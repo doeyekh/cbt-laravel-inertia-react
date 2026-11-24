@@ -8,7 +8,9 @@ use App\Models\ExamAttempt;
 use App\Models\ExamPackage;
 use App\Models\ExamParticipant;
 use App\Models\ExamSchedule;
+use App\Models\ExamType;
 use App\Models\School;
+use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,6 +20,10 @@ use Tests\TestCase;
 class LegerGradeControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    private ?AcademicYear $sharedAcademicYear = null;
+
+    private ?ExamType $sharedExamType = null;
 
     public function test_administrator_can_open_leger(): void
     {
@@ -30,6 +36,26 @@ class LegerGradeControllerTest extends TestCase
                 ->has('rows')
                 ->has('columns')
                 ->has('summary'));
+    }
+
+    public function test_academic_year_and_exam_type_are_selected_by_default(): void
+    {
+        $school = School::factory()->create();
+        $academicYear = AcademicYear::factory()->active()->create();
+        $examType = ExamType::factory()->active()->create([
+            'school_id' => $school->id,
+        ]);
+
+        $this->actingAs(User::factory()->administrator()->create());
+
+        $this->get(route('admin.leger-grades.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.academic_year_id', $academicYear->id)
+                ->where('filters.exam_type_id', $examType->id)
+                ->where('filters.required_filters_selected', true)
+                ->where('filters.labels.academic_year', $academicYear->name.' - '.$academicYear->semester->label())
+                ->where('academicYears.0.semester_label', $academicYear->semester->label()));
     }
 
     public function test_school_admin_can_open_leger(): void
@@ -96,8 +122,89 @@ class LegerGradeControllerTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Legers/Index')
+                ->where('filters.school_is_locked', true)
+                ->where('filters.labels.school', $ownSchool->name)
                 ->where('summary.student_count', 1)
-                ->where('summary.average_percentage', 90));
+                ->where('summary.average_percentage', 90)
+                ->has('schools', 1));
+    }
+
+    public function test_administrator_with_school_id_is_scoped_to_own_school(): void
+    {
+        $ownSchool = School::factory()->create();
+        $otherSchool = School::factory()->create();
+        $subject = Subject::factory()->create(['name' => 'Matematika']);
+
+        $schoolAdmin = User::factory()->administrator()->create([
+            'school_id' => $ownSchool->id,
+        ]);
+
+        $ownAttempt = $this->createGradedAttempt($ownSchool, $subject, null, 90);
+        $this->createGradedAttempt($otherSchool, $subject, null, 40);
+
+        $ownClass = $ownAttempt->examSchedule->schoolClass->name;
+
+        $this->actingAs($schoolAdmin);
+
+        $this->get(route('admin.leger-grades.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Legers/Index')
+                ->where('filters.school_id', $ownSchool->id)
+                ->where('filters.school_is_locked', true)
+                ->where('filters.labels.school', $ownSchool->name)
+                ->where('filters.labels.class', $ownClass)
+                ->where('summary.student_count', 1)
+                ->where('summary.average_percentage', 90)
+                ->has('schools', 1)
+                ->where('schools.0.id', $ownSchool->id));
+    }
+
+    public function test_school_scoped_administrator_cannot_switch_school_using_query_string(): void
+    {
+        $ownSchool = School::factory()->create();
+        $otherSchool = School::factory()->create();
+        $subject = Subject::factory()->create(['name' => 'Bahasa Inggris']);
+
+        $schoolAdmin = User::factory()->administrator()->create([
+            'school_id' => $ownSchool->id,
+        ]);
+
+        $this->createGradedAttempt($ownSchool, $subject, null, 85);
+        $this->createGradedAttempt($otherSchool, $subject, null, 35);
+
+        $this->actingAs($schoolAdmin);
+
+        $this->get(route('admin.leger-grades.index', [
+            'school_id' => $otherSchool->id,
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.school_id', $ownSchool->id)
+                ->where('filters.school_is_locked', true)
+                ->where('summary.student_count', 1)
+                ->where('summary.average_percentage', 85));
+    }
+
+    public function test_administrator_without_school_sees_all_schools(): void
+    {
+        $firstSchool = School::factory()->create();
+        $secondSchool = School::factory()->create();
+        $subject = Subject::factory()->create(['name' => 'Sejarah']);
+
+        $this->createGradedAttempt($firstSchool, $subject, null, 75);
+        $this->createGradedAttempt($secondSchool, $subject, null, 65);
+
+        $this->actingAs(User::factory()->administrator()->create());
+
+        $this->get(route('admin.leger-grades.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.school_id', null)
+                ->where('filters.school_is_locked', false)
+                ->where('filters.labels.school', 'Semua sekolah')
+                ->where('summary.student_count', 2)
+                ->has('schools', 2));
     }
 
     public function test_ungraded_attempts_are_ignored(): void
@@ -151,15 +258,20 @@ class LegerGradeControllerTest extends TestCase
         float $score = 80,
     ): ExamAttempt {
         $academicYear = $participant?->academicYear
-            ?? AcademicYear::factory()->active()->create();
+            ?? $this->sharedAcademicYear();
 
         $package = ExamPackage::factory()
-            ->forSchool($school, $academicYear)
+            ->forSchool($school, $academicYear, $this->sharedExamType($school))
+            ->create();
+
+        $schoolClass = SchoolClass::factory()
+            ->forSchool($school, $academicYear->id)
             ->create();
 
         $schedule = ExamSchedule::factory()
             ->forPackage($package)
             ->create([
+                'class_id' => $schoolClass->id,
                 'subject_id' => $subject->id,
             ]);
 
@@ -175,6 +287,18 @@ class LegerGradeControllerTest extends TestCase
             'score' => $score,
             'max_score' => 100,
             'submitted_at' => now(),
+        ]);
+    }
+
+    private function sharedAcademicYear(): AcademicYear
+    {
+        return $this->sharedAcademicYear ??= AcademicYear::factory()->active()->create();
+    }
+
+    private function sharedExamType(School $school): ExamType
+    {
+        return $this->sharedExamType ??= ExamType::factory()->active()->create([
+            'school_id' => $school->id,
         ]);
     }
 }
