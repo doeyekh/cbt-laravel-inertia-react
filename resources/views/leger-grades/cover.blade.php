@@ -1,7 +1,3 @@
-
-
-</style>
-
 <div class="cover-page">
 
     <div class="inner-border"></div>

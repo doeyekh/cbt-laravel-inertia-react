@@ -48,10 +48,11 @@ class QuestionBankController extends Controller
         $activeAcademicYear = AcademicYear::active();
         $activeAcademicYearId = (int) ($activeAcademicYear?->id ?? 0);
         $isRestrictedGuru = $user->isRestrictedGuru();
+        $isScopedGuru = $this->shouldScopeGuru($user, $activeAcademicYearId);
         $taughtSubjectIds = $isRestrictedGuru ? $user->taughtSubjectIds($activeAcademicYearId) : [];
         $taughtClassIds = $isRestrictedGuru ? $user->taughtClassIds(null, $activeAcademicYearId) : [];
 
-        $subjectOptions = $this->subjectOptionsBySchool($accessibleSchoolIds, $activeAcademicYearId, $user);
+        $subjectOptions = $this->subjectOptionsBySchool($accessibleSchoolIds, $activeAcademicYearId, $user, $isScopedGuru);
 
         /**
          * @var array<int, array{school_id: int, subject_ids: array<int, int>, class_ids_by_subject: array<string, array<int, int>>>>
@@ -82,6 +83,7 @@ class QuestionBankController extends Controller
             ->when($isRestrictedGuru, function ($query) use ($allowedAssignments): void {
                 if ($allowedAssignments === []) {
                     $query->whereRaw('1 = 0');
+
                     return;
                 }
 
@@ -97,12 +99,12 @@ class QuestionBankController extends Controller
                     }
                 });
             })
-            ->when($activeAcademicYearId > 0, fn($query) => $query->where('academic_year_id', $activeAcademicYearId))
-            ->when($schoolFilter > 0, fn($query) => $query->where('school_id', (int) $schoolFilter))
-            ->when($subjectFilter > 0, fn($query) => $query->where('subject_id', (int) $subjectFilter))
-            ->when($statusFilter === 'active', fn($query) => $query->where('is_active', true))
-            ->when($statusFilter === 'inactive', fn($query) => $query->where('is_active', false))
-            ->when($search !== '', fn($query) => $query->where(function ($query) use ($search): void {
+            ->when($activeAcademicYearId > 0, fn ($query) => $query->where('academic_year_id', $activeAcademicYearId))
+            ->when($schoolFilter > 0, fn ($query) => $query->where('school_id', (int) $schoolFilter))
+            ->when($subjectFilter > 0, fn ($query) => $query->where('subject_id', (int) $subjectFilter))
+            ->when($statusFilter === 'active', fn ($query) => $query->where('is_active', true))
+            ->when($statusFilter === 'inactive', fn ($query) => $query->where('is_active', false))
+            ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
                 $query->where('code', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%")
@@ -124,8 +126,7 @@ class QuestionBankController extends Controller
             ->paginate(10)
             ->withQueryString()
             ->through(
-                fn(QuestionBank $questionBank): array =>
-                $this->presentQuestionBank($questionBank)
+                fn (QuestionBank $questionBank): array => $this->presentQuestionBank($questionBank)
             );
         $stats = (clone $baseQuery)
             ->selectRaw('
@@ -165,7 +166,7 @@ class QuestionBankController extends Controller
             ->get(['id', 'name', 'code', 'is_active']);
 
         $subjects = Subject::query()
-            ->when($isRestrictedGuru, fn($query) => $query->whereIn('id', $taughtSubjectIds))
+            ->when($isRestrictedGuru, fn ($query) => $query->whereIn('id', $taughtSubjectIds))
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'is_active']);
 
@@ -175,8 +176,8 @@ class QuestionBankController extends Controller
             ->get(['id', 'school_id', 'name', 'code', 'is_active']);
         $classes = SchoolClass::query()
             ->whereIn('school_id', $accessibleSchoolIds)
-            ->when($isRestrictedGuru, fn($query) => $query->whereIn('id', $taughtClassIds))
-            ->when($activeAcademicYearId > 0, fn($query) => $query->where('academic_year_id', $activeAcademicYearId))
+            ->when($isRestrictedGuru, fn ($query) => $query->whereIn('id', $taughtClassIds))
+            ->when($activeAcademicYearId > 0, fn ($query) => $query->where('academic_year_id', $activeAcademicYearId))
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'school_id']);
 
@@ -203,6 +204,7 @@ class QuestionBankController extends Controller
             'stats' => $stats,
         ]);
     }
+
     /**
      * Store a newly created question bank.
      */
@@ -271,7 +273,7 @@ class QuestionBankController extends Controller
 
         $classIds = array_key_exists('class_ids', $data)
             ? array_map('intval', $data['class_ids'])
-            : $questionBank->classes()->pluck('classes.id')->map(fn($classId): int => (int) $classId)->all();
+            : $questionBank->classes()->pluck('classes.id')->map(fn ($classId): int => (int) $classId)->all();
 
         $this->authorizeSubjectClassScope(
             $request->user(),
@@ -359,6 +361,10 @@ class QuestionBankController extends Controller
             return;
         }
 
+        if ($user->isGuru() && $user->hasActiveTeachingAssignments($this->activeAcademicYearId())) {
+            return;
+        }
+
         abort(403);
     }
 
@@ -379,15 +385,17 @@ class QuestionBankController extends Controller
     {
         $this->authorizeSchoolAccess($user, (int) $questionBank->school_id);
 
-        if (!$user->isRestrictedGuru()) {
+        $academicYearId = (int) $questionBank->academic_year_id;
+
+        if (! $this->shouldScopeGuru($user, $academicYearId)) {
             return;
         }
-        $academicYearId = (int) $questionBank->academic_year_id;
-        $allowedClassIds = $user->taughtClassIds((int)$questionBank->subject_id, $academicYearId);
+
+        $allowedClassIds = $user->taughtClassIds((int) $questionBank->subject_id, $academicYearId);
 
         $bankClassIds = $questionBank->classes()
             ->pluck('classes.id')
-            ->map(fn($classId): int => (int) $classId)
+            ->map(fn ($classId): int => (int) $classId)
             ->all();
         if (array_intersect($bankClassIds, $allowedClassIds) === []) {
             abort(403, 'Anda hanya dapat mengakses bank soal untuk mata pelajaran dan kelas yang Anda ampu.');
@@ -405,11 +413,11 @@ class QuestionBankController extends Controller
         array $classIds,
         ?QuestionBank $questionBank = null,
     ): void {
-        if (! $user->isRestrictedGuru()) {
+        $academicYearId = (int) ($questionBank?->academic_year_id ?? $this->activeAcademicYearId());
+
+        if (! $this->shouldScopeGuru($user, $academicYearId)) {
             return;
         }
-
-        $academicYearId = (int) ($questionBank?->academic_year_id ?? $this->activeAcademicYearId());
 
         if (! in_array($subjectId, $user->taughtSubjectIds($academicYearId), true)) {
             abort(403, 'Anda hanya dapat mengelola bank soal mata pelajaran yang Anda ampu.');
@@ -422,7 +430,7 @@ class QuestionBankController extends Controller
                 ...$allowedClassIds,
                 ...$questionBank->classes()
                     ->pluck('classes.id')
-                    ->map(fn($classId): int => (int) $classId)
+                    ->map(fn ($classId): int => (int) $classId)
                     ->all(),
             ]));
         }
@@ -438,22 +446,24 @@ class QuestionBankController extends Controller
      * @param  array<int, int>  $accessibleSchoolIds
      * @return array<int, array{school_id: int, subject_ids: array<int, int>, class_ids_by_subject: array<string, array<int, int>>}>
      */
-    private function subjectOptionsBySchool(array $accessibleSchoolIds, int $academicYearId, ?User $user = null): array
-    {
+    private function subjectOptionsBySchool(
+        array $accessibleSchoolIds,
+        int $academicYearId,
+        ?User $user = null,
+        bool $filterByTeacher = false,
+    ): array {
         if ($academicYearId <= 0 || $accessibleSchoolIds === []) {
             return [];
         }
-
-        $isRestrictedGuru = $user?->isRestrictedGuru() ?? false;
 
         return SubjectTeacher::query()
             ->where('subject_teachers.academic_year_id', $academicYearId)
             ->join('classes', 'classes.id', '=', 'subject_teachers.school_class_id')
             ->whereIn('classes.school_id', $accessibleSchoolIds)
-            ->when($isRestrictedGuru, fn($query) => $query->where('subject_teachers.teacher_id', $user->id))
+            ->when($filterByTeacher, fn ($query) => $query->where('subject_teachers.teacher_id', $user?->id))
             ->get(['classes.school_id', 'subject_teachers.subject_id', 'subject_teachers.school_class_id'])
             ->groupBy('school_id')
-            ->map(function ($subjectTeachers, $schoolId) use ($isRestrictedGuru): array {
+            ->map(function ($subjectTeachers, $schoolId) use ($filterByTeacher): array {
                 $classIdsBySubject = [];
 
                 foreach ($subjectTeachers as $subjectTeacher) {
@@ -463,15 +473,15 @@ class QuestionBankController extends Controller
                 $option = [
                     'school_id' => (int) $schoolId,
                     'subject_ids' => $subjectTeachers->pluck('subject_id')
-                        ->map(fn($subjectId): int => (int) $subjectId)
+                        ->map(fn ($subjectId): int => (int) $subjectId)
                         ->unique()
                         ->values()
                         ->all(),
                 ];
 
-                if ($isRestrictedGuru) {
+                if ($filterByTeacher) {
                     $option['class_ids_by_subject'] = array_map(
-                        fn(array $classIds): array => array_values(array_unique($classIds)),
+                        fn (array $classIds): array => array_values(array_unique($classIds)),
                         $classIdsBySubject,
                     );
                 }
@@ -480,6 +490,18 @@ class QuestionBankController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * Determine whether the guru's access must be limited to the subjects and classes they teach.
+     */
+    private function shouldScopeGuru(User $user, int $academicYearId): bool
+    {
+        if ($user->isRestrictedGuru()) {
+            return true;
+        }
+
+        return $user->isGuru() && $user->hasActiveTeachingAssignments($academicYearId);
     }
 
     /**
@@ -498,7 +520,7 @@ class QuestionBankController extends Controller
     private function typeOptions(): array
     {
         return array_map(
-            fn(QuestionType $type): array => [
+            fn (QuestionType $type): array => [
                 'value' => $type->value,
                 'label' => $type->label(),
                 'count_field' => $type->countColumn(),

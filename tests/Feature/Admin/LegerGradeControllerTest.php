@@ -251,6 +251,94 @@ class LegerGradeControllerTest extends TestCase
             ->assertOk();
     }
 
+    public function test_pdf_view_renders_a_cover_and_a_table_per_class_for_each_school(): void
+    {
+        $student = static fn (string $name, string $class): array => [
+            'participant_id' => 1,
+            'student_id' => 1,
+            'school_id' => 1,
+            'school' => 'SMA Nusantara',
+            'class_id' => 1,
+            'class' => $class,
+            'participant_number' => 'P-001',
+            'nisn' => '1234567890',
+            'name' => $name,
+            'scores' => [],
+            'average' => 80,
+            'completed_count' => 1,
+            'passed_count' => 1,
+        ];
+
+        $schools = [
+            [
+                'id' => 1,
+                'name' => 'SMA Nusantara',
+                'summary' => [],
+                'classes' => [
+                    [
+                        'id' => 1,
+                        'name' => 'X IPA 1',
+                        'summary' => ['student_count' => 1],
+                        'students' => [$student('Andi Pratama', 'X IPA 1')],
+                    ],
+                    [
+                        'id' => 2,
+                        'name' => 'X IPA 2',
+                        'summary' => ['student_count' => 1],
+                        'students' => [$student('Budi Santoso', 'X IPA 2')],
+                    ],
+                ],
+            ],
+            [
+                'id' => 2,
+                'name' => 'SMA Harapan',
+                'summary' => [],
+                'classes' => [
+                    [
+                        'id' => 3,
+                        'name' => 'XI IPS 1',
+                        'summary' => ['student_count' => 1],
+                        'students' => [$student('Citra Dewi', 'XI IPS 1')],
+                    ],
+                ],
+            ],
+        ];
+
+        $html = view('leger-grades.pdf', [
+            'title' => 'Leger Nilai',
+            'logo_path' => null,
+            'institution_name' => 'Semua sekolah',
+            'rows' => [],
+            'columns' => [],
+            'schools' => $schools,
+            'summary' => [],
+            'filters' => [
+                'class_id' => null,
+                'labels' => [
+                    'school' => 'Semua sekolah',
+                    'academic_year' => '2024/2025 - Ganjil',
+                    'class' => 'Semua kelas',
+                    'subject' => 'Semua mata pelajaran',
+                    'exam_type' => 'Ujian Akhir Semester',
+                ],
+            ],
+            'print_date' => '25/11/2026 10:00',
+            'data' => $schools,
+        ])->render();
+
+        $this->assertSame(2, substr_count($html, 'class="cover-page"'));
+        $this->assertStringContainsString('SMA Nusantara', $html);
+        $this->assertStringContainsString('SMA Harapan', $html);
+        $this->assertStringContainsString('X IPA 1', $html);
+        $this->assertStringContainsString('X IPA 2', $html);
+        $this->assertStringContainsString('XI IPS 1', $html);
+
+        // Setiap siswa hanya muncul pada tabel kelasnya sendiri.
+        $this->assertSame(1, substr_count($html, 'Andi Pratama'));
+        $this->assertSame(1, substr_count($html, 'Budi Santoso'));
+        $this->assertSame(1, substr_count($html, 'Citra Dewi'));
+    }
+
     private function createGradedAttempt(
         School $school,
         Subject $subject,

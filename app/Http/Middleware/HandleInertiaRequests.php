@@ -53,7 +53,8 @@ class HandleInertiaRequests extends Middleware
                     'can_access_school' => $user->isAdministrator() || $user->isHeadmaster() || $user->isSchoolAdmin(),
                     'can_manage_question_banks' => $user->isAdministrator()
                         || $user->isSchoolAdmin()
-                        || $user->isRestrictedGuru(),
+                        || $user->isRestrictedGuru()
+                        || ($user->isGuru() && $user->hasActiveTeachingAssignments()),
                 ] : null,
             ],
             'flash' => [

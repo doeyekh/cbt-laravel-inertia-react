@@ -123,10 +123,27 @@ class User extends Authenticatable
                 ->where('academic_year_id', $academicYearId)
                 ->select('id'))
             ->pluck('subject_id')
-            ->map(fn($subjectId): int => (int) $subjectId)
+            ->map(fn ($subjectId): int => (int) $subjectId)
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * Check if the user has any active teaching assignment in the given academic year.
+     */
+    public function hasActiveTeachingAssignments(?int $academicYearId = null): bool
+    {
+        $academicYearId ??= (int) (AcademicYear::active()?->id ?? 0);
+
+        if ($academicYearId <= 0) {
+            return false;
+        }
+
+        return $this->subjectTeachers()
+            ->where('academic_year_id', $academicYearId)
+            ->where('is_active', true)
+            ->exists();
     }
 
     /**
@@ -145,13 +162,13 @@ class User extends Authenticatable
         return $this->subjectTeachers()
             ->where('academic_year_id', $academicYearId)
             ->where('is_active', true)
-            ->when($subjectId !== null, fn($query) => $query->where('subject_id', $subjectId))
+            ->when($subjectId !== null, fn ($query) => $query->where('subject_id', $subjectId))
             ->whereIn('school_class_id', SchoolClass::query()
                 ->whereIn('school_id', $this->accessibleSchoolIds())
                 ->where('academic_year_id', $academicYearId)
                 ->select('id'))
             ->pluck('school_class_id')
-            ->map(fn($classId): int => (int) $classId)
+            ->map(fn ($classId): int => (int) $classId)
             ->unique()
             ->values()
             ->all();
@@ -225,7 +242,7 @@ class User extends Authenticatable
         if ($this->isAdministrator()) {
             return $this->accessibleSchoolIdsCache = School::query()
                 ->pluck('id')
-                ->map(fn($id): int => (int) $id)
+                ->map(fn ($id): int => (int) $id)
                 ->all();
         }
 
@@ -253,7 +270,7 @@ class User extends Authenticatable
 
         return $this->accessibleSchoolIdsCache = $schoolIds
             ->filter()
-            ->map(fn($id): int => (int) $id)
+            ->map(fn ($id): int => (int) $id)
             ->unique()
             ->values()
             ->all();

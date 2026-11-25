@@ -211,9 +211,17 @@ export default function QuestionBankModal({
             return;
         }
 
+        const defaultSchool =
+            schools.find((school) =>
+                subjectOptions.some(
+                    (option) =>
+                        String(option.school_id) === String(school.id)
+                )
+            ) ?? schools[0];
+
         setData({
             ...emptyForm,
-            school_id: schools[0]?.id ? String(schools[0].id) : '',
+            school_id: defaultSchool?.id ? String(defaultSchool.id) : '',
         });
     }, [isOpen, initialDataId]); // eslint-disable-line react-hooks/exhaustive-deps
 

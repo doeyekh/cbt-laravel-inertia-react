@@ -17,12 +17,15 @@
 
         $columns = $columns ?? [];
         $rows = $rows ?? [];
+
+        $className = $class['name']
+            ?? ($filters['labels']['class'] ?? '-');
     @endphp
 
     <div class="title">Leger Nilai</div>
 
     <div class="subtitle">
-        Rekap nilai ujian per mata pelajaran
+        Rekap nilai ujian per mata pelajaran - Kelas {{ $className }}
     </div>
 
     <div class="meta">
@@ -30,7 +33,7 @@
         &nbsp;|&nbsp;
         Tahun Ajaran: <strong>{{ $filters['labels']['academic_year'] ?? '-' }}</strong>
         &nbsp;|&nbsp;
-        Kelas: <strong>{{ $filters['labels']['class'] ?? '-' }}</strong>
+        Kelas: <strong>{{ $className }}</strong>
         &nbsp;|&nbsp;
         Mapel: <strong>{{ $filters['labels']['subject'] ?? '-' }}</strong>
         &nbsp;|&nbsp;

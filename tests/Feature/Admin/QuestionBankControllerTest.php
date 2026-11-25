@@ -127,9 +127,17 @@ class QuestionBankControllerTest extends TestCase
             'academic_year_id' => $this->academicYear->id,
         ]);
 
-        SubjectTeacher::factory()
-            ->forClass($this->schoolClass, $this->academicYear, $this->subject, $guru)
-            ->create(['is_active' => true]);
+        SubjectTeacher::query()->updateOrCreate(
+            [
+                'school_class_id' => $this->schoolClass->id,
+                'subject_id' => $this->subject->id,
+            ],
+            [
+                'academic_year_id' => $this->academicYear->id,
+                'teacher_id' => $guru->id,
+                'is_active' => true,
+            ],
+        );
 
         SubjectTeacher::factory()
             ->forClass($otherClass, $this->academicYear, $otherSubject)
@@ -164,9 +172,17 @@ class QuestionBankControllerTest extends TestCase
     {
         $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
 
-        SubjectTeacher::factory()
-            ->forClass($this->schoolClass, $this->academicYear, $this->subject, $guru)
-            ->create(['is_active' => true]);
+        SubjectTeacher::query()->updateOrCreate(
+            [
+                'school_class_id' => $this->schoolClass->id,
+                'subject_id' => $this->subject->id,
+            ],
+            [
+                'academic_year_id' => $this->academicYear->id,
+                'teacher_id' => $guru->id,
+                'is_active' => true,
+            ],
+        );
 
         $this->actingAs($guru)
             ->post(route('admin.question-banks.store'), $this->payload())
@@ -192,6 +208,43 @@ class QuestionBankControllerTest extends TestCase
         $this->assertDatabaseMissing('question_banks', ['id' => $questionBank->id]);
     }
 
+    public function test_headmaster_guru_can_manage_a_question_bank_of_a_taught_subject(): void
+    {
+        $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
+        $this->school->update(['headmaster_id' => $guru->id]);
+
+        SubjectTeacher::query()->updateOrCreate(
+            [
+                'school_class_id' => $this->schoolClass->id,
+                'subject_id' => $this->subject->id,
+            ],
+            [
+                'academic_year_id' => $this->academicYear->id,
+                'teacher_id' => $guru->id,
+                'is_active' => true,
+            ],
+        );
+
+        $this->actingAs($guru)
+            ->get(route('admin.question-banks.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('subjectOptions.0.school_id', $this->school->id)
+                ->where('subjectOptions.0.subject_ids', [$this->subject->id])
+                ->where('subjectOptions.0.class_ids_by_subject.'.$this->subject->id, [$this->schoolClass->id])
+            );
+
+        $this->actingAs($guru)
+            ->post(route('admin.question-banks.store'), $this->payload())
+            ->assertRedirect()
+            ->assertSessionHas('toast.type', 'success');
+
+        $questionBank = QuestionBank::query()->firstOrFail();
+
+        $this->assertSame($this->school->id, $questionBank->school_id);
+        $this->assertSame($this->subject->id, $questionBank->subject_id);
+    }
+
     public function test_guru_cannot_store_a_question_bank_of_an_untaught_subject(): void
     {
         $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
@@ -211,9 +264,17 @@ class QuestionBankControllerTest extends TestCase
             'academic_year_id' => $this->academicYear->id,
         ]);
 
-        SubjectTeacher::factory()
-            ->forClass($this->schoolClass, $this->academicYear, $this->subject, $guru)
-            ->create(['is_active' => true]);
+        SubjectTeacher::query()->updateOrCreate(
+            [
+                'school_class_id' => $this->schoolClass->id,
+                'subject_id' => $this->subject->id,
+            ],
+            [
+                'academic_year_id' => $this->academicYear->id,
+                'teacher_id' => $guru->id,
+                'is_active' => true,
+            ],
+        );
 
         $this->actingAs($guru)
             ->post(route('admin.question-banks.store'), $this->payload([
@@ -233,9 +294,17 @@ class QuestionBankControllerTest extends TestCase
             'academic_year_id' => $this->academicYear->id,
         ]);
 
-        SubjectTeacher::factory()
-            ->forClass($this->schoolClass, $this->academicYear, $this->subject, $guru)
-            ->create(['is_active' => true]);
+        SubjectTeacher::query()->updateOrCreate(
+            [
+                'school_class_id' => $this->schoolClass->id,
+                'subject_id' => $this->subject->id,
+            ],
+            [
+                'academic_year_id' => $this->academicYear->id,
+                'teacher_id' => $guru->id,
+                'is_active' => true,
+            ],
+        );
 
         SubjectTeacher::factory()
             ->forClass($otherClass, $this->academicYear, $otherSubject)
