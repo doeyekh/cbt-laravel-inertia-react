@@ -1,25 +1,23 @@
-<style>
-    @page {
-            size: A4 potrait;
-            margin: 10mm;
-        }
+
+
 </style>
 
 <div class="cover-page">
+
     <div class="inner-border"></div>
 
     <div class="logo-wrapper">
         @if ($logo_path)
-        <img
-            src="{{ $logo_path }}"
-            alt="Logo Lembaga"
-            class="logo">
+            <img
+                src="{{ $logo_path }}"
+                alt="Logo Lembaga"
+                class="logo"
+            >
         @endif
     </div>
 
     <div class="institution">
-        {{ $institution_name }}
-
+        {{ $school }}
     </div>
 
     <div class="institution-subtitle">
@@ -41,31 +39,32 @@
     </div>
 
     <table class="information">
-        <tr>
-            <td>Tahun Ajaran</td>
-            <td>{{ $filters['academic_year'] ?? '-' }}</td>
-        </tr>
+        <tbody>
+            <tr>
+                <td>Tahun Ajaran</td>
+                <td>{{ $filters['academic_year'] ?? '-' }}</td>
+            </tr>
 
-        <tr>
-            <td>Jenis Ujian</td>
-            <td>{{ $filters['exam_type'] ?? '-' }}</td>
-        </tr>
+            <tr>
+                <td>Jenis Ujian</td>
+                <td>{{ $filters['exam_type'] ?? '-' }}</td>
+            </tr>
 
-        <tr>
-            <td>Kelas</td>
-            <td>{{ $filters['class'] ?? '-' }}</td>
-        </tr>
+            <tr>
+                <td>Kelas</td>
+                <td>{{ $filters['class'] ?? '-' }}</td>
+            </tr>
 
-        <tr>
-            <td>Mata Pelajaran</td>
-            <td>{{ $filters['subject'] ?? '-' }}</td>
-        </tr>
+            <tr>
+                <td>Mata Pelajaran</td>
+                <td>{{ $filters['subject'] ?? '-' }}</td>
+            </tr>
 
-        <tr>
-            <td>Sekolah</td>
-            <td>{{ $filters['school'] ?? '-' }}</td>
-        </tr>
+            <tr>
+                <td>Sekolah</td>
+                <td>{{ $filters['school'] ?? '-' }}</td>
+            </tr>
+        </tbody>
     </table>
-
 
 </div>

@@ -17,6 +17,8 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
+use Mpdf\Mpdf;
+use Mpdf\Output\Destination;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -27,7 +29,90 @@ class LegerGradeController extends Controller
         return Inertia::render('Legers/Index', $this->buildData($request));
     }
 
+
+
     public function pdf(Request $request): StreamedResponse
+    {
+        $data = $this->buildData($request);
+
+        // Direktori temporary mPDF
+        $tempDir = storage_path('app/mpdf/temp');
+
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        // Konfigurasi mPDF
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            // 'format' => 'A4-L',
+
+            'margin_left' => 10,
+            'margin_right' => 10,
+            'margin_top' => 10,
+            'margin_bottom' => 10,
+
+            'margin_header' => 5,
+            'margin_footer' => 5,
+
+            'default_font' => 'dejavusans',
+            'default_font_size' => 8,
+
+            'tempDir' => storage_path('app/mpdf/temp'),
+
+            'autoScriptToLang' => true,
+            'autoLangToFont' => true,
+
+            'useSubstitutions' => true,
+        ]);
+
+        // Informasi dokumen
+        $mpdf->SetTitle('Leger Nilai');
+        $mpdf->SetAuthor(config('app.name'));
+        $mpdf->SetCreator(config('app.name'));
+
+        // Logo
+        $logoPath = public_path('img/logo.png');
+
+        $labels = $data['filters']['labels'] ?? [];
+
+        // Render Blade
+        $html = view('leger-grades.pdf', [
+            'title' => 'Leger Nilai',
+            'logo_path' => is_file($logoPath) ? $logoPath : null,
+            'institution_name' => $labels['school'] ?? 'Seluruh Lembaga',
+            'rows' => $data['rows'],
+            'columns' => $data['columns'],
+            'schools' => $data['school_groups'] ?? [],
+            'summary' => $data['summary'],
+            'filters' => $data['filters'],
+            'print_date' => now()->format('d/m/Y H:i'),
+            'data' => $data['schools'],
+        ])->render();
+
+        // Generate PDF
+        $mpdf->WriteHTML($html);
+
+        $filename = 'Leger-Nilai-' . now()->format('Ymd-His') . '.pdf';
+
+        // Output PDF ke browser
+        return response()->stream(
+            static function () use ($mpdf, $filename): void {
+                echo $mpdf->Output(
+                    $filename,
+                    Destination::STRING_RETURN
+                );
+            },
+            200,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                'Cache-Control' => 'private, max-age=0, must-revalidate',
+            ],
+        );
+    }
+
+    public function pdfDompdf(Request $request): StreamedResponse
     {
         $data = $this->buildData($request);
 
