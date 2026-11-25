@@ -4,11 +4,10 @@
 
     <div class="logo-wrapper">
         @if ($logo_path)
-            <img
-                src="{{ $logo_path }}"
-                alt="Logo Lembaga"
-                class="logo"
-            >
+        <img
+            src="{{ $logo_path }}"
+            alt="Logo Lembaga"
+            class="logo">
         @endif
     </div>
 
@@ -56,10 +55,6 @@
                 <td>{{ $filters['subject'] ?? '-' }}</td>
             </tr>
 
-            <tr>
-                <td>Sekolah</td>
-                <td>{{ $filters['school'] ?? '-' }}</td>
-            </tr>
         </tbody>
     </table>
 

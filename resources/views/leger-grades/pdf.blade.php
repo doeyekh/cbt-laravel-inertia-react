@@ -16,11 +16,10 @@
 
         /* Cover */
         .cover-page {
-            height: 270mm;
+            height: 250mm;
             padding: 10mm 12mm;
             border: 2px solid #047857;
             text-align: center;
-            page-break-after: always;
             position: relative;
         }
 
@@ -197,38 +196,57 @@
             color: #64748b;
             text-align: right;
         }
+
+        .content-page .signature {
+            width: 100%;
+            margin-top: 6mm;
+            border-collapse: collapse;
+            page-break-inside: avoid;
+        }
+
+        .content-page .signature td {
+            width: 50%;
+            text-align: center;
+            vertical-align: top;
+            font-size: 8pt;
+        }
+
+        .content-page .signature-space {
+            height: 16mm;
+        }
+
+        .content-page .signature-name {
+            font-weight: bold;
+            text-decoration: underline;
+        }
     </style>
 </head>
 
 <body>
     @foreach ($schools as $school)
         @php
+            $schoolName = $school['name'] ?? 'Semua Sekolah';
             $schoolClasses = $school['classes'] ?? [];
-
             $schoolClassLabel = $filters['labels']['class'] ?? 'Semua kelas';
-
             if (empty($filters['class_id']) && $schoolClasses !== []) {
                 $schoolClassLabel = collect($schoolClasses)
                     ->pluck('name')
                     ->filter()
                     ->implode(', ');
             }
-
             $schoolFilters = array_merge(
                 $filters['labels'] ?? [],
                 [
-                    'school' => $school['name'] ?? 'Semua Sekolah',
+                    'school' => $schoolName,
                     'class' => $schoolClassLabel,
                 ],
             );
         @endphp
-
         {{-- Cover sekolah --}}
         @include('leger-grades.cover', [
             'filters' => $schoolFilters,
-            'school' => $school['name'] ?? 'Semua Sekolah',
+            'school' => $schoolName,
         ])
-
         {{-- Konten leger dikelompokkan per kelas --}}
         @forelse ($schoolClasses as $class)
             <pagebreak orientation="L" />
@@ -237,18 +255,20 @@
                 'rows' => $class['students'] ?? [],
                 'summary' => $class['summary'] ?? [],
                 'class' => $class,
+                'school' => $school,
             ])
         @empty
             <pagebreak orientation="L" />
-
             @include('leger-grades.content', [
                 'rows' => [],
                 'summary' => [],
                 'class' => ['name' => $schoolClassLabel],
+                'school' => $school,
             ])
         @endforelse
-
-        <pagebreak orientation="P" />
+        @unless ($loop->last)
+            <pagebreak orientation="P" />
+        @endunless
     @endforeach
 </body>
 

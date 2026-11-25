@@ -204,7 +204,52 @@ class LegerGradeControllerTest extends TestCase
                 ->where('filters.school_is_locked', false)
                 ->where('filters.labels.school', 'Semua sekolah')
                 ->where('summary.student_count', 2)
-                ->has('schools', 2));
+                ->has('schools', 2)
+                ->has('school_reports', 2));
+    }
+
+    public function test_school_without_scores_still_gets_its_own_report(): void
+    {
+        $scoredSchool = School::factory()->create(['name' => 'SMA Dengan Nilai']);
+        $emptySchool = School::factory()->create(['name' => 'SMP Tanpa Nilai']);
+        $subject = Subject::factory()->create(['name' => 'Biologi']);
+
+        $this->createGradedAttempt($scoredSchool, $subject, null, 80);
+
+        $this->actingAs(User::factory()->administrator()->create());
+
+        $this->get(route('admin.leger-grades.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('school_reports', 2)
+                ->where('summary.student_count', 1)
+                ->where('rows.0.school_id', $scoredSchool->id)
+                ->where('school_reports.0.name', 'SMA Dengan Nilai')
+                ->has('school_reports.0.classes', 1)
+                ->where('school_reports.1.name', 'SMP Tanpa Nilai')
+                ->has('school_reports.1.classes', 0));
+    }
+
+    public function test_school_report_contains_headmaster_and_admin_names(): void
+    {
+        $school = School::factory()->create(['name' => 'SMA Tanda Tangan']);
+        $headmaster = User::factory()->guru()->create(['name' => 'Kepala Sekolah Satu']);
+        $admin = User::factory()->administrator()->create(['name' => 'Admin Sekolah Satu']);
+
+        $school->update([
+            'headmaster_id' => $headmaster->id,
+            'admin_id' => $admin->id,
+        ]);
+
+        $this->actingAs(User::factory()->administrator()->create());
+
+        $this->get(route('admin.leger-grades.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('school_reports', 1)
+                ->where('school_reports.0.name', 'SMA Tanda Tangan')
+                ->where('school_reports.0.headmaster_name', 'Kepala Sekolah Satu')
+                ->where('school_reports.0.admin_name', 'Admin Sekolah Satu'));
     }
 
     public function test_ungraded_attempts_are_ignored(): void
@@ -273,6 +318,8 @@ class LegerGradeControllerTest extends TestCase
             [
                 'id' => 1,
                 'name' => 'SMA Nusantara',
+                'headmaster_name' => 'Drs. Kepala Nusantara',
+                'admin_name' => 'Admin Nusantara',
                 'summary' => [],
                 'classes' => [
                     [
@@ -292,6 +339,8 @@ class LegerGradeControllerTest extends TestCase
             [
                 'id' => 2,
                 'name' => 'SMA Harapan',
+                'headmaster_name' => 'Drs. Kepala Harapan',
+                'admin_name' => 'Admin Harapan',
                 'summary' => [],
                 'classes' => [
                     [
@@ -301,6 +350,14 @@ class LegerGradeControllerTest extends TestCase
                         'students' => [$student('Citra Dewi', 'XI IPS 1')],
                     ],
                 ],
+            ],
+            [
+                'id' => 3,
+                'name' => 'SMP Tanpa Nilai',
+                'headmaster_name' => 'Drs. Kepala Tanpa Nilai',
+                'admin_name' => 'Admin Tanpa Nilai',
+                'summary' => [],
+                'classes' => [],
             ],
         ];
 
@@ -326,12 +383,25 @@ class LegerGradeControllerTest extends TestCase
             'data' => $schools,
         ])->render();
 
-        $this->assertSame(2, substr_count($html, 'class="cover-page"'));
+        $this->assertSame(3, substr_count($html, 'class="cover-page"'));
         $this->assertStringContainsString('SMA Nusantara', $html);
         $this->assertStringContainsString('SMA Harapan', $html);
+        $this->assertStringContainsString('SMP Tanpa Nilai', $html);
         $this->assertStringContainsString('X IPA 1', $html);
         $this->assertStringContainsString('X IPA 2', $html);
         $this->assertStringContainsString('XI IPS 1', $html);
+        $this->assertStringContainsString('Sekolah: <strong>SMA Nusantara</strong>', $html);
+        $this->assertStringContainsString('Sekolah: <strong>SMA Harapan</strong>', $html);
+        $this->assertStringContainsString('Sekolah: <strong>SMP Tanpa Nilai</strong>', $html);
+        $this->assertStringContainsString('Tidak ada data nilai.', $html);
+        $this->assertSame(4, substr_count($html, 'Kepala Sekolah'));
+        $this->assertSame(4, substr_count($html, 'Admin Sekolah'));
+        $this->assertStringContainsString('Drs. Kepala Nusantara', $html);
+        $this->assertStringContainsString('Admin Nusantara', $html);
+        $this->assertStringContainsString('Drs. Kepala Harapan', $html);
+        $this->assertStringContainsString('Admin Harapan', $html);
+        $this->assertStringContainsString('Drs. Kepala Tanpa Nilai', $html);
+        $this->assertStringContainsString('Admin Tanpa Nilai', $html);
 
         // Setiap siswa hanya muncul pada tabel kelasnya sendiri.
         $this->assertSame(1, substr_count($html, 'Andi Pratama'));

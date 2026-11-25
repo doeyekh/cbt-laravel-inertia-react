@@ -29,8 +29,6 @@ class LegerGradeController extends Controller
         return Inertia::render('Legers/Index', $this->buildData($request));
     }
 
-
-
     public function pdf(Request $request): StreamedResponse
     {
         $data = $this->buildData($request);
@@ -38,7 +36,7 @@ class LegerGradeController extends Controller
         // Direktori temporary mPDF
         $tempDir = storage_path('app/mpdf/temp');
 
-        if (!is_dir($tempDir)) {
+        if (! is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
 
@@ -83,7 +81,7 @@ class LegerGradeController extends Controller
             'institution_name' => $labels['school'] ?? 'Seluruh Lembaga',
             'rows' => $data['rows'],
             'columns' => $data['columns'],
-            'schools' => $data['school_groups'] ?? [],
+            'schools' => $data['school_reports'] ?? [],
             'summary' => $data['summary'],
             'filters' => $data['filters'],
             'print_date' => now()->format('d/m/Y H:i'),
@@ -93,7 +91,7 @@ class LegerGradeController extends Controller
         // Generate PDF
         $mpdf->WriteHTML($html);
 
-        $filename = 'Leger-Nilai-' . now()->format('Ymd-His') . '.pdf';
+        $filename = 'Leger-Nilai-'.now()->format('Ymd-His').'.pdf';
 
         // Output PDF ke browser
         return response()->stream(
@@ -106,7 +104,7 @@ class LegerGradeController extends Controller
             200,
             [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
                 'Cache-Control' => 'private, max-age=0, must-revalidate',
             ],
         );
@@ -139,11 +137,11 @@ class LegerGradeController extends Controller
             'institution_name' => $labels['school'] ?? 'Seluruh Lembaga',
             'rows' => $data['rows'],
             'columns' => $data['columns'],
-            'schools' => $data['school_groups'] ?? [],
+            'schools' => $data['school_reports'] ?? [],
             'summary' => $data['summary'],
             'filters' => $data['filters'],
             'print_date' => now()->format('d/m/Y H:i'),
-            'data' => $data['schools']
+            'data' => $data['schools'],
         ])->render();
 
         $dompdf = new Dompdf($options);
@@ -151,7 +149,7 @@ class LegerGradeController extends Controller
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
-        $filename = 'Leger-Nilai-' . now()->format('Ymd-His') . '.pdf';
+        $filename = 'Leger-Nilai-'.now()->format('Ymd-His').'.pdf';
 
         return response()->stream(
             static function () use ($dompdf): void {
@@ -160,7 +158,7 @@ class LegerGradeController extends Controller
             200,
             [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
             ],
         );
     }
@@ -171,7 +169,7 @@ class LegerGradeController extends Controller
 
         return Excel::download(
             new LegerGradeExport(collect($data['rows']), collect($data['columns'])),
-            'Leger-Nilai-' . now()->format('Ymd') . '.xlsx',
+            'Leger-Nilai-'.now()->format('Ymd').'.xlsx',
         );
     }
 
@@ -236,13 +234,17 @@ class LegerGradeController extends Controller
         // ---------------------------------------------------------
 
         $schools = School::query()
+            ->with([
+                'headmaster:id,name',
+                'admin:id,name',
+            ])
             ->whereIn('id', $schoolIds)
             ->when(
                 $filters['school_id'] !== null,
-                fn($query) => $query->where('id', $filters['school_id'])
+                fn ($query) => $query->where('id', $filters['school_id'])
             )
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'headmaster_id', 'admin_id']);
 
         // ---------------------------------------------------------
         // 3. Data tahun ajaran.
@@ -252,7 +254,7 @@ class LegerGradeController extends Controller
             ->orderByDesc('is_active')
             ->orderByDesc('code')
             ->get(['id', 'code', 'name', 'semester', 'is_active'])
-            ->map(fn(AcademicYear $academicYear): array => [
+            ->map(fn (AcademicYear $academicYear): array => [
                 'id' => $academicYear->id,
                 'name' => $academicYear->name,
                 'semester_label' => $academicYear->semester?->label(),
@@ -269,11 +271,11 @@ class LegerGradeController extends Controller
         $classes = SchoolClass::query()
             ->whereHas(
                 'examSchedules.examPackage',
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereIn('school_id', $schoolIds)
                     ->when(
                         $filters['school_id'] !== null,
-                        fn($query) => $query->where(
+                        fn ($query) => $query->where(
                             'school_id',
                             $filters['school_id']
                         )
@@ -289,11 +291,11 @@ class LegerGradeController extends Controller
         $subjects = Subject::query()
             ->whereHas(
                 'examSchedules.examPackage',
-                fn($query) => $query
+                fn ($query) => $query
                     ->whereIn('school_id', $schoolIds)
                     ->when(
                         $filters['school_id'] !== null,
-                        fn($query) => $query->where(
+                        fn ($query) => $query->where(
                             'school_id',
                             $filters['school_id']
                         )
@@ -310,7 +312,7 @@ class LegerGradeController extends Controller
             ->whereIn('school_id', $schoolIds)
             ->when(
                 $filters['school_id'] !== null,
-                fn($query) => $query->where(
+                fn ($query) => $query->where(
                     'school_id',
                     $filters['school_id']
                 )
@@ -365,6 +367,7 @@ class LegerGradeController extends Controller
                 'exam_attempts.id',
                 'exam_attempts.exam_participant_id',
                 'exam_attempts.exam_schedule_id',
+                'exam_attempts.exam_package_id',
                 'exam_attempts.status',
                 'exam_attempts.score',
                 'exam_attempts.max_score',
@@ -394,15 +397,15 @@ class LegerGradeController extends Controller
                     ->whereIn('school_id', $schoolIds)
                     ->when(
                         $schoolId !== null,
-                        fn($query) => $query->where('school_id', $schoolId)
+                        fn ($query) => $query->where('school_id', $schoolId)
                     )
                     ->when(
                         $academicYearId !== null,
-                        fn($query) => $query->where('academic_year_id', $academicYearId)
+                        fn ($query) => $query->where('academic_year_id', $academicYearId)
                     )
                     ->when(
                         $examTypeId !== null,
-                        fn($query) => $query->where('exam_type_id', $examTypeId)
+                        fn ($query) => $query->where('exam_type_id', $examTypeId)
                     );
             })
             ->whereHas('examSchedule', function ($query) use (
@@ -412,11 +415,11 @@ class LegerGradeController extends Controller
                 $query
                     ->when(
                         $classId !== null,
-                        fn($query) => $query->where('class_id', $classId)
+                        fn ($query) => $query->where('class_id', $classId)
                     )
                     ->when(
                         $subjectId !== null,
-                        fn($query) => $query->where('subject_id', $subjectId)
+                        fn ($query) => $query->where('subject_id', $subjectId)
                     );
             })
             ->when($search !== '', function ($query) use ($search): void {
@@ -514,7 +517,7 @@ class LegerGradeController extends Controller
         // ---------------------------------------------------------
 
         $columns = $columns->sortBy(
-            fn(string $name): string => $name
+            fn (string $name): string => $name
         );
 
         // ---------------------------------------------------------
@@ -558,7 +561,7 @@ class LegerGradeController extends Controller
         // ---------------------------------------------------------
 
         $columnProps = $columns
-            ->map(fn(string $name, int $id): array => [
+            ->map(fn (string $name, int $id): array => [
                 'id' => $id,
                 'name' => $name,
             ])
@@ -569,7 +572,7 @@ class LegerGradeController extends Controller
         // 15. Statistik keseluruhan.
         // ---------------------------------------------------------
 
-        $summary = $this->summarizeRowS(
+        $summary = $this->summarizeRows(
             $rows,
             count($columnProps)
         );
@@ -578,7 +581,7 @@ class LegerGradeController extends Controller
         // 16. Kelompokkan siswa berdasarkan sekolah dan kelas.
         // ---------------------------------------------------------
 
-        $schoolsData = collect($rows)
+        $schoolGroups = collect($rows)
             ->groupBy('school_id')
             ->map(function ($schoolRows): array {
                 $firstStudent = $schoolRows->first();
@@ -613,7 +616,26 @@ class LegerGradeController extends Controller
                     'classes' => $classesData,
                 ];
             })
-            ->sortBy('name')
+            ->keyBy('id');
+
+        // Setiap sekolah yang dapat diakses selalu mendapat laporan sendiri,
+        // termasuk sekolah yang belum memiliki data nilai.
+
+        $emptySummary = $this->summarizeRows([]);
+
+        $schoolReports = $schools
+            ->map(function (School $school) use ($schoolGroups, $emptySummary): array {
+                $group = $schoolGroups->get($school->id);
+
+                return [
+                    'id' => $school->id,
+                    'name' => $school->name,
+                    'headmaster_name' => $school->headmaster?->name,
+                    'admin_name' => $school->admin?->name,
+                    'summary' => $group['summary'] ?? $emptySummary,
+                    'classes' => $group['classes'] ?? [],
+                ];
+            })
             ->values()
             ->all();
 
@@ -625,11 +647,11 @@ class LegerGradeController extends Controller
             && $filters['class_id'] === null
             ? (
                 collect($rows)
-                ->pluck('class')
-                ->filter()
-                ->unique()
-                ->sort()
-                ->implode(', ') ?: '-'
+                    ->pluck('class')
+                    ->filter()
+                    ->unique()
+                    ->sort()
+                    ->implode(', ') ?: '-'
             )
             : null;
 
@@ -647,8 +669,8 @@ class LegerGradeController extends Controller
         $academicYearLabel = $filters['academic_year_id'] !== null
             ? trim(
                 ($selectedAcademicYear['name'] ?? '-')
-                    . ' - '
-                    . ($selectedAcademicYear['semester_label'] ?? ''),
+                    .' - '
+                    .($selectedAcademicYear['semester_label'] ?? ''),
                 ' -'
             )
             : 'Belum dipilih';
@@ -697,7 +719,8 @@ class LegerGradeController extends Controller
             'title' => 'Leger Nilai',
             'rows' => $rows,
             'schools' => $schools->values()->all(),
-            'school_groups' => $schoolsData,
+            'school_groups' => $schoolReports,
+            'school_reports' => $schoolReports,
             'columns' => $columnProps,
             'summary' => $summary,
             'filters' => $filters,
@@ -714,12 +737,12 @@ class LegerGradeController extends Controller
     ): array {
         $averageValues = collect($rows)
             ->pluck('average')
-            ->filter(fn($value): bool => $value !== null)
+            ->filter(fn ($value): bool => $value !== null)
             ->values();
 
         $subjectCount ??= collect($rows)
-            ->flatMap(fn(array $row) => collect($row['scores'])
-                ->filter(fn($value): bool => $value !== null)
+            ->flatMap(fn (array $row) => collect($row['scores'])
+                ->filter(fn ($value): bool => $value !== null)
                 ->keys())
             ->unique()
             ->count();
@@ -735,7 +758,7 @@ class LegerGradeController extends Controller
             'passed_percentage' => $averageValues->isNotEmpty()
                 ? round(
                     $averageValues->filter(
-                        fn($value): bool => $value >= 70
+                        fn ($value): bool => $value >= 70
                     )->count() / $averageValues->count() * 100,
                     2,
                 )

@@ -1,6 +1,5 @@
 
 <section class="content-page">
-
     @php
         $format = static fn ($value): string => $value === null
             ? '-'
@@ -20,6 +19,24 @@
 
         $className = $class['name']
             ?? ($filters['labels']['class'] ?? '-');
+
+        $schoolName = is_array($school ?? null)
+            ? ($school['name'] ?? null)
+            : ($school ?? null);
+
+        $schoolName = $schoolName ?: ($filters['labels']['school'] ?? '-');
+
+        $headmasterName = is_array($school ?? null)
+            ? ($school['headmaster_name'] ?? null)
+            : null;
+
+        $headmasterName = $headmasterName ?: '-';
+
+        $adminName = is_array($school ?? null)
+            ? ($school['admin_name'] ?? null)
+            : null;
+
+        $adminName = $adminName ?: '-';
     @endphp
 
     <div class="title">Leger Nilai</div>
@@ -29,7 +46,7 @@
     </div>
 
     <div class="meta">
-        Sekolah: <strong>{{ $school['name'] ?? '-' }}</strong>
+        Sekolah: <strong>{{ $schoolName }}</strong>
         &nbsp;|&nbsp;
         Tahun Ajaran: <strong>{{ $filters['labels']['academic_year'] ?? '-' }}</strong>
         &nbsp;|&nbsp;
@@ -93,11 +110,10 @@
     <table class="data">
         <thead>
             <tr>
-                <th class="text-center">No</th>
-                <th>Nomor Peserta</th>
-                <th>NISN</th>
+                <th class="text-center" width="5%">No</th>
+                <th width="10%">Nomor Peserta</th>
+                <th width="10%">NISN</th>
                 <th>Nama Siswa</th>
-                <th>Kelas</th>
 
                 @foreach ($columns as $column)
                     <th class="text-center">
@@ -105,9 +121,9 @@
                     </th>
                 @endforeach
 
-                <th class="text-center">Rata-rata</th>
-                <th class="text-center">Ujian</th>
-                <th class="text-center">Tuntas</th>
+                <th class="text-center" width="5%">Rata-rata</th>
+                <th class="text-center" width="5%">Ujian</th>
+                <th class="text-center" width="5%">Tuntas</th>
             </tr>
         </thead>
 
@@ -130,9 +146,6 @@
                         {{ $row['name'] ?? '-' }}
                     </td>
 
-                    <td>
-                        {{ $row['class'] ?? '-' }}
-                    </td>
 
                     @foreach ($columns as $column)
                         @php
@@ -165,6 +178,28 @@
                 </tr>
             @endforelse
         </tbody>
+    </table>
+
+    {{-- Tanda tangan --}}
+    <table class="signature">
+        <tr>
+            <td>
+                <p>Mengetahui,</p>
+                <p>Kepala Sekolah</p>
+
+                <div class="signature-space"></div>
+
+                <p class="signature-name">{{ $headmasterName }}</p>
+            </td>
+
+            <td>
+                <p>Admin Sekolah</p>
+
+                <div class="signature-space"></div>
+
+                <p class="signature-name">{{ $adminName }}</p>
+            </td>
+        </tr>
     </table>
 
     <div class="foot">
