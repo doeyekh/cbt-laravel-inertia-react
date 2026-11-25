@@ -11,7 +11,7 @@ import { useToast } from '@/Hooks/useToast';
 import ClassTable from './Components/ClassTable';
 import ClassModal from './Components/ClassModal';
 import { route } from '@/Utils/route';
-import StatCardGroup from '../../Components/UI/stat-card-group';
+import StatCardGroup from '@/Components/UI/stat-card-group';
 import useClassStatistic from './Components/useClassStatistuc';
 
 export default function ClassesIndex({ classes, filters, schools, academicYears, stats }) {

@@ -32,10 +32,13 @@ export default function RichTextEditor({
     const editorRef = useRef(null);
     const previewRef = useRef(null);
     const savedRangeRef = useRef(null);
+    const savedCodeRangeRef = useRef(null);
     const isFocusedRef = useRef(false);
 
     const [formulaOpen, setFormulaOpen] = useState(false);
     const [formula, setFormula] = useState('');
+    const [codeOpen, setCodeOpen] = useState(false);
+    const [code, setCode] = useState('');
 
     const serialize = useCallback(() => {
         const editor = editorRef.current;
@@ -180,6 +183,122 @@ export default function RichTextEditor({
         onChange?.(serialize());
     };
 
+    const openCode = () => {
+        const selection = window.getSelection();
+
+        if (
+            selection &&
+            selection.rangeCount > 0 &&
+            editorRef.current?.contains(selection.anchorNode)
+        ) {
+            savedCodeRangeRef.current = selection.getRangeAt(0).cloneRange();
+        }
+
+        setCode('');
+        setCodeOpen(true);
+    };
+
+    const closeCode = () => {
+        setCodeOpen(false);
+        setCode('');
+        editorRef.current?.focus();
+    };
+
+    const insertCode = () => {
+        const editor = editorRef.current;
+        const source = code.replace(/\r\n/g, '\n');
+
+        if (!editor || !source.trim()) {
+            return;
+        }
+
+        editor.focus();
+
+        const selection = window.getSelection();
+
+        if (selection && savedCodeRangeRef.current) {
+            selection.removeAllRanges();
+            selection.addRange(savedCodeRangeRef.current);
+        }
+
+        const pre = document.createElement('pre');
+        const codeElement = document.createElement('code');
+
+        codeElement.textContent = source;
+        pre.appendChild(codeElement);
+
+        const activeSelection = window.getSelection();
+
+        if (
+            activeSelection &&
+            activeSelection.rangeCount > 0 &&
+            editor.contains(activeSelection.anchorNode)
+        ) {
+            const range = activeSelection.getRangeAt(0);
+            const container = range.startContainer.nodeType === Node.ELEMENT_NODE
+                ? range.startContainer
+                : range.startContainer.parentElement;
+            const paragraph = container?.closest?.('p');
+
+            if (!paragraph || !editor.contains(paragraph)) {
+                range.deleteContents();
+                range.insertNode(pre);
+                range.setStartAfter(pre);
+                range.collapse(true);
+                activeSelection.removeAllRanges();
+                activeSelection.addRange(range);
+            } else {
+                const beforeRange = document.createRange();
+
+                beforeRange.selectNodeContents(paragraph);
+                beforeRange.setEnd(range.startContainer, range.startOffset);
+
+                const beforeFragment = beforeRange.extractContents();
+                const afterFragment = document.createDocumentFragment();
+
+                while (paragraph.firstChild) {
+                    afterFragment.appendChild(paragraph.firstChild);
+                }
+
+                const blocks = [];
+
+                if (beforeFragment.textContent.trim()) {
+                    const beforeParagraph = document.createElement('p');
+
+                    beforeParagraph.appendChild(beforeFragment);
+                    blocks.push(beforeParagraph);
+                }
+
+                blocks.push(pre);
+
+                if (afterFragment.textContent.trim()) {
+                    const afterParagraph = document.createElement('p');
+
+                    afterParagraph.appendChild(afterFragment);
+                    blocks.push(afterParagraph);
+                }
+
+                const nextSibling = paragraph.nextSibling;
+
+                paragraph.remove();
+                blocks.forEach((block) => editor.insertBefore(block, nextSibling));
+
+                const caretRange = document.createRange();
+
+                caretRange.setStartAfter(pre);
+                caretRange.collapse(true);
+                activeSelection.removeAllRanges();
+                activeSelection.addRange(caretRange);
+            }
+        } else {
+            editor.appendChild(pre);
+        }
+
+        setCodeOpen(false);
+        setCode('');
+        onChange?.(serialize());
+    };
+
     return (
         <div
             className={`rounded-xl border border-outline-variant/40 bg-white overflow-hidden ${className}`}
@@ -217,6 +336,20 @@ export default function RichTextEditor({
                 >
                     ∑ Rumus
                 </button>
+
+                <button
+                    type="button"
+                    title="Sisipkan blok kode"
+                    aria-label="Sisipkan blok kode"
+                    onMouseDown={(event) => {
+                        event.preventDefault();
+                        openCode();
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg font-label font-semibold text-xs text-primary hover:bg-primary/10 transition-colors"
+                >
+                    <span className="material-symbols-outlined text-[16px]">code</span>
+                    Kode
+                </button>
             </div>
 
             <div
@@ -237,7 +370,7 @@ export default function RichTextEditor({
                 }}
                 data-placeholder={placeholder}
                 style={{ minHeight: `${minHeight}px` }}
-                className="px-3 py-2.5 text-sm font-body text-on-surface leading-relaxed focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-on-surface-variant empty:before:pointer-events-none [&_.math-node]:inline-block [&_.math-node]:mx-0.5"
+                className="px-3 py-2.5 text-sm font-body text-on-surface leading-relaxed focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-on-surface-variant empty:before:pointer-events-none [&_.math-node]:inline-block [&_.math-node]:mx-0.5 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-slate-900 [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-xs [&_pre]:leading-relaxed [&_pre]:text-slate-100 [&_code]:font-mono"
             />
 
             {formulaOpen && (
@@ -282,6 +415,48 @@ export default function RichTextEditor({
                     <p className="text-[10px] font-body text-on-surface-variant">
                         Rumus disimpan sebagai kode LaTeX di dalam teks soal dan
                         otomatis dirender saat dibuka kembali.
+                    </p>
+                </div>
+            )}
+
+            {codeOpen && (
+                <div className="border-t border-outline-variant/30 bg-surface-container-low px-3 py-3 space-y-2">
+                    <label className="block text-[11px] font-label font-semibold text-on-surface-variant uppercase tracking-wider">
+                        Kode Program
+                    </label>
+
+                    <textarea
+                        value={code}
+                        onChange={(event) => setCode(event.target.value)}
+                        rows={6}
+                        spellCheck={false}
+                        placeholder="Tempel kode HTML/CSS/JS di sini..."
+                        className="w-full bg-white text-on-surface font-mono text-xs px-3 py-2 rounded-xl border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+
+                    <div className="flex flex-wrap items-center justify-end gap-3">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={closeCode}
+                        >
+                            Batal
+                        </Button>
+
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={insertCode}
+                            disabled={!code.trim()}
+                        >
+                            Sisipkan
+                        </Button>
+                    </div>
+
+                    <p className="text-[10px] font-body text-on-surface-variant">
+                        Kode akan disimpan sebagai blok kode dan ditampilkan apa
+                        adanya kepada siswa.
                     </p>
                 </div>
             )}
