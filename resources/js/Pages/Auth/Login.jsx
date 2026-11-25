@@ -20,7 +20,7 @@ export default function Login() {
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        post(route('login.store'));
+        post(route('admin.login.store'));
     };
 
     const handleRemember = (event) => {

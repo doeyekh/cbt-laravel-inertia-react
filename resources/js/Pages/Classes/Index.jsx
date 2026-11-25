@@ -35,11 +35,15 @@ export default function ClassesIndex({ classes, filters, schools, academicYears,
     const editingItem = rows.find((schoolClass) => schoolClass.id === editingId) ?? null;
     const deletingItem = rows.find((schoolClass) => schoolClass.id === deletingId) ?? null;
 
+    const total = stats?.total ?? classes?.total ?? 0;
+    const activeCount = stats?.active ?? 0;
+    const inactiveCount = stats?.inactive ?? 0;
+
     const statistics = useClassStatistic({
         total,
         activeCount,
         inactiveCount,
-    })
+    });
 
     useEffect(() => {
         if (skipInitialSearch.current) {
@@ -161,12 +165,6 @@ export default function ClassesIndex({ classes, filters, schools, academicYears,
             }
         );
     };
-
-    const total = stats?.total ?? classes?.total ?? 0;
-    const activeCount = stats?.active ?? 0;
-    const inactiveCount = stats?.inactive ?? 0;
-
-    
 
     return (
         <AppLayout>
