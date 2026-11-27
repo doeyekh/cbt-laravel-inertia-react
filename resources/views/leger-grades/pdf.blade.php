@@ -16,8 +16,8 @@
 
         /* Cover */
         .cover-page {
-            height: 250mm;
-            padding: 10mm 12mm;
+            height: 270mm;
+            /* padding: 10mm 5mm; */
             border: 2px solid #047857;
             text-align: center;
             position: relative;
@@ -33,7 +33,7 @@
         }
 
         .cover-page .logo-wrapper {
-            margin-top: 8mm;
+            margin-top: 28mm;
             margin-bottom: 6mm;
         }
 
@@ -85,8 +85,8 @@
         }
 
         .cover-page .information {
-            width: 85%;
-            margin: 9mm auto 0;
+            width: 90%;
+            margin: 18mm auto 0;
             border-collapse: collapse;
             text-align: left;
         }
@@ -98,13 +98,26 @@
         }
 
         .cover-page .information td:first-child {
-            width: 38%;
+            width: 50%;
             color: #64748b;
         }
 
         .cover-page .information td:last-child {
             color: #0f172a;
             font-weight: bold;
+        }
+
+        .header{
+            width: 100%;
+        }
+
+        .header .header-logo {
+            width: 20%;
+        }
+
+        .header-logo .logo {
+            width: 10mm;
+            height: 10mm;
         }
 
         /* Content */

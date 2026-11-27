@@ -45,15 +45,6 @@
                 <td>{{ $filters['exam_type'] ?? '-' }}</td>
             </tr>
 
-            <tr>
-                <td>Kelas</td>
-                <td>{{ $filters['class'] ?? '-' }}</td>
-            </tr>
-
-            <tr>
-                <td>Mata Pelajaran</td>
-                <td>{{ $filters['subject'] ?? '-' }}</td>
-            </tr>
 
         </tbody>
     </table>

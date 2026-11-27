@@ -1,48 +1,47 @@
-
 <section class="content-page">
     @php
-        $format = static fn ($value): string => $value === null
-            ? '-'
-            : number_format((float) $value, 1) . '%';
+    $format = static fn ($value): string => $value === null
+    ? '-'
+    : number_format((float) $value, 1) . '%';
 
-        $summary = array_merge([
-            'student_count' => 0,
-            'subject_count' => 0,
-            'average_percentage' => null,
-            'passed_percentage' => null,
-            'highest_percentage' => null,
-            'lowest_percentage' => null,
-        ], $summary ?? []);
+    $summary = array_merge([
+    'student_count' => 0,
+    'subject_count' => 0,
+    'average_percentage' => null,
+    'passed_percentage' => null,
+    'highest_percentage' => null,
+    'lowest_percentage' => null,
+    ], $summary ?? []);
 
-        $columns = $columns ?? [];
-        $rows = $rows ?? [];
+    $columns = $columns ?? [];
+    $rows = $rows ?? [];
 
-        $className = $class['name']
-            ?? ($filters['labels']['class'] ?? '-');
+    $className = $class['name']
+    ?? ($filters['labels']['class'] ?? '-');
 
-        $schoolName = is_array($school ?? null)
-            ? ($school['name'] ?? null)
-            : ($school ?? null);
+    $schoolName = is_array($school ?? null)
+    ? ($school['name'] ?? null)
+    : ($school ?? null);
 
-        $schoolName = $schoolName ?: ($filters['labels']['school'] ?? '-');
+    $schoolName = $schoolName ?: ($filters['labels']['school'] ?? '-');
 
-        $headmasterName = is_array($school ?? null)
-            ? ($school['headmaster_name'] ?? null)
-            : null;
+    $headmasterName = is_array($school ?? null)
+    ? ($school['headmaster_name'] ?? null)
+    : null;
 
-        $headmasterName = $headmasterName ?: '-';
+    $headmasterName = $headmasterName ?: '-';
 
-        $adminName = is_array($school ?? null)
-            ? ($school['admin_name'] ?? null)
-            : null;
+    $adminName = is_array($school ?? null)
+    ? ($school['admin_name'] ?? null)
+    : null;
 
-        $adminName = $adminName ?: '-';
+    $adminName = $adminName ?: '-';
     @endphp
 
     <div class="title">Leger Nilai</div>
 
     <div class="subtitle">
-        Rekap nilai ujian per mata pelajaran - Kelas {{ $className }}
+        Rekap nilai ujian {{ $filters['labels']['exam_type'] ?? '-' }}
     </div>
 
     <div class="meta">
@@ -56,6 +55,19 @@
         &nbsp;|&nbsp;
         Jenis Ujian: <strong>{{ $filters['labels']['exam_type'] ?? '-' }}</strong>
     </div>
+    <table class="header">
+        <tr>
+            <td class="header-logo">
+
+                @if ($logo_path)
+                <img
+                    src="{{ $logo_path }}"
+                    alt="Logo Lembaga"
+                    class="logo">
+                @endif
+            </td>
+        </tr>
+    </table>
 
     <div class="divider"></div>
 
@@ -116,9 +128,9 @@
                 <th>Nama Siswa</th>
 
                 @foreach ($columns as $column)
-                    <th class="text-center">
-                        {{ $column['name'] }}
-                    </th>
+                <th class="text-center">
+                    {{ $column['name'] }}
+                </th>
                 @endforeach
 
                 <th class="text-center" width="5%">Rata-rata</th>
@@ -129,53 +141,53 @@
 
         <tbody>
             @forelse ($rows as $index => $row)
-                <tr>
-                    <td class="text-center">
-                        {{ $index + 1 }}
-                    </td>
+            <tr>
+                <td class="text-center">
+                    {{ $index + 1 }}
+                </td>
 
-                    <td>
-                        {{ $row['participant_number'] ?? '-' }}
-                    </td>
+                <td>
+                    {{ $row['participant_number'] ?? '-' }}
+                </td>
 
-                    <td>
-                        {{ $row['nisn'] ?? '-' }}
-                    </td>
+                <td>
+                    {{ $row['nisn'] ?? '-' }}
+                </td>
 
-                    <td>
-                        {{ $row['name'] ?? '-' }}
-                    </td>
+                <td>
+                    {{ $row['name'] ?? '-' }}
+                </td>
 
 
-                    @foreach ($columns as $column)
-                        @php
-                            $value = $row['scores'][(string) $column['id']] ?? null;
-                        @endphp
+                @foreach ($columns as $column)
+                @php
+                $value = $row['scores'][(string) $column['id']] ?? null;
+                @endphp
 
-                        <td class="text-right">
-                            {{ $format($value) }}
-                        </td>
-                    @endforeach
+                <td class="text-right">
+                    {{ $format($value) }}
+                </td>
+                @endforeach
 
-                    <td class="text-right">
-                        <strong>{{ $format($row['average'] ?? null) }}</strong>
-                    </td>
+                <td class="text-right">
+                    <strong>{{ $format($row['average'] ?? null) }}</strong>
+                </td>
 
-                    <td class="text-center">
-                        {{ $row['completed_count'] ?? 0 }}
-                    </td>
+                <td class="text-center">
+                    {{ $row['completed_count'] ?? 0 }}
+                </td>
 
-                    <td class="text-center">
-                        {{ $row['passed_count'] ?? 0 }}
-                    </td>
-                </tr>
+                <td class="text-center">
+                    {{ $row['passed_count'] ?? 0 }}
+                </td>
+            </tr>
 
             @empty
-                <tr>
-                    <td colspan="{{ 5 + count($columns) + 3 }}" class="text-center">
-                        Tidak ada data nilai.
-                    </td>
-                </tr>
+            <tr>
+                <td colspan="{{ 5 + count($columns) + 3 }}" class="text-center">
+                    Tidak ada data nilai.
+                </td>
+            </tr>
             @endforelse
         </tbody>
     </table>
