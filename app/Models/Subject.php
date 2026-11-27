@@ -55,4 +55,14 @@ class Subject extends Model
     {
         return $this->hasMany(ExamSchedule::class);
     }
+
+    /**
+     * Get the subject teacher assignments for this subject.
+     *
+     * @return HasMany<SubjectTeacher, $this>
+     */
+    public function subjectTeachers(): HasMany
+    {
+        return $this->hasMany(SubjectTeacher::class);
+    }
 }

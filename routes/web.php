@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\Admin\ClassController;
 use App\Http\Controllers\Admin\ClassMemberController;
+use App\Http\Controllers\Admin\ExamAdministrationController;
 use App\Http\Controllers\Admin\ExamAttemptResetController;
 use App\Http\Controllers\Admin\ExamAttemptTimeController;
 use App\Http\Controllers\Admin\ExamEssayGradeController;
@@ -125,6 +126,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 ->name('exam-attempts.essays.index');
             Route::patch('exam-attempts/{examAttempt}/essays/{examAnswer}', [ExamEssayGradeController::class, 'update'])
                 ->name('exam-attempts.essays.update');
+
+            Route::get('exam-administration', [ExamAdministrationController::class, 'index'])
+                ->name('exam-administration.index');
+
+            Route::get('exam-administration/attendance', [ExamAdministrationController::class, 'attendance'])
+                ->name('exam-administration.attendance');
+
+            Route::get('exam-administration/practical-grades', [ExamAdministrationController::class, 'practicalGrades'])
+                ->name('exam-administration.practical-grades');
         });
 
         Route::patch('schools/{school}/credential-template', [ExamParticipantController::class, 'updateCredentialTemplate'])

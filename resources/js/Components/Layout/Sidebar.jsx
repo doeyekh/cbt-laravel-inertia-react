@@ -30,6 +30,10 @@ const buildNavItems = () => [
                 name: 'Peserta Ujian',
                 href: navRoute('admin.exam-participants.index'),
             },
+            {
+                name: 'Download Administrasi',
+                href: navRoute('admin.exam-administration.index'),
+            },
             { name: 'Jenis Penilaian', href: navRoute('admin.assessment-types.index') },
         ],
     },
@@ -113,6 +117,10 @@ export default function Sidebar({ isOpen, onClose }) {
                             children: item.children.filter((child) => {
                                 if (isRestrictedGuru && item.name === 'Pengelolaan Ujian') {
                                     return child.name === 'Bank Soal';
+                                }
+
+                                if (child.name === 'Download Administrasi') {
+                                    return isSchoolAdmin;
                                 }
 
                                 // tahun pelajaran
