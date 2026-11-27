@@ -148,11 +148,14 @@ class QuestionBankControllerTest extends TestCase
             'subject_id' => $this->subject->id,
             'academic_year_id' => $this->academicYear->id,
         ]);
-        QuestionBank::factory()->create([
+        $ownBank->classes()->attach($this->schoolClass->id);
+
+        $otherBank = QuestionBank::factory()->create([
             'school_id' => $this->school->id,
             'subject_id' => $otherSubject->id,
             'academic_year_id' => $this->academicYear->id,
         ]);
+        $otherBank->classes()->attach($otherClass->id);
 
         $this->actingAs($guru)
             ->get(route('admin.question-banks.index'))

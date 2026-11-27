@@ -411,14 +411,17 @@ class ExamReportControllerTest extends TestCase
                 'teacher' => 'Guru Contoh',
             ],
             'summary' => [],
+            'questionAnalysis' => [],
             'participants' => [
                 [
                     'name' => 'Siswa Belum Memulai',
+                    'attendance_status' => 'Tidak Hadir',
                     'percentage' => null,
                     'time_spent_seconds' => null,
                 ],
                 [
                     'name' => 'Siswa Contoh',
+                    'attendance_status' => 'Hadir',
                     'percentage' => 87.5,
                     'time_spent_seconds' => 120,
                 ],

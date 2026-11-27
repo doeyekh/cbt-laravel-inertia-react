@@ -13,7 +13,11 @@ class ImportQuestionsRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user !== null && ($user->isAdministrator() || $user->isSchoolAdmin());
+        return $user !== null && (
+            $user->isAdministrator()
+            || $user->isSchoolAdmin()
+            || $user->isRestrictedGuru()
+        );
     }
 
     /**
