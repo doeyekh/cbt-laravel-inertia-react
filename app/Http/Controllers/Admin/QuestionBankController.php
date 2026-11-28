@@ -497,6 +497,10 @@ class QuestionBankController extends Controller
      */
     private function shouldScopeGuru(User $user, int $academicYearId): bool
     {
+        if ($user->isSchoolAdmin() || $user->isHeadmaster()) {
+            return false;
+        }
+
         if ($user->isRestrictedGuru()) {
             return true;
         }

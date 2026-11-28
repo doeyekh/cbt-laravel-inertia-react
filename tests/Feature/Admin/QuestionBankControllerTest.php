@@ -215,6 +215,7 @@ class QuestionBankControllerTest extends TestCase
     {
         $guru = User::factory()->guru()->create(['school_id' => $this->school->id]);
         $this->school->update(['headmaster_id' => $guru->id]);
+        $otherSubject = Subject::factory()->create();
 
         SubjectTeacher::query()->updateOrCreate(
             [
@@ -228,13 +229,18 @@ class QuestionBankControllerTest extends TestCase
             ],
         );
 
+        SubjectTeacher::factory()
+            ->forClass($this->schoolClass, $this->academicYear, $otherSubject)
+            ->create(['is_active' => true]);
+
         $this->actingAs($guru)
             ->get(route('admin.question-banks.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('subjectOptions.0.school_id', $this->school->id)
-                ->where('subjectOptions.0.subject_ids', [$this->subject->id])
-                ->where('subjectOptions.0.class_ids_by_subject.'.$this->subject->id, [$this->schoolClass->id])
+                ->has('subjectOptions.0.subject_ids', 2)
+                ->whereContains('subjectOptions.0.subject_ids', [$this->subject->id, $otherSubject->id])
+                ->missing('subjectOptions.0.class_ids_by_subject')
             );
 
         $this->actingAs($guru)
@@ -246,6 +252,77 @@ class QuestionBankControllerTest extends TestCase
 
         $this->assertSame($this->school->id, $questionBank->school_id);
         $this->assertSame($this->subject->id, $questionBank->subject_id);
+    }
+
+    public function test_school_admin_guru_sees_all_subjects_with_active_teachers(): void
+    {
+        $schoolAdmin = User::factory()->guru()->create(['school_id' => $this->school->id]);
+        $this->school->update(['admin_id' => $schoolAdmin->id]);
+        $otherSubject = Subject::factory()->create();
+
+        SubjectTeacher::query()->updateOrCreate(
+            [
+                'school_class_id' => $this->schoolClass->id,
+                'subject_id' => $this->subject->id,
+            ],
+            [
+                'academic_year_id' => $this->academicYear->id,
+                'teacher_id' => $schoolAdmin->id,
+                'is_active' => true,
+            ],
+        );
+
+        SubjectTeacher::factory()
+            ->forClass($this->schoolClass, $this->academicYear, $otherSubject)
+            ->create(['is_active' => true]);
+
+        $this->actingAs($schoolAdmin)
+            ->get(route('admin.question-banks.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('subjects', 2)
+                ->has('subjectOptions.0.subject_ids', 2)
+                ->whereContains('subjectOptions.0.subject_ids', [$this->subject->id, $otherSubject->id])
+                ->missing('subjectOptions.0.class_ids_by_subject')
+            );
+    }
+
+    public function test_school_admin_guru_can_store_a_question_bank_of_an_untaught_subject(): void
+    {
+        $schoolAdmin = User::factory()->guru()->create(['school_id' => $this->school->id]);
+        $this->school->update(['admin_id' => $schoolAdmin->id]);
+        $otherSubject = Subject::factory()->create();
+
+        SubjectTeacher::query()->updateOrCreate(
+            [
+                'school_class_id' => $this->schoolClass->id,
+                'subject_id' => $this->subject->id,
+            ],
+            [
+                'academic_year_id' => $this->academicYear->id,
+                'teacher_id' => $schoolAdmin->id,
+                'is_active' => true,
+            ],
+        );
+
+        SubjectTeacher::factory()
+            ->forClass($this->schoolClass, $this->academicYear, $otherSubject)
+            ->create(['is_active' => true]);
+
+        $this->actingAs($schoolAdmin)
+            ->post(route('admin.question-banks.store'), $this->payload([
+                'subject_id' => $otherSubject->id,
+                'code' => 'BSK-PRD-01',
+                'name' => 'Bank Soal Produktif',
+            ]))
+            ->assertRedirect()
+            ->assertSessionHas('toast.type', 'success');
+
+        $this->assertDatabaseHas('question_banks', [
+            'school_id' => $this->school->id,
+            'subject_id' => $otherSubject->id,
+            'code' => 'BSK-PRD-01',
+        ]);
     }
 
     public function test_guru_cannot_store_a_question_bank_of_an_untaught_subject(): void
